@@ -6,8 +6,8 @@ def make_proper_dir_name(directory_str):
     
     Parameters:
     directory_str : Directory path in string.
+    
     Returns : Proper directory path with os.sep added to the end.
-
     """
 
     if directory_str is None:
@@ -23,8 +23,8 @@ def makedirs(directory_list):
     
     Parameters:
     directory_list : A list of directories to create.
-    Returns : 
 
+    Returns : A directory.
     """
     for directory in directory_list:
         if not os.path.exists(directory):

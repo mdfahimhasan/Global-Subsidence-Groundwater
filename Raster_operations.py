@@ -5,10 +5,14 @@ from rasterio.mask import mask
 from glob import glob
 import numpy as np
 import gdal
-import fiona 
+import json
 from fiona import transform
+from shapely.geometry import box
+import geopandas as gpd
 import astropy.convolution as apc
 from scipy.ndimage import gaussian_filter
+from sysops import makedirs
+import datetime
 
 NO_DATA_VALUE = -9999
 referenceraster="E:\\NGA_Project_Data\\shapefiles\\Country_continent_full_shapes\\Global_continents_ref_raster_with_antrc.tif"
@@ -83,7 +87,8 @@ def write_raster(raster_arr, raster_file, transform, outfile_path, no_data_value
             nodata=no_data_value
     ) as dst:
         dst.write(raster_arr, raster_file.count)
-
+    
+    return outfile_path    
     
 # =============================================================================
 # #filter raster
@@ -151,9 +156,7 @@ def filter_specific_values(input_raster,outdir,raster_name,fillvalue=np.nan,filt
             new_arr[arr==value]=value
     new_arr[np.isnan(new_arr)]=no_data_value
     
-    
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makedirs(outdir)
     output_raster=os.path.join(outdir,raster_name)
     
     write_raster(raster_arr=new_arr, raster_file=data, transform=data.transform, outfile_path=output_raster)
@@ -166,16 +169,16 @@ def filter_specific_values(input_raster,outdir,raster_name,fillvalue=np.nan,filt
 def resample_reproject(input_raster,outdir,raster_name,reference_raster=referenceraster2,resample=True,reproject=False,
                        change_crs_to="EPSG:4326",both=False):
     """
-    Resample a raster according to a reference raster/ Reproject a raster/ Both resample and reprojection.
+    Resample/Reproject/Both resample and reproject a raster according to a reference raster.
 
     Parameters:
     input_raster : Input raster Directory with filename.
     outdir : Output raster directory.
     raster_name: Output raster name.
     reference_raster : Reference raster path with file name.
-    resample : Set True to resample only.
-    reproject : Set True to reproject only.
-    both : Set True to both resample and reproject.
+    resample : Set True to resample only. Set reproject and both to False when resample=True.
+    reproject : Set True to reproject only. Set resample and both to False when reproject=True.
+    both : Set True to both resample and reproject. Set resample and reproject to False when both=True.
     
     Returns : Resampled/Reprojected raster.
     """
@@ -193,7 +196,7 @@ def resample_reproject(input_raster,outdir,raster_name,reference_raster=referenc
     if both:
         gdal.Warp(destNameOrDestDS=output_raster,srcDSOrSrcDSTab=input_raster,width=ref_arr.shape[1],
               height=ref_arr.shape[0],dstSRS=change_crs_to,outputType=gdal.GDT_Float32)
-
+    
 # =============================================================================
 # #Reproject Coordinates
 # =============================================================================
@@ -292,50 +295,46 @@ def change_band_value_to_nodata(input_raster,outfile_path,band_val_to_change=0,n
 # #Clipping Raster and saving
 # =============================================================================
 
-def mask_raster(input_raster_dir,mask_shp_dir,output_dir,invert=False,crop=True,add_title=""):
+def crop_raster_by_extent(input_raster,ref_file,output_dir,raster_name,invert=False,crop=True):
     """
-    Masks a raster with given shapefile.
+    Crop a raster with a given shapefile/raster. Only use to crop to extent. Cannot perform cropping to exact shapefile.
 
     Parameters
     ----------
-    input_raster_dir : input raster file path
-    mask_shp_dir : shapefile (mask) directory with file name
-    output_dir : output raster directory
+    input_raster: Input raster file path.
+    ref_file : Reference raster or shape file to crop input_raster. 
+    output_dir : Output raster directory.
+    raster_name : Cropped raster name.
     invert : If False (default) pixels outside shapes will be masked. 
              If True, pixels inside shape will be masked.
     crop : Whether to crop the raster to the extent of the shapes. Change to False if invert=True is used.
-    add_title : additional output raster title word if needed. By default blank.
     -------
-    Returns : None
+    Returns : Cropped raster.
     """
  
     #opening input raster
-    raset_arr,raster_file=read_raster_arr_object(input_raster_dir)
+    raset_arr,input_file=read_raster_arr_object(input_raster)
+    
+    if '.shp' in ref_file:
+        ref_extent=gpd.read_File(ref_file)
+    else:
+        ref_raster=rio.open(ref_file)
+        minx,miny,maxx,maxy=ref_raster.bounds
+        ref_extent=gpd.GeoDataFrame({'geometry':box(minx,miny,maxx,maxy)},index=[0],crs=ref_raster.crs.to_string())
+        
+    ref_extent=ref_extent.to_crs(crs=input_file.crs.data)
+    coords=[json.loads(ref_extent.to_json())['features'][0]['geometry']]
     
     #masking
-    with fiona.open(mask_shp_dir,'r') as shapefile:
-        shape=[feature['geometry'] for feature in shapefile]      #shapefile opened with fiona to make sure it can be read as a list/json format by mask
-    
-    masked_arr,masked_transform=mask(dataset=raster_file,shapes=shape,filled=True,crop=crop,invert=invert)
+    cropped_arr,cropped_transform=mask(dataset=input_file,shapes=coords,filled=True,crop=crop,invert=invert)
+    cropped_arr=cropped_arr.squeeze()  #Remove axes of length 1 from the array
     
     #naming output file
-    title_keyword=add_title+mask_shp_dir[mask_shp_dir.rfind(os.sep)+1:mask_shp_dir.rfind(".")]+"_" 
-    output_raster=os.path.join(output_dir,title_keyword+input_raster_dir[input_raster_dir.rfind(os.sep)+1:])
+    makedirs(output_dir)
+    output_raster=os.path.join(output_dir,raster_name)
     
     #saving output raster
-    with rio.open(
-        output_raster,
-        'w',
-        driver='GTiff',
-        height=masked_arr.shape[1],
-        width=masked_arr.shape[2],
-        dtype=masked_arr.dtype,
-        crs=raster_file.crs,
-        transform=masked_transform,
-        count=raster_file.count,
-        nodata=NO_DATA_VALUE
-        ) as dst:
-        dst.write(masked_arr)
+    write_raster(raster_arr=cropped_arr, raster_file=input_file, transform=cropped_transform, outfile_path=output_raster)
 
 # =============================================================================
 # #Mask and Resample Global Raster Data by Reference Raster
@@ -741,6 +740,67 @@ def apply_gaussian_filter(input_raster,outdir,raster_name,sigma=3,ignore_nan=Tru
     write_raster(raster_arr=raster_arr_flt, raster_file=raster_file, transform=raster_file.transform, 
                  outfile_path=os.path.join(outdir,raster_name))
 
+# =============================================================================
+# #Classify InSAR Data
+# =============================================================================
+def Classify_InSAR_raster(input_raster,outdir,raster_name, start_date,end_date, cnra_data=True, unit_change=False,unit_scale=1,
+                          modify_raster=True, resampled_raster_name='Resampled.tif', Res=0.02):
+    """
+    Classify InSAR subsidence raster to project classes.   
+
+    Parameters :
+    input_raster : Input Raster filepath.
+    outdir : Output Directory path.
+    raster_name : Output raster name.
+    start_date : If cnra data, start day of the data in string format. Format must be like "2015/12/31" ("Year/month/day")
+    end_date : If cnra data, end day of the data in string format. Format must be like "2015/12/31" ("Year/month/day")
+    cnra_data : If the data is from 'California National Resources Agency', set True to convert values into cm/year.
+    unit_change : Set True if unit conversion (i.e. m to cm) is required. Defaults to False.
+    unit_scale : Unit value (i.e. unit_scale=100 for m to cm conversion) for conversion.  
+    modify_raster : Set True if classified raster needs resampling. Defaults to True.
+    resampled_raster_name : Resampled raster name. Default is 'Resampled.tif'.
+    Res : Pixel resoultion in degree. Default is 0.02 degree.
+
+    Returns : Classified (and resampled if modify raster=True) subsidence raster.
+    """
+    arr,file=read_raster_arr_object(input_raster)
+    
+    if cnra_data:
+        start_day=datetime.datetime.strptime(start_date, "%Y/%m/%d")
+        end_day=datetime.datetime.strptime(end_date, "%Y/%m/%d")
+        months_between=round(int(str(end_day-start_day).split(" ")[0])/30)
+        
+        arr=arr*30.48*12/months_between
+        
+    if unit_change:
+        arr=arr*unit_scale
+    #New_classes
+    sub_less_1cm=1; sub_bet_1cm_5cm=5; sub_greater_5cm=10; other_values=np.nan
+    
+    arr=np.where(arr>0,other_values,arr)
+    arr=np.where(arr>=-1,sub_less_1cm,arr)
+    arr=np.where((arr<-1)&(arr>=-5),sub_bet_1cm_5cm,arr)
+    arr=np.where(arr<-5,sub_greater_5cm,arr)
+    
+    makedirs(outdir)
+    output_raster=os.path.join(outdir,raster_name)
+    
+    outfilepath=write_raster(raster_arr=arr, raster_file=file, transform=file.transform, outfile_path=output_raster)
+    
+    if modify_raster:
+        resampled_raster=os.path.join(outdir,resampled_raster_name)
+        
+        gdal.Warp( destNameOrDestDS=resampled_raster,srcDSOrSrcDSTab=outfilepath,dstSRS='EPSG:4326',xRes=Res,yRes=Res,
+                  outputType=gdal.GDT_Float32)
+
+#California InSAR Data Processing
+# =============================================================================
+# outdir=r"E:\NGA_Project_Data\InSAR_Data\Processed_resampled"
+# fp=r"E:\NGA_Project_Data\InSAR_Data\California\California_vert_disp_20150613_20190919.tif"
+# 
+# Classify_InSAR_raster(input_raster=fp, outdir=outdir, raster_name='California_reclass.tif',
+#                       resampled_raster_name='California_reclass_resampled.tif',start_date="2015/06/13",end_date="2019/09/19")
+# =============================================================================
     
 ##Resampling Alexi ET Produce
 

@@ -3,9 +3,11 @@ import ee
 import zipfile
 import rasterio
 import requests
+import pandas as pd
 import geopandas as gpd
 from glob import glob
-import Raster_operations as rops
+from sysops import makedirs
+from Raster_operations import mosaic_rasters
 import math
 
 NO_DATA_VALUE=-9999
@@ -75,18 +77,20 @@ def download_imagecollection_gee(yearlist,start_month,end_month,output_dir,input
             open(local_file_name,'wb').write(r.content)
 
 
-def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,inputshp,
-                                  gee_scale=5000,dataname="ET_",name="MODIS",
+def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,shapecsv=None,inputshp_dir=None, 
+                                  search_criteria="*worldGrid*.shp", gee_scale=5000,dataname="ET_",name="MODIS",
                                   bandname="ET",imagecollection="MODIS/006/MOD16A2",factor=1,select_bandname=True):
     """
     Download Imagecollection data (i.e. MODIS/Landsat) from Google Earth Engine by range years' mean
     Parameters
     ----------
-    yearlist : list: Year for which data will be downloaded, i.e., [2010,2020]
-    start_month : Integer: Start month of data
-    end_month : Integer: End month of data
-    output_dir : File directory path: Location to downloaded data 
-    inputshp : File directory path: Location of input shapefile (data download extent)
+    yearlist : List of years for which data will be downloaded, i.e., [2010,2020]
+    start_month : Start month of data
+    end_month : End month of data
+    output_dir : File directory path to downloaded data
+    shapecsv : Csv of coordinates for download extent. Set to None if want to use shapefile instead.
+    inputshp_dir : File directory path of input shapefiles (data download extent). Defaults to None.
+    search_criteria : Search criteria for input shapefiles. Defaults to "*worldGrid*.shp"
     gee_scale : Download Scale
     bandname : Band to download from Google earth engine
     imagecollection : Imagecollection name
@@ -99,10 +103,6 @@ def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,inpu
     ee.Initialize()
     data_download=ee.ImageCollection(imagecollection)
     
-    ##Define Extent
-    minx,miny,maxx,maxy=gpd.read_file(inputshp).total_bounds
-    gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
-    
     ##Date Range Creation
     start_date=ee.Date.fromYMD(yearlist[0],start_month,1)
         
@@ -111,49 +111,76 @@ def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,inpu
         
     else:
         end_date=ee.Date.fromYMD(yearlist[1],end_month+1,1)
-
-            
-    ##Get URL
+        
+    ##Reducing the ImageCollection
     if select_bandname:
         data_total=data_download.select(bandname).filterDate(start_date,end_date).mean().multiply(factor).toFloat()
     else:
-        data_total=data_download.filterDate(start_date,end_date).mean().multiply(factor).toFloat()
-
-    data_url=data_total.getDownloadURL({'name':name,
-                                        'crs':"EPSG:4326",
-                                        'scale':gee_scale,
-                                        'region':gee_extent})
+        data_total=data_download.filterDate(start_date,end_date).mean().multiply(factor).toFloat() 
+        
     #Creating Output directory
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    #dowloading the data
-    key_word=inputshp[inputshp.rfind(os.sep)+1:inputshp.rfind("_")]+'_'+dataname
-    local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
-    print('Downloading',local_file_name,'.....')
-    r=requests.get(data_url,allow_redirects=True)
-    open(local_file_name,'wb').write(r.content)     
+    makedirs(output_dir)
+    
+    if inputshp_dir:
+        shapes=glob(os.path.join(inputshp_dir,search_criteria))
+        for shape in shapes:
+            ##Define Extent
+            minx,miny,maxx,maxy=gpd.read_file(shape).total_bounds
+            gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+              
+            #Download URL
+            data_url=data_total.getDownloadURL({'name':name,
+                                                'crs':"EPSG:4326",
+                                                'scale':gee_scale,
+                                                'region':gee_extent})
+            #dowloading the data
+            key_word=shape[shape.rfind(os.sep)+1:shape.rfind("_")]+'_'+dataname
+            local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
+            print('Downloading',local_file_name,'.....')
+            r=requests.get(data_url,allow_redirects=True)
+            open(local_file_name,'wb').write(r.content)  
+            
+    if shapecsv:
+        coords_df=pd.read_csv(shapecsv)
+        for index,row in coords_df.iterrows():
+            #Define Extent
+            minx=row['minx']; miny=row['miny']; maxx=row['maxx']; maxy=row['maxy']
+            gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+            
+            #Download URL
+            data_url=data_total.getDownloadURL({'name':name,
+                                            'crs':"EPSG:4326",
+                                            'scale':gee_scale,
+                                            'region':gee_extent})  
+            #dowloading the data
+            key_word=row['shape']
+            local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
+            print('Downloading',local_file_name,'.....')
+            r=requests.get(data_url,allow_redirects=True)
+            open(local_file_name,'wb').write(r.content)     
 
 # =============================================================================
 # #Download GRACE ensemble data gradient over the year
 # =============================================================================
-def download_Grace_gradient(yearlist,start_month,end_month,output_dir,inputshp,gee_scale=5000):
+def download_Grace_gradient(yearlist,start_month,end_month,output_dir,shapecsv=None,inputshp_dir=None,
+                            search_criteria="*worldGrid*.shp",gee_scale=5000):
     """
     Download ensembled Grace data gradient from Google Earth Engine 
     ----------
-    yearlist : list: Year for which data will be downloaded, i.e., [2010,2020]
-    start_month : Integer: Start month of data
-    end_month : Integer: End month of data
-    output_dir : File directory path: Location to downloaded data 
-    inputshp : File directory path: Location of input shapefile (data download extent)
+    yearlist : List of years for which data will be downloaded, i.e., [2010,2017]
+    start_month : Start month of data.
+    end_month : End month of data.
+    output_dir : File directory path to downloaded data.
+    shapecsv : Csv of coordinates for download extent. Set to None if want to use shapefile instead.
+    search_criteria : Search criteria for input shapefiles. Defaults to "*worldGrid*.shp"
+    inputshp_dir : File directory path of input shapefiles (data download extent). Defaults to None.
     
     """
     ##Initialize
     ee.Initialize()
-
-    ##Define Extent
-    minx,miny,maxx,maxy=gpd.read_file(inputshp).total_bounds
-    gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+    
+    ##Getting download url for ensembled grace data
+    Grace=ee.ImageCollection("NASA/GRACE/MASS_GRIDS/LAND")
     
     ##Date Range Creation
     start_date=ee.Date.fromYMD(yearlist[0],start_month,1)
@@ -171,13 +198,11 @@ def download_Grace_gradient(yearlist,start_month,end_month,output_dir,inputshp,g
         """
         return image.addBands(image.metadata('system:time_start').divide(1000*3600*24*365))
     
-    ##Getting download url for ensembled grace data
-    Grace=ee.ImageCollection("NASA/GRACE/MASS_GRIDS/LAND")
-    
+    #Reducing ImageColeection
     grace_csr=Grace.select("lwe_thickness_csr").filterDate(start_date,end_date).map(addTime)
     grace_csr_trend=grace_csr.select(['system:time_start','lwe_thickness_csr'])\
         .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
-    
+
     grace_gfz=Grace.select("lwe_thickness_gfz").filterDate(start_date,end_date).map(addTime)
     grace_gfz_trend=grace_gfz.select(['system:time_start','lwe_thickness_gfz'])\
         .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
@@ -186,40 +211,70 @@ def download_Grace_gradient(yearlist,start_month,end_month,output_dir,inputshp,g
     grace_jpl_trend=grace_jpl.select(['system:time_start','lwe_thickness_jpl'])\
         .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
     
+    #Ensembling
     grace_ensemble_avg=grace_csr_trend.select(0).add(grace_gfz_trend.select(0)).select(0)\
         .add(grace_jpl_trend.select(0)).select(0).divide(3)
     
-    download_url=grace_ensemble_avg.getDownloadURL({'name':'Grace',
-                                        'crs':"EPSG:4326",
-                                        'scale':gee_scale,
-                                        'region':gee_extent})
-
-    #dowloading the data
-    key_word=inputshp[inputshp.rfind(os.sep)+1:inputshp.rfind("_")]+'_'+'Grace_'
-    local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
-    print('Downloading',local_file_name,'.....')
-    r=requests.get(download_url,allow_redirects=True)
-    open(local_file_name,'wb').write(r.content)     
+    #Creating Output Directory
+    makedirs(output_dir)
+    
+    if inputshp_dir:
+        shapes=glob(os.path.join(inputshp_dir,search_criteria))
+        for shape in shapes:
+            ##Define Extent
+            minx,miny,maxx,maxy=gpd.read_file(shape).total_bounds
+            gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+    
+            download_url=grace_ensemble_avg.getDownloadURL({'name':'Grace',
+                                                                'crs':"EPSG:4326",
+                                                                'scale':gee_scale,
+                                                                'region':gee_extent})
+            #dowloading the data
+            key_word=shape[shape.rfind(os.sep)+1:shape.rfind("_")]+'_'+'Grace_'
+            local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
+            print('Downloading',local_file_name,'.....')
+            r=requests.get(download_url,allow_redirects=True)
+            open(local_file_name,'wb').write(r.content)      
+            
+    if shapecsv:
+        coords_df=pd.read_csv(shapecsv)
+        for index,row in coords_df.iterrows():
+            #Define Extent
+            minx=row['minx']; miny=row['miny']; maxx=row['maxx']; maxy=row['maxy']
+            gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+    
+            download_url=grace_ensemble_avg.getDownloadURL({'name':'Grace',
+                                                                'crs':"EPSG:4326",
+                                                                'scale':gee_scale,
+                                                                'region':gee_extent})
+            #dowloading the data
+            key_word=row['shape']+'Grace'
+            local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
+            print('Downloading',local_file_name,'.....')
+            r=requests.get(download_url,allow_redirects=True)
+            open(local_file_name,'wb').write(r.content)   
 
                     
 # =============================================================================
 # #Stationary Single Image Download 
 # =============================================================================
 
-def download_image_gee(output_dir,inputshp,bandname,factor=1,gee_scale=5000,dataname="DEM_",name="DEM",
-            image="USGS/SRTMGL1_003",Terrain_slope=False):
+def download_image_gee(output_dir,bandname,shapecsv=None,inputshp_dir=None,search_criteria="*worldGrid*.shp",factor=1,
+                       gee_scale=5000, dataname="DEM_",name="DEM",image="USGS/SRTMGL1_003",Terrain_slope=False):
     """
     Download Stationary/Single Image from Google Earth Engine.
     Parameters
     ----------
-    output_dir : File directory path: Location to downloaded data 
-    inputshp : File directory path: Location of input shapefile (data download extent)
-    bandname : Bandname of the data
+    output_dir : File directory path to downloaded data.
+    bandname : Bandname of the data.
+    shapecsv : Csv of coordinates for download extent. Set to None if want to use shapefile instead.
+    search_criteria : Search criteria for input shapefiles. Defaults to "*worldGrid*.shp".
+    inputshp_dir : File directory path of input shapefiles (data download extent). Defaults to None.
     factor : Factor to multiply with (if there is scale mentioned in the data) to convert to original scale.
-    gee_scale : Pixel size
-    dataname : Name extension added to downloaded file
-    name : Name added to file when downloading
-    image : Image name from Google Earth Engine
+    gee_scale : Pixel size in m. DEfaults to 5000.
+    dataname : Name extension added to downloaded file.
+    name : Name added to file when downloading.
+    image : Image name from Google Earth Engine.
     Terrain_slope : If the image is a SRTM DEM data and slope data download is needed. Defaults to False. 
     """
     
@@ -230,27 +285,45 @@ def download_image_gee(output_dir,inputshp,bandname,factor=1,gee_scale=5000,data
     
     if Terrain_slope:
         data_download=ee.Terrain.slope(data_download)
+        
+    #Creating Output Directory
+    makedirs(output_dir)
     
-    ##Define Extent
-    minx,miny,maxx,maxy=gpd.read_file(inputshp).total_bounds
-    gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+    if inputshp_dir:
+        shapes=glob(os.path.join(inputshp_dir,search_criteria))
+        for shape in shapes:
+            ##Define Extent
+            minx,miny,maxx,maxy=gpd.read_file(shape).total_bounds
+            gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
     
-
-    data_url=data_download.getDownloadURL({'name':name,
-                                        'crs':"EPSG:4326",
-                                        'scale':gee_scale,
-                                        'region':gee_extent})
-
-    #Naming downloading file
-    filename=inputshp[inputshp.rfind(os.sep)+1:inputshp.rfind("_")]+'_'+dataname
-    #Output Directory
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    #dowloading the data
-    local_file_name=os.path.join(output_dir,filename+'.zip')
-    print('Downloading',local_file_name,'.....')
-    r=requests.get(data_url,allow_redirects=True)
-    open(local_file_name,'wb').write(r.content)
+            download_url=data_download.getDownloadURL({'name':'Grace',
+                                                        'crs':"EPSG:4326",
+                                                        'scale':gee_scale,
+                                                        'region':gee_extent})
+            #dowloading the data
+            key_word=shape[shape.rfind(os.sep)+1:shape.rfind("_")]
+            local_file_name=os.path.join(output_dir,key_word+'.zip')
+            print('Downloading',local_file_name,'.....')
+            r=requests.get(download_url,allow_redirects=True)
+            open(local_file_name,'wb').write(r.content)      
+        
+    if shapecsv:
+        coords_df=pd.read_csv(shapecsv)
+        for index,row in coords_df.iterrows():
+            #Define Extent
+            minx=row['minx']; miny=row['miny']; maxx=row['maxx']; maxy=row['maxy']
+            gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+    
+            download_url=data_download.getDownloadURL({'name':'Grace',
+                                                        'crs':"EPSG:4326",
+                                                        'scale':gee_scale,
+                                                        'region':gee_extent})
+            #dowloading the data
+            key_word=row['shape']
+            local_file_name=os.path.join(output_dir,key_word+'.zip')
+            print('Downloading',local_file_name,'.....')
+            r=requests.get(download_url,allow_redirects=True)
+            open(local_file_name,'wb').write(r.content)
 
 # =============================================================================
 # #Cloudmask function for landsat 8 data
@@ -378,8 +451,9 @@ def cloudmask_MODIS09A1(image):
 # =============================================================================
 # #Download MODIS 09A1  datawith cloudmaking    
 # =============================================================================
-def download_MODIS_derived_product(yearlist,start_month,end_month,output_dir,inputshp,
-                                  gee_scale=5000,dataname="MODIS_",name="MODIS",
+def download_MODIS_derived_product(yearlist,start_month,end_month,output_dir,shapecsv=None,inputshp_dir=None,
+                                  search_criteria="*worldGrid*.shp", gee_scale=5000,
+                                  dataname="MODIS_",name="MODIS",
                                   imagecollection="MODIS/006/MOD09A1",factor=0.0001,index='NDWI'):
     """
     Download Imagecollection mean data of Landsat products (NDVI,NDWI,EVI), with cloudmask applied,
@@ -392,7 +466,9 @@ def download_MODIS_derived_product(yearlist,start_month,end_month,output_dir,inp
     start_month : Integer: Start month of data
     end_month : Integer: End month of data
     output_dir : File directory path: Location to downloaded data 
-    inputshp : File directory path: Location of input shapefile (data download extent)
+    shapecsv : Csv of coordinates for download extent. Set to None if want to use shapefile instead.
+    inputshp_dir : File directory path of input shapefiles (data download extent). Defaults to None.
+    search_criteria : Search criteria for input shapefiles. Defaults to "*worldGrid*.shp"
     gee_scale : Download Scale
     bandname : Band to download from Google earth engine
     imagecollection : Imagecollection name
@@ -400,14 +476,9 @@ def download_MODIS_derived_product(yearlist,start_month,end_month,output_dir,inp
     name : Name added to file when downloading
     factor : Factor (if needed) to multiply with the band
     index : Index to download ('NDVI'/'NDWI'). Defaults to 'NDWI'
-    """
+    """    
     ##Initialize
     ee.Initialize()
-    data_download=ee.ImageCollection(imagecollection)
-    
-    ##Define Extent
-    minx,miny,maxx,maxy=gpd.read_file(inputshp).total_bounds
-    gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
     
     ##Date Range Creation
     start_date=ee.Date.fromYMD(yearlist[0],start_month,1)
@@ -418,37 +489,60 @@ def download_MODIS_derived_product(yearlist,start_month,end_month,output_dir,inp
     else:
         end_date=ee.Date.fromYMD(yearlist[1],end_month+1,1)
     
-    cloudmasked=data_download.filterDate(start_date,end_date).filterBounds(gee_extent)\
-        .map(cloudmask_MODIS09A1)
+    #Creating Output Directory
+    makedirs(output_dir)
+    
+    dataset=ee.ImageCollection(imagecollection)
+    cloudmasked=dataset.filterDate(start_date,end_date).map(cloudmask_MODIS09A1)
     
     ##Get URL
     if index=='NDVI':
         NIR=cloudmasked.select('sur_refl_b02').mean().multiply(factor).toFloat() 
         Red=cloudmasked.select('sur_refl_b01').mean().multiply(factor).toFloat()
-        NDVI=NIR.subtract(Red).divide(NIR.add(Red))
-        data_url=NDVI.getDownloadURL({'name':name,
-                                      'crs':"EPSG:4326",
-                                      'scale':gee_scale,
-                                       'region':gee_extent})
+        data_download=NIR.subtract(Red).divide(NIR.add(Red))
+        
     if index=="NDWI":
         NIR=cloudmasked.select('sur_refl_b02').mean().multiply(factor).toFloat() 
         SWIR=cloudmasked.select('sur_refl_b06').mean().multiply(factor).toFloat()
-        NDWI=NIR.subtract(SWIR).divide(NIR.add(SWIR))
-        data_url=NDWI.getDownloadURL({'name':name,
-                                      'crs':"EPSG:4326",
-                                      'scale':gee_scale,
-                                      'region':gee_extent})
-
-    #Creating Output directory
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    #dowloading the data
-    key_word=inputshp[inputshp.rfind(os.sep)+1:inputshp.rfind("_")]+'_'+dataname
-    local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
-    print('Downloading',local_file_name,'.....')
-    r=requests.get(data_url,allow_redirects=True)
-    open(local_file_name,'wb').write(r.content)     
+        data_download=NIR.subtract(SWIR).divide(NIR.add(SWIR))
+    
+    if inputshp_dir:
+        shapes=glob(os.path.join(inputshp_dir,search_criteria))
+        for shape in shapes:
+            ##Define Extent
+            minx,miny,maxx,maxy=gpd.read_file(shape).total_bounds
+            gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+              
+            #Download URL
+            data_url=data_download.getDownloadURL({'name':name,
+                                                'crs':"EPSG:4326",
+                                                'scale':gee_scale,
+                                                'region':gee_extent})
+            #dowloading the data
+            key_word=shape[shape.rfind(os.sep)+1:shape.rfind("_")]+'_'+dataname
+            local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
+            print('Downloading',local_file_name,'.....')
+            r=requests.get(data_url,allow_redirects=True)
+            open(local_file_name,'wb').write(r.content)  
+            
+    if shapecsv:
+        coords_df=pd.read_csv(shapecsv)
+        for index,row in coords_df.iterrows():
+            #Define Extent
+            minx=row['minx']; miny=row['miny']; maxx=row['maxx']; maxy=row['maxy']
+            gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
+            
+            #Download URL
+            data_url=data_download.getDownloadURL({'name':name,
+                                            'crs':"EPSG:4326",
+                                            'scale':gee_scale,
+                                            'region':gee_extent})  
+            #dowloading the data
+            key_word=row['shape']
+            local_file_name=os.path.join(output_dir,key_word+str(yearlist[0])+'_'+str(yearlist[1])+'.zip')
+            print('Downloading',local_file_name,'.....')
+            r=requests.get(data_url,allow_redirects=True)
+            open(local_file_name,'wb').write(r.content)         
 
 # =============================================================================
 # #Extract Data  
@@ -478,6 +572,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
                 zip_ref.extract(zip_info,path=out_dir)
             else:
                 zip_ref.extractall(path=out_dir)
+                
 
 # =============================================================================
 # shp="E:\\NGA_Project_Data\\scratch_files\\WorldGrid_35_.shp"
@@ -547,22 +642,23 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # =============================================================================
 
 #Download MODIS NDWI (Cloudmasked)
+#2013_2019
 # =============================================================================
-# #2013_2019
-# shape_path="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
-# shapes=glob(os.path.join(shape_path,"*world*.shp"))
+# csv=r"E:\NGA_Project_Data\shapefiles\GEE_Download_coords.csv"
 # outdir="E:\\NGA_Project_Data\\NDWI_dataset\\2013_2019\\Raw_NDWI_13_19_Step01"
 # mosaic_dir="E:\\NGA_Project_Data\\NDWI_dataset\\2013_2019\\World_NDWI_13_19_Step02"
-# for shape in shapes:
-#     download_MODIS_derived_product(yearlist=[2013,2019],start_month=1,end_month=12,output_dir=outdir,
-#                                    inputshp=shape,
+# 
+# download_MODIS_derived_product(yearlist=[2013,2019],start_month=1,end_month=12,output_dir=outdir,
+#                                    shapecsv=csv,inputshp_dir=None,
 #                                   gee_scale=5000,dataname="MODIS_",name="MODIS",index='NDWI')
-#     extract_data(zip_dir=outdir, out_dir=outdir)
+# extract_data(zip_dir=outdir, out_dir=outdir)
 # 
-# rops.mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name="NDWI_2013_2019.tif",
+# mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name="NDWI_2013_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
-# 
-# #2018_2019
+# =============================================================================
+
+#2018_2019
+# =============================================================================
 # outdir2="E:\\NGA_Project_Data\\NDWI_dataset\\2018_2019\\Raw_NDWI_18_19_Step01"
 # mosaic_dir2="E:\\NGA_Project_Data\\NDWI_dataset\\2018_2019\\World_NDWI_18_19_Step02"
 # for shape in shapes:
@@ -571,7 +667,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                                   gee_scale=5000,dataname="MODIS_",name="MODIS",index='NDWI')
 #     extract_data(zip_dir=outdir2, out_dir=outdir2)
 # 
-# rops.mosaic_rasters(input_dir=outdir2, output_dir=mosaic_dir2, raster_name="NDWI_2018_2019.tif",
+# mosaic_rasters(input_dir=outdir2, output_dir=mosaic_dir2, raster_name="NDWI_2018_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True) 
 # =============================================================================
    
@@ -593,7 +689,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 #     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)  
 #     
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="TRCLM_pr_2013_2019.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="TRCLM_pr_2013_2019.tif",
 #                      ref_raster=referenceraster2,create_outdir=True) 
 # #2018_2019 TERRACLIMATE download
 # download_dir="E:\\NGA_Project_Data\\Rainfall_data\\TERRACLIMATE\\2018_2019\\Raw_TRCLM_Step01"
@@ -606,7 +702,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 #     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)  
 # 
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="TRCLM_pr_2018_2019.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="TRCLM_pr_2018_2019.tif",
 #                      ref_raster=referenceraster2,create_outdir=True) 
 # =============================================================================
 
@@ -623,21 +719,16 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #     extract_data(zip_dir=outdir, out_dir=outdir)
 # =============================================================================
 
-##Download Grace data
+##Download and Mosaic Grace data
 # =============================================================================
-# shapes=glob(os.path.join("E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee","*worldGrid*.shp"))
+# shapes="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
+# csv=r"E:\NGA_Project_Data\shapefiles\GEE_Download_coords.csv"
 # outdir="E:\\NGA_Project_Data\\GRACE\\GEE_WorldGrid_Step1"
-# for shape in shapes:
-#     download_Grace_gradient(yearlist=[2013,2017],start_month=1,end_month=12,output_dir=outdir,
-#                         inputshp=shape,gee_scale=5000)
-#     extract_data(zip_dir=outdir, out_dir=outdir)
-# =============================================================================
-
-#mosacing downloaded grace data to Global data
-# =============================================================================
-# indir="E:\\NGA_Project_Data\\GRACE\\GEE_WorldGrid_Step1"
-# outraster="E:\\NGA_Project_Data\\GRACE\\Global_resampled_Step2\\GRACE_2013_2017.tif"
-# rops.mosaic_rasters(input_dir=indir,output_raster=outraster,ref_raster=referenceraster2,
+# mosaic_dir="E:\\NGA_Project_Data\\GRACE\\Global_resampled_Step2"
+# download_Grace_gradient(yearlist=[2013,2017],start_month=1,end_month=12,inputshp_dir=None, shapecsv=csv,output_dir=outdir,
+#                        gee_scale=5000)
+# extract_data(zip_dir=outdir, out_dir=outdir)
+# mosaic_rasters(input_dir=outdir,output_dir=mosaic_dir,raster_name="GRACE_2013_2017.tif",ref_raster=referenceraster2,
 #                search_by="*.tif",no_data=NO_DATA_VALUE,resolution=0.05)
 # =============================================================================
 
@@ -654,7 +745,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # #mosacing downloaded soil moisture data to Global data
 # indir="E:\\NGA_Project_Data\\Soil_Moisture\\Soil_Moisture_SMAP_2015_2019\\GEE_WorldGrid_Step1" 
 # outraster="E:\\NGA_Project_Data\\Soil_Moisture\\Soil_Moisture_SMAP_2015_2019\\Global_resampled_Step2\\SM_SMAP_2015_2019.tif"
-# rops.mosaic_rasters(input_dir=indir,output_raster=outraster,ref_raster=referenceraster2,
+# mosaic_rasters(input_dir=indir,output_raster=outraster,ref_raster=referenceraster2,
 #                search_by="*.tif",no_data=NO_DATA_VALUE,resolution=0.05)
 # =============================================================================
 
@@ -682,7 +773,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                  out_dir=download_dir_tmax,
 #                  searchby="*.zip",rename_file=True)
 #     
-# rops.mosaic_rasters(input_dir=download_dir_tmax, output_dir=mosaic_max, raster_name="Tmax_2013_2019.tif",
+# mosaic_rasters(input_dir=download_dir_tmax, output_dir=mosaic_max, raster_name="Tmax_2013_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # 
 # #TMIN    
@@ -697,7 +788,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                  out_dir=download_dir_tmin,
 #                  searchby="*.zip",rename_file=True)
 # 
-# rops.mosaic_rasters(input_dir=download_dir_tmin, output_dir=mosaic_min, raster_name="Tmin_2013_2019.tif",
+# mosaic_rasters(input_dir=download_dir_tmin, output_dir=mosaic_min, raster_name="Tmin_2013_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)   
 #     
 # ##2018_2019 TERRACLIMATE download
@@ -718,7 +809,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                  out_dir=download_dir_tmax2,
 #                  searchby="*.zip",rename_file=True)
 # 
-# rops.mosaic_rasters(input_dir=download_dir_tmax2, output_dir=mosaic_max2, raster_name="Tmax_2018_2019.tif",
+# mosaic_rasters(input_dir=download_dir_tmax2, output_dir=mosaic_max2, raster_name="Tmax_2018_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # 
 # #TMIN    
@@ -733,28 +824,23 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                  out_dir=download_dir_tmin2,
 #                  searchby="*.zip",rename_file=True) 
 # 
-# rops.mosaic_rasters(input_dir=download_dir_tmin2, output_dir=mosaic_min2, raster_name="Tmin_2018_2019.tif",
+# mosaic_rasters(input_dir=download_dir_tmin2, output_dir=mosaic_min2, raster_name="Tmin_2018_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # =============================================================================
 
 
 ##Download SRTM DEM Data
 # =============================================================================
-# shape_path="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
-# shapes=glob(os.path.join(shape_path,"*world*.shp"))
-# 
+# csv=r"E:\NGA_Project_Data\shapefiles\GEE_Download_coords.csv"
 # download_dir="E:\\NGA_Project_Data\\DEM_Landform\\SRTM_DEM\\Raw_DEM_Step01"
 # mosaic_dir="E:\\NGA_Project_Data\\DEM_Landform\\SRTM_DEM\\World_DEM_Step02"
 # 
-# 
-# for shape in shapes:
-#     download_image_gee(output_dir=download_dir, inputshp=shape,bandname='elevation',
+# download_image_gee(output_dir=download_dir, shapecsv=csv,inputshp_dir=None,bandname='elevation',
 #                        dataname="DEM_",name="DEM",image="USGS/SRTMGL1_003")
 # 
-# 
-#     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 #     
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="SRTM_DEM_World.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="SRTM_DEM_World.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # =============================================================================
 
@@ -774,7 +860,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 #     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 #     
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="SRTM_DEM_Slope.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="SRTM_DEM_Slope.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # =============================================================================
 
@@ -796,7 +882,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                  out_dir=download_dir,
 #                  searchby="*.zip",rename_file=True)
 #     
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="LF_ALOS_World.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="LF_ALOS_World.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # =============================================================================
 
@@ -818,7 +904,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 #     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 # 
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="EVI_2013_2019.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="EVI_2013_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # 
 # #EVI 2018_2019
@@ -834,7 +920,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 #     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 # 
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="EVI_2018_2019.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="EVI_2018_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # =============================================================================
 
@@ -856,7 +942,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 #     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 # 
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="ET_2013_2019.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="ET_2013_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # 
 # #Modis ET 2018_2019
@@ -871,7 +957,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 #     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 # 
-# rops.mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="ET_2018_2019.tif",
+# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="ET_2018_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True)
 # =============================================================================
 
@@ -887,21 +973,22 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                                   imagecollection="CIESIN/GPWv411/GPW_UNWPP-Adjusted_Population_Density",
 #                                   select_bandname=True,bandname="unwpp-adjusted_population_density")
 #     extract_data(zip_dir=outdir, out_dir=outdir)
-# rops.mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name='Pop_density_GPW_2010_2020.tif')
+# mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name='Pop_density_GPW_2010_2020.tif')
 # =============================================================================
 
-##Download Facebook Population Density (GPW pop dataset is better)
+##Download GPWv411 UN Adjusted POpulation Density 
 # =============================================================================
-# shapes=glob(os.path.join("E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee","*world*.shp"))
-# #2013_2019 (This year range is only set up for the code, the data doesn't change based on year range)
-# outdir="E:\\NGA_Project_Data\\population_density\\Facebook_dataset\\2013_2019\\Raw_GEE_data_step01"
-# mosaic_dir="E:\\NGA_Project_Data\\population_density\\Facebook_dataset\\2013_2019\\World_pop_data_step02"
-# for shape in shapes:
-#     download_imagecollection_mean(yearlist=[2013,2019], start_month=1, end_month=12, output_dir=outdir, inputshp=shape,
-#                                   dataname='pop_',name="FB",gee_scale=5000,
-#                                   imagecollection="projects/sat-io/open-datasets/hrsl/hrslpop",select_bandname=False)
-#     extract_data(zip_dir=outdir, out_dir=outdir)
-# rops.mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name='Pop_density_FB_2013_2019.tif')
+# csv=r"E:\NGA_Project_Data\shapefiles\GEE_Download_coords.csv"
+# #2010_2020 (This year range is only set up for the code, the data doesn't change based on year range)
+# outdir=r"E:\NGA_Project_Data\scratch_files"
+# mosaic_dir=r"E:\NGA_Project_Data\scratch_files"
+# 
+# download_imagecollection_mean(yearlist=[2010,2020], start_month=1, end_month=1, output_dir=outdir,shapecsv=csv,inputshp_dir=None,
+#                                   dataname='pop_',name="GPW",gee_scale=5000,
+#                                   imagecollection="CIESIN/GPWv411/GPW_UNWPP-Adjusted_Population_Density",
+#                                   select_bandname=True,bandname="unwpp-adjusted_population_density")
+# extract_data(zip_dir=outdir, out_dir=outdir)
+# mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name='Pop_density_GPW_2010_2020.tif')
 # =============================================================================
 
 ##Download Global Aridity Index
@@ -914,5 +1001,5 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                        dataname="Aridity_",name="Aridity",image="projects/sat-io/open-datasets/global_ai_et0",
 #                        Terrain_slope=False)
 #     extract_data(zip_dir=outdir, out_dir=outdir)
-# rops.mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name="Global_Aridity_Index.tif")
+# mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name="Global_Aridity_Index.tif")
 # =============================================================================

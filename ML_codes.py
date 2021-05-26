@@ -4,14 +4,17 @@ import Raster_operations as rops
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.metrics import confusion_matrix,accuracy_score,precision_score,recall_score
+from xgboost import XGBClassifier
 #from sklearn.svm import SVC
 #from sklearn.pipeline import Pipeline
 #from sklearn.preprocessing import StandardScaler
 #from sklearn.model_selection import GridSearchCV
 from sklearn.inspection import plot_partial_dependence
+from sysops import make_proper_dir_name,makedirs
 
 def create_dataframe(input_raster_dir,output_csv,exclude_columns=(),pattern="*.tif"):
     """
@@ -43,7 +46,7 @@ def create_dataframe(input_raster_dir,output_csv,exclude_columns=(),pattern="*.t
     return predictor_df
 
 
-def split_train_test_ratio(input_csv,pred_attr='Subsidence_G5_L5',test_size=0.3,random_state=0,
+def split_train_test_ratio(predictor_csv,pred_attr='Subsidence_G5_L5',test_size=0.3,random_state=0,
                                                       shuffle=True,outdir=None):
     """
     Split dataset into train and test data based on a ratio
@@ -58,7 +61,7 @@ def split_train_test_ratio(input_csv,pred_attr='Subsidence_G5_L5',test_size=0.3,
 
     Returns: X_train, X_test, y_train, y_test
     """
-    input_df=pd.read_csv(input_csv)
+    input_df=pd.read_csv(predictor_csv)
     X=input_df.drop(pred_attr,axis=1)
     y=input_df[pred_attr]
     
@@ -80,7 +83,125 @@ def split_train_test_ratio(input_csv,pred_attr='Subsidence_G5_L5',test_size=0.3,
         
     return X_train, X_test, y_train, y_test
 
+def build_ML_classifier(predictor_csv,modeldir,model='RF', load_model=False,
+                  pred_attr='Subsidence_G5_L5', test_size=0.3, random_state=0, shuffle=True, outdir=None,
+                  n_estimators=500,bootstrap=True,oob_score=True, n_jobs=-1,max_features='auto',
+                  accuracy=True, multiclass=True,save=False,cm_csv=None,
+                  predictor_importance=False,
+                  pdp=False,multiclass_pdp=True,plot_save=None):
+    """
+    Build Machine Learning Classifier. Can run 'Random Forest', 'Extra Trees Classifier' and 'XGBClassifier'.
 
+    Parameters:
+    predictor_csv : Predictor csv (with filepath) containing all the predictors.
+    modeldir : Model directory to store/load model
+    model : Machine learning model to run. Choose from 'RF'/ETC'/'XGBC'. Default set to 'RF'.
+    load_model : Set True to load existing model. Default set to False for new model creation.
+    pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
+    test_size : The percentage of test dataset. Defaults to 0.3.
+    random_state : Seed value. Defaults to 0.
+    shuffle : Whether or not to shuffle data before spliting. Defaults to True.
+    outdir : Set a output directory if training and test dataset need to be saved. Defaults to None.
+    n_estimators : The number of trees in the forest.. Defaults to 500.
+    bootstrap : Whether bootstrap samples are used when building trees. Defaults to True.
+    oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
+    n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
+    max_features : The number of features to consider when looking for the best split. Defaults to None.
+    multiclass : If multiclass classification, set True for getting model performance. Defaults to False.
+    save : Set True to save confusion matrix as csv. Defaults to False.
+    cm_csv : Confusion matrix csv filepath. If save=True must need a cm_csv. Defaults to None.
+    predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
+    # ADD PDP VARIABLES
+
+    Returns: rf_classifier (A fitted random forest model)
+    """
+    
+    #Spliting Training and Tesing Data
+    X_train, X_test, y_train, y_test=split_train_test_ratio(predictor_csv=predictor_csv,pred_attr=pred_attr,
+                                                            test_size=test_size,random_state=random_state,
+                                                            shuffle=shuffle,outdir=outdir)
+    #Making directory for model
+    makedirs[make_proper_dir_name(modeldir)]
+    model_file=modeldir+model
+    
+    #Machinle Learning Models
+    if not load_model:
+        if model=='RF':
+            classifier=RandomForestClassifier(n_estimators=n_estimators,random_state=random_state,bootstrap=bootstrap,
+                                  n_jobs=n_jobs,oob_score=oob_score,max_features=max_features)
+        
+        if model=='ETC':
+            classifier=RandomForestClassifier(n_estimators=n_estimators,random_state=random_state,bootstrap=bootstrap,
+                                  n_jobs=n_jobs,oob_score=oob_score,max_features=max_features)
+        
+        if model=='XGBC':
+            classifier=XGBClassifier(n_estimators=n_estimators,random_state=random_state,learning_rate=0.0098,
+                                     grow_policy='lossguide', booster='gbtree', objective='multi:softmax',subsample=0.75,
+                                     n_jobs=n_jobs,
+                                     colsample_bytree=1,colsample_bylevel=1,colsample_bynode=1)
+            classifier.fit(X_train,y_train)
+            y_pred=classifier.predict(X_test)
+            pickle.dump(classifier, open(model_file,mode='wb+'))
+            
+    else:
+        classifier=pickle.load(open(model_file,mode='rb'))
+        
+    if accuracy:
+        Classification_accuracy(y_test,y_pred,classifier,predictor_csv,multiclass=multiclass,save=save,cm_csv=cm_csv,
+                            predictor_importance=False)
+        
+    if pdp:
+        pdp_plot(classifier=classifier, X_train=X_train,outdir=plot_save,multiclass_pdp=multiclass_pdp)
+
+    return classifier
+
+def Classification_accuracy(y_test,y_pred,classifier,predictor_csv,multiclass=True,save=False,cm_csv=None,
+                            predictor_importance=False):
+    """
+    Classification accuracy assessment.
+
+    Parameters:
+    y_test : y_test data from split_train_test_ratio() function.
+    y_pred : y_pred data from build_ML_classifier() function.
+    classifier : ML classifier from build_ML_classifier() function.
+    predictor_csv : Predictor csv.
+    multiclass : Set True if classification is multiclass.
+    save : Set True to ssave copnfusion matrix.
+    save : Set True to save confusion matrix as csv. Defaults to False.
+    cm_csv : Confusion matrix csv filepath. If save=True must need a cm_csv. Defaults to None.
+    predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
+
+    Returns: Confusion matrix, score and predictor importance graph.
+    """
+    if multiclass:
+        labels=['No Subsidence','1-5 cm Subsidence','<5cm subsidence','>5cm Subsidence'] 
+        cm=confusion_matrix(y_test,y_pred)
+        cm_df=pd.DataFrame(cm,columns=labels,index=labels)
+        if save:
+            cm_df.to_csv(cm_csv)
+        
+        print(cm_df,'\n')
+        print('Recall Score {:.2f}'.format(recall_score(y_test,y_pred,average='micro')))
+        print('Precision Score {:.2f}'.format(precision_score(y_test,y_pred,average='micro')))
+        print('Accuracy Score {:.2f}'.format(accuracy_score(y_test,y_pred)))
+    else:
+        labels=['No Subsidence','>5cm Subsidence']
+        cm=confusion_matrix(y_test,y_pred)
+        cm_df=pd.DataFrame(cm,columns=labels,index=labels)
+        if save:
+            cm_df.to_csv(cm_csv)
+        print(cm_df,'\n')
+        print('Recall Score {:.2f}'.format(recall_score(y_test,y_pred)))
+        print('Precision Score {:.2f}'.format(precision_score(y_test,y_pred)))
+        print('Accuracy Score {:.2f}'.format(accuracy_score(y_test,y_pred)))
+    if predictor_importance:
+        col_labels=pd.read_csv(predictor_csv).columns
+        importance=classifier.feature_importances_
+        plt.bar([x for x in range(len(importance))],importance,tick_label=col_labels[:-1],color='tomato')
+        plt.title('Feature Importance')
+        plt.xticks(rotation=45)
+        
+        
 def pdp_plot(X_train,classifier,outdir,multiclass_pdp=True,#title1='PDP <5cm Subsidence.png',
              #title2='PDP >5cm Subsidence.png'
              ):
@@ -114,78 +235,8 @@ def pdp_plot(X_train,classifier,outdir,multiclass_pdp=True,#title1='PDP <5cm Sub
                                 ax=ax) 
         plt.rcParams['font.size'] = '8'
         fig.tight_layout(pad=0.1, w_pad=0.1, h_pad=3)
-
-
-def random_forest_classifier(input_csv,plot_save=None,pred_attr='Subsidence_G5_L5',test_size=0.3,random_state=0,shuffle=True,
-                             outdir=None,n_estimators=500,bootstrap=True,oob_score=True,
-                             n_jobs=-1,max_features=None,multiclass=False,save=False,cm_csv=None,
-                             predictor_importance=False,pdp=False,multiclass_pdp=True):
-    """
-    Random Forest Classifier.
-
-    Parameters:
-    input_csv : Input csv (with filepath) containing all the predictors.
-    pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
-    test_size : The percentage of test dataset. Defaults to 0.3.
-    random_state : Seed value. Defaults to 0.
-    shuffle : Whether or not to shuffle data before spliting. Defaults to True.
-    outdir : Set a output directory if training and test dataset need to be saved. Defaults to None.
-    n_estimators : The number of trees in the forest.. Defaults to 500.
-    bootstrap : Whether bootstrap samples are used when building trees. Defaults to True.
-    oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
-    n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
-    max_features : The number of features to consider when looking for the best split. Defaults to None.
-    multiclass : If multiclass classification, set True for getting model performance. Defaults to False.
-    save : Set True to save confusion matrix as csv. Defaults to False.
-    cm_csv : Confusion matrix csv filepath. If save=True must need a cm_csv. Defaults to None.
-    predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
-
-    Returns: rf_classifier (A fitted random forest model)
-
-    """
-    
-    X_train, X_test, y_train, y_test=split_train_test_ratio(input_csv=input_csv,pred_attr=pred_attr,
-                                                            test_size=test_size,random_state=random_state,
-                                                            shuffle=shuffle,outdir=outdir)
-    rf_classifier=RandomForestClassifier(n_estimators=n_estimators,random_state=random_state,bootstrap=bootstrap,
-                              n_jobs=n_jobs,oob_score=oob_score,max_features=max_features)
-    rf_classifier.fit(X_train,y_train)
-    y_pred=rf_classifier.predict(X_test)
-      
-    if multiclass:
-        labels=['No Subsidence','<5 cm Subsidence','>5cm Subsidence'] 
-        cm=confusion_matrix(y_test,y_pred)
-        cm_df=pd.DataFrame(cm,columns=labels,index=labels)
-        if save:
-            cm_df.to_csv(cm_csv)
         
-        print(cm_df,'\n')
-        print('Recall Score {:.2f}'.format(recall_score(y_test,y_pred,average='micro')))
-        print('Precision Score {:.2f}'.format(precision_score(y_test,y_pred,average='micro')))
-        print('Accuracy Score {:.2f}'.format(accuracy_score(y_test,y_pred)))
-    else:
-        labels=['No Subsidence','>5cm Subsidence']
-        cm=confusion_matrix(y_test,y_pred)
-        cm_df=pd.DataFrame(cm,columns=labels,index=labels)
-        if save:
-            cm_df.to_csv(cm_csv)
-        print(cm_df,'\n')
-        print('Recall Score {:.2f}'.format(recall_score(y_test,y_pred)))
-        print('Precision Score {:.2f}'.format(precision_score(y_test,y_pred)))
-        print('Accuracy Score {:.2f}'.format(accuracy_score(y_test,y_pred)))
-    if predictor_importance:
-        col_labels=pd.read_csv(input_csv).columns
-        importance=rf_classifier.feature_importances_
-        plt.bar([x for x in range(len(importance))],importance,tick_label=col_labels[:-1],color='tomato')
-        plt.title('Feature Importance')
-        plt.xticks(rotation=45)
         
-    if pdp:
-        pdp_plot(classifier=rf_classifier, X_train=X_train,outdir=plot_save,multiclass_pdp=multiclass_pdp)
-
-    return rf_classifier
-
-
 def create_prediction_raster(predictor_raster_dir,prediction_raster,model,pattern='*.tif',exclude_columns=(),
                              pred_attr='Subsidence_G5_L5'):
     """
