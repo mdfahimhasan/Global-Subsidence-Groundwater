@@ -11,12 +11,15 @@ from shapely.geometry import box
 import geopandas as gpd
 import astropy.convolution as apc
 from scipy.ndimage import gaussian_filter
-from sysops import makedirs
+from sysops import *
 import datetime
 
 NO_DATA_VALUE = -9999
-referenceraster="E:\\NGA_Project_Data\\shapefiles\\Country_continent_full_shapes\\Global_continents_ref_raster_with_antrc.tif"
-referenceraster2="E:\\NGA_Project_Data\\shapefiles\\Country_continent_full_shapes\\Global_continents_ref_raster.tif"
+
+os.chdir(r'E:\NGA_Project_Data\Codes_Global_GW')
+
+referenceraster1=r'..\Reference_rasters\Global_continents_ref_raster.tif'
+referenceraster2=r'..\Reference_rasters\Global_continents_ref_raster_002.tif'
 
 # =============================================================================
 # #Reading raster array and raster reader object
@@ -68,7 +71,7 @@ def write_raster(raster_arr, raster_file, transform, outfile_path, no_data_value
     outfile_path: Outfile file path with filename
     no_data_value: No data value for raster (default float32 type is considered)
     ref_file: Write output raster considering parameters from reference raster file
-    ----------    
+    ----------
     Returns : None
     """
     if ref_file:
@@ -122,7 +125,8 @@ def filter_lower_larger_value(input_raster,output_dir,band=1,lower=True,larger=F
                  transform=raster_data.transform, outfile_path=out_name)
 
 def filter_specific_values(input_raster,outdir,raster_name,fillvalue=np.nan,filter_value=[10,11],
-                          new_value=False,value_new=1,no_data_value=NO_DATA_VALUE,paste_on_ref_raster=False):
+                          new_value=False,value_new=1,no_data_value=NO_DATA_VALUE,paste_on_ref_raster=False,
+                           ref_raster=referenceraster2):
     """
     Filter and replace values in raster.
 
@@ -136,12 +140,13 @@ def filter_specific_values(input_raster,outdir,raster_name,fillvalue=np.nan,filt
     new_value : Set to True if filtered value needs a new value. Default set to False.
     value_new : Value that the filtered value will get if new_value is set to True. Default set to 1.
     no_data_value : No data value. Default is -9999.
-    paste_on_ref_raster : Set to True if filtered values should bepasted on reference raster.
-    
-    Returns : None
+    paste_on_ref_raster : Set to True if filtered values should be pasted on reference raster.
+    ref_raster : Reference raster to paste values on. Defaults to referenceraster2.
+
+    Returns : Raster with filtered values.
     """
     arr,data=read_raster_arr_object(input_raster)
-    ref_arr,ref_file=read_raster_arr_object(referenceraster2)
+    ref_arr,ref_file=read_raster_arr_object(ref_raster)
     
     if paste_on_ref_raster:
         new_arr=ref_arr
@@ -339,8 +344,8 @@ def crop_raster_by_extent(input_raster,ref_file,output_dir,raster_name,invert=Fa
 # =============================================================================
 # #Mask and Resample Global Raster Data by Reference Raster
 # =============================================================================
-def mask_by_ref_raster(input_raster,outdir,raster_name,ref_raster=referenceraster2,resolution=0.05,
-                      nodata=NO_DATA_VALUE):
+def mask_by_ref_raster(input_raster,outdir,raster_name,ref_raster=referenceraster2,resolution=0.02, nodata=NO_DATA_VALUE,
+                       paste_on_ref_raster=False, pasted_outdir=None,pasted_raster_name=None):
     """
     Mask a Global Raster Data by Reference Raster. 
 
@@ -349,21 +354,30 @@ def mask_by_ref_raster(input_raster,outdir,raster_name,ref_raster=referenceraste
     outdir : Output raster directory.
     raster_name : Output raster name.
     ref_raster : Global reference raster filepath. Defaults to referenceraster2.
-    resolution : Resolution of output raster. Defaults to 0.05 degree in GCS_WGS_1984.
+    resolution : Resolution of output raster. Defaults to 0.02 degree in GCS_WGS_1984.
     nodata : No data value. Defaults to NO_DATA_VALUE of -9999.
+    
+    #second part of the code, use if necessary.
+    paste_on_ref_raster : Set True if the masked raster's value need to be pasted on reference raster.
+    pasted_outdir : Set a directory for the final pasted raster.
+    pasted_raster_name : Set a raster name for the pasted raster.
 
     Returns:None.
     """
     ref_arr,ref_file=read_raster_arr_object(ref_raster)
     minx,miny,maxx,maxy=ref_file.bounds
     
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makedirs([outdir,pasted_outdir])
+    
     output_raster=os.path.join(outdir,raster_name)
     gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,format='GTiff',
               outputBounds=(minx,miny,maxx,maxy),xRes=resolution,yRes=resolution,dstSRS=ref_file.crs,
               dstNodata=nodata,targetAlignedPixels=True,outputType=gdal.GDT_Float32)
-
+    
+    if paste_on_ref_raster:
+        paste_val_on_ref_raster(input_raster=output_raster, outdir=pasted_outdir, raster_name=pasted_raster_name,
+                                ref_raster=referenceraster2)
+       
 # =============================================================================
 # #Clipping Raster by Shapefile Cutline, Processing NoData, Pixel Size, CRS
 # =============================================================================
@@ -441,21 +455,19 @@ def clip_resample_MODIS_cutline(input_raster_dir, output_raster_dir, input_shape
 # #Mosaic Multiple Rasters    
 # =============================================================================
 def mosaic_rasters(input_dir,output_dir,raster_name,ref_raster=referenceraster2,search_by="*.tif",
-                   resolution=0.05,no_data=NO_DATA_VALUE, create_outdir=False):
+                   resolution=0.02,no_data=NO_DATA_VALUE):
     """
-    Mosaics multiple rasters into a single raster (rasters have to be in a single directory) 
+    Mosaics multiple rasters into a single raster (rasters have to be in the same directory).
 
-    Parameters
-    ----------
-    input_dir : Input rasters directory 
-    output_dir : Outpur raster directory. Defaults to None. Include raster name as .tif if output_dir=None and 
-                    create_outdir=False
-    raster_name : Outpur raster name (output raster name with filepath if create_outdir=True) 
-    ref_raster : Reference raster with filepath
-    no_data : No data value. Default -9999
-    resolution: Resolution of the output raster
-    -------
-    Returns: None
+    Parameters:
+    input_dir : Input rasters directory.
+    output_dir : Outpur raster directory.
+    raster_name : Outpur raster name.
+    ref_raster : Reference raster with filepath.
+    no_data : No data value. Default -9999.
+    resolution: Resolution of the output raster.
+
+    Returns: Mosaiced Raster.
     """
     input_rasters=glob(os.path.join(input_dir,search_by))
     
@@ -466,27 +478,15 @@ def mosaic_rasters(input_dir,output_dir,raster_name,ref_raster=referenceraster2,
     
     ref_arr,ref_file=read_raster_arr_object(ref_raster)
     merged_arr,out_transform=merge(raster_list,bounds=ref_file.bounds,res=(resolution,resolution),nodata=no_data)
-    
+
     merged_arr=np.where(ref_arr==0,merged_arr,ref_arr)
-    
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    
+    merged_arr=merged_arr.squeeze()
+
+    makedirs(output_dir)
     out_raster=os.path.join(output_dir,raster_name)
-    with rio.open(
-            out_raster,
-            'w',
-            driver='GTiff',
-            height=merged_arr.shape[1],
-            width=merged_arr.shape[2],
-            dtype=merged_arr.dtype,
-            crs=ref_file.crs,
-            transform=out_transform,
-            count=file.count,
-            nodata=NO_DATA_VALUE
-            ) as dst:
-            dst.write(merged_arr)
-        
+    write_raster(raster_arr=merged_arr,raster_file=ref_file,transform=ref_file.transform,outfile_path=out_raster,
+                 no_data_value=no_data,ref_file=ref_raster)
+
 # =============================================================================
 # #Mean rasters from a folder 
 # =============================================================================
@@ -576,11 +576,9 @@ def array_multiply(input_raster1,input_raster2,outdir,raster_name):
     arr1,data1=read_raster_arr_object(input_raster1)
     arr2,data2=read_raster_arr_object(input_raster2)
     new_arr=np.multiply(arr1,arr2)
-    
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+
+    makedirs(outdir)
     output_raster=os.path.join(outdir,raster_name)
-    
     write_raster(raster_arr=new_arr, raster_file=data1, transform=data1.transform, outfile_path=output_raster)
 
 # =============================================================================
@@ -643,7 +641,7 @@ def create_slope_raster(input_raster,outdir,raster_name):
 # =============================================================================
 # #creating nanfilled raster from original raster
 # =============================================================================
-def create_nanfilled_raster(input_raster,outdir,raster_name,value=0,ref_raster=referenceraster2):
+def create_nanfilled_raster(input_raster,outdir,raster_name,ref_raster=referenceraster2):
     """
     Create a nan-filled raster with a reference raster. If there is nan value on raster that 
     will be filled by zero from reference raster.
@@ -652,7 +650,6 @@ def create_nanfilled_raster(input_raster,outdir,raster_name,value=0,ref_raster=r
     input_raster : Input raster.
     outdir : Output raster directory.
     raster_name : output raster name.
-    value : value used in filtering. Defaults to 0.
     ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster2.
 
     Returns:None.
@@ -663,13 +660,11 @@ def create_nanfilled_raster(input_raster,outdir,raster_name,value=0,ref_raster=r
     ras_arr=ras_arr.flatten()
     ref_arr=ref_arr.flatten()
     
-    new_arr=np.where(ras_arr>value,ras_arr,ref_arr)
+    new_arr=np.where(np.isnan(ras_arr),ref_arr,ras_arr)
     new_arr=new_arr.reshape(ref_file.shape[0],ref_file.shape[1])
     
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makedirs(outdir)
     output_raster=os.path.join(outdir,raster_name)
-    
     write_raster(raster_arr=new_arr, raster_file=ras_file, transform=ras_file.transform, outfile_path=output_raster)
     
 def paste_val_on_ref_raster(input_raster,outdir,raster_name,ref_raster=referenceraster2):
@@ -694,16 +689,14 @@ def paste_val_on_ref_raster(input_raster,outdir,raster_name,ref_raster=reference
     new_arr=np.where(ref_arr==0,ras_arr,ref_arr)
     new_arr=new_arr.reshape(ref_file.shape[0],ref_file.shape[1])
     
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makedirs(outdir)
     output_raster=os.path.join(outdir,raster_name)
-    
     write_raster(raster_arr=new_arr, raster_file=ras_file, transform=ras_file.transform, outfile_path=output_raster)    
 
 # =============================================================================
 # #Gaussian Filter
 # =============================================================================
-def apply_gaussian_filter(input_raster,outdir,raster_name,sigma=3,ignore_nan=True,normalize=False,
+def apply_gaussian_filter(input_raster,outdir,raster_name,sigma=3,ignore_nan=True,normalize=True,
                          nodata=NO_DATA_VALUE,ref_raster=referenceraster2):
     """
     Applies Gaussian filter to raster.
@@ -724,19 +717,22 @@ def apply_gaussian_filter(input_raster,outdir,raster_name,sigma=3,ignore_nan=Tru
     if ignore_nan:
         Gauss_kernel=apc.Gaussian2DKernel(x_stddev=sigma,x_size=3*sigma,y_size=3*sigma)
         raster_arr_flt=apc.convolve(raster_arr,kernel=Gauss_kernel,preserve_nan=True)
+
     else:
         raster_arr[np.isnan(raster_arr)]=0
         raster_arr_flt=gaussian_filter(input=raster_arr, sigma=sigma,order=0) #order 0 corresponds to convolution with a Gaussian kernel
-    
+
     if normalize:
+        if ignore_nan:
+            raster_arr_flt[np.isnan(raster_arr_flt)] = 0
         raster_arr_flt = np.abs(raster_arr_flt)
         raster_arr_flt -= np.min(raster_arr_flt)
         raster_arr_flt /= np.ptp(raster_arr_flt)
      
     ref_arr=read_raster_arr_object(ref_raster,get_file=False)
     raster_arr_flt[np.isnan(ref_arr)]=nodata
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+
+    makedirs(outdir)
     write_raster(raster_arr=raster_arr_flt, raster_file=raster_file, transform=raster_file.transform, 
                  outfile_path=os.path.join(outdir,raster_name))
 
@@ -831,88 +827,7 @@ def Classify_InSAR_raster(input_raster,outdir,raster_name, start_date,end_date, 
 #         clip_resample_raster_cutline(input_raster_dir=raster, output_raster_dir=output_dir2, input_shape_dir=shape)
 # =============================================================================
 
-###Resampling Land Use Rasters
 
-##GFSAD1KCM
-# =============================================================================
-# #Resampling GFSAD1KCM LU data with reference raster
-# inras="E:\\NGA_Project_Data\\Land_Use_Data\\Raw\\Global Food Security- GFSAD1KCM\\GFSAD1KCM.tif"
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Raw\\Global_files"
-# mask_by_ref_raster(input_raster=inras, outdir=outdir, raster_name="Global_GFSAD1KCM_raw.tif")
-# 
-# #Remove Ocean's 0 value from GFSAD1KCM
-# inras="E:\\NGA_Project_Data\\Land_Use_Data\\Raw\\Global_files\\Global_GFSAD1KCM_raw.tif"
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# paste_val_on_ref_raster(input_raster=inras, outdir=outdir, raster_name="Global_GFSAD1KCM.tif")
-# =============================================================================
-
-##Gaussian Filtering GFSAD1KCM Landuse
-# =============================================================================
-# raster="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\Global_GFSAD1KCM.tif"
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# filter_specific_values(input_raster=raster, outdir=outdir, raster_name='GFSAD_irrig_only.tif',filter_value=[1,2],
-#                        new_value=True,value_new=1,paste_on_ref_raster=True)
-# 
-# rastername="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\GFSAD_irrig_only.tif"
-# apply_gaussian_filter(input_raster=rastername, outdir=outdir, raster_name='Irrigated_Area_Density.tif')
-# =============================================================================
-
-##FAO LC
-# =============================================================================
-# #Creating Irrigated cropland data layer from GFSAD1KCM LC
-# gfsad_LC="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\Global_GFSAD1KCM.tif"
-# cropland_global="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# filter_specific_values(input_raster=gfsad_LC, outdir=cropland_global,raster_name="Global_cropland_irrigated.tif",
-#                        filter_value=[1,2],new_value=True,value_new=1,fillvalue=np.nan)   #Only filtered Irrigated cropland values
-# #Creating Irrigated+rainfed cropland data layer from GFSAD1KCM LC
-# gfsad_LC="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\Global_GFSAD1KCM.tif"
-# cropland_global="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# filter_specific_values(input_raster=gfsad_LC, outdir=cropland_global,raster_name="Global_cropland_all.tif",
-#                        filter_value=[1,2,3,4,5],new_value=True,value_new=1,fillvalue=np.nan)   
-# 
-# #Modifying FAOLC raster with reference raster
-# inras="E:\\NGA_Project_Data\\Land_Use_Data\\Raw\\FAO_LC\\RasterFile\\aeigw_pct_aei.tif"
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Raw\\Global_files"
-# mask_by_ref_raster(input_raster=inras, outdir=outdir, raster_name="Global_FAOLC_GW01.tif")
-# 
-# #Creating nanfilled FAOLC raster
-# inras="E:\\NGA_Project_Data\\Land_Use_Data\\Raw\\Global_files\\Global_FAOLC_GW01.tif"
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# create_nanfilled_raster(input_raster=inras, outdir=outdir,raster_name="FAOLC_GW_nanfilled02.tif",ref_raster=referenceraster2)
-# =============================================================================
-     
-##FAO_LC LU cropland masked
-##Multiply cropland (Irrigated) and FAO LC raster
-# =============================================================================
-# inras1="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\FAOLC_GW_nanfilled02.tif"
-# inras2="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\Global_cropland_irrigated.tif" 
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# array_multiply(input_raster1=inras1, input_raster2=inras2, outdir=outdir,raster_name="FAOLC_cropmasked_irrigated.tif")
-# 
-# inras3="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\FAOLC_cropmasked_irrigated.tif" 
-# create_nanfilled_raster(input_raster=inras3, outdir=outdir, raster_name='FAOLC_cropmasked_irrigated_nanfilled03.tif')
-# 
-# ##Gaussian Filtering FAO_LC GW irrigation % Landuse
-# raster="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\FAOLC_cropmasked_irrigated_nanfilled03.tif"
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# apply_gaussian_filter(input_raster=raster, outdir=outdir, raster_name='GW_Irrigation_Density_01.tif')
-# =============================================================================
-
-##Multiply cropland (Irrigated+Rainfed) and FAO LC raster
-# =============================================================================
-# inras1="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\FAOLC_GW_nanfilled02.tif"
-# inras2="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\Global_cropland_all.tif" 
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# array_multiply(input_raster1=inras1, input_raster2=inras2, outdir=outdir,raster_name="FAOLC_cropmasked_all.tif")
-# 
-# inras3="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\FAOLC_cropmasked_all.tif" 
-# create_nanfilled_raster(input_raster=inras3, outdir=outdir, raster_name='FAOLC_cropmasked_all_nanfilled03.tif')
-# 
-# ##Gaussian Filtering FAO_LC GW irrigation % Landuse
-# raster="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files\\FAOLC_cropmasked_all_nanfilled03.tif"
-# outdir="E:\\NGA_Project_Data\\Land_Use_Data\\Resampled\\Global_files"
-# apply_gaussian_filter(input_raster=raster, outdir=outdir, raster_name='GW_Irrigation_Density_02.tif')
-# =============================================================================
   
 ##Sediment Thickness
 #Renaming

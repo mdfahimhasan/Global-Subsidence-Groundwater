@@ -78,7 +78,7 @@ def download_imagecollection_gee(yearlist,start_month,end_month,output_dir,input
 
 
 def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,shapecsv=None,inputshp_dir=None, 
-                                  search_criteria="*worldGrid*.shp", gee_scale=5000,dataname="ET_",name="MODIS",
+                                  search_criteria="*worldGrid*.shp", gee_scale=2000,dataname="ET_",name="MODIS",
                                   bandname="ET",imagecollection="MODIS/006/MOD16A2",factor=1,select_bandname=True):
     """
     Download Imagecollection data (i.e. MODIS/Landsat) from Google Earth Engine by range years' mean
@@ -925,40 +925,30 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # =============================================================================
 
 ##Download MODIS ET Data
-# =============================================================================
-# #Modis ET 2013_2019
-# shape_path="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
-# shapes=glob(os.path.join(shape_path,"*world*.shp"))
-# 
-# #Modis ET 2018_2019
-# download_dir="E:\\NGA_Project_Data\\ET_products\\MODIS_ET\\ET_2013_2019\\Raw_ET_2013_2019"
-# mosaic_dir="E:\\NGA_Project_Data\\ET_products\\MODIS_ET\\ET_2013_2019\\World_ET_2013_2019"
-# 
-# for shape in shapes:
-#     download_imagecollection_mean([2013,2019],start_month=1,end_month=12,output_dir=download_dir,
-#                                  inputshp=shape, gee_scale=5000,dataname="ET_",name="Modis_ET",
-#                                  bandname="ET",imagecollection="MODIS/006/MOD16A2",factor=0.1)
-# 
-# 
-#     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
-# 
-# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="ET_2013_2019.tif",
-#                     ref_raster=referenceraster2,create_outdir=True)
-# 
-# #Modis ET 2018_2019
-# download_dir="E:\\NGA_Project_Data\\ET_products\\MODIS_ET\\ET_2018_2019\\Raw_ET_2018_2019"
-# mosaic_dir="E:\\NGA_Project_Data\\ET_products\\MODIS_ET\\ET_2018_2019\\World_ET_2018_2019"
-# 
-# for shape in shapes:
-#     download_imagecollection_mean([2018,2019],start_month=1,end_month=12,output_dir=download_dir,
-#                                  inputshp=shape, gee_scale=5000,dataname="ET_",name="Modis_ET",
-#                                  bandname="ET",imagecollection="MODIS/006/MOD16A2",factor=0.1)
-# 
-# 
-#     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
-# 
-# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="ET_2018_2019.tif",
-#                     ref_raster=referenceraster2,create_outdir=True)
+
+#Modis ET 2013_2019
+csv=r'..\Reference_rasters\GEE_Download_coords.csv'
+download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2013_2019\Raw_ET_2013_2019'
+mosaic_dir=r'..\Resampled Data\ET\MODIS_ET\2013_2019'
+download_imagecollection_mean([2013,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
+                              dataname='ET_',name='MODIS_ET',bandname='ET', imagecollection='MODIS/006/MOD16A2',
+                              factor=0.1)
+extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
+
+mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="MODIS_ET_2013_2019.tif",
+                    ref_raster=referenceraster2)
+
+#Modis ET 2018_2019
+download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2018_2019\Raw_ET_2018_2019'
+mosaic_dir=r'..\Resampled Data\ET\MODIS_ET\2018_2019'
+
+download_imagecollection_mean([2018,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
+                              dataname='ET_',name='MODIS_ET',bandname='ET', imagecollection='MODIS/006/MOD16A2',
+                              factor=0.1)
+extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
+
+mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="MODIS_ET_2018_2019.tif",
+                    ref_raster=referenceraster2)
 # =============================================================================
 
 ##Download GPWv411 UN Adjusted POpulation Density 
@@ -976,20 +966,18 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name='Pop_density_GPW_2010_2020.tif')
 # =============================================================================
 
-##Download GPWv411 UN Adjusted POpulation Density 
-# =============================================================================
-# csv=r"E:\NGA_Project_Data\shapefiles\GEE_Download_coords.csv"
+##Download GPWv411 UN Adjusted POpulation Density
+# csv=r'..\Reference_rasters\GEE_Download_coords.csv'
 # #2010_2020 (This year range is only set up for the code, the data doesn't change based on year range)
-# outdir=r"E:\NGA_Project_Data\scratch_files"
-# mosaic_dir=r"E:\NGA_Project_Data\scratch_files"
-# 
+# outdir=r'..\Raw_Data\population_density\GPWv411 UN-Adjusted Population Density\2010_2020\Raw_GEE_data_step01'
+# mosaic_dir=r'..\Raw_Data\population_density\GPWv411 UN-Adjusted Population Density\2010_2020\World_pop_data_step02'
+#
 # download_imagecollection_mean(yearlist=[2010,2020], start_month=1, end_month=1, output_dir=outdir,shapecsv=csv,inputshp_dir=None,
-#                                   dataname='pop_',name="GPW",gee_scale=5000,
+#                                   dataname='pop_',name="GPW",gee_scale=2000,
 #                                   imagecollection="CIESIN/GPWv411/GPW_UNWPP-Adjusted_Population_Density",
 #                                   select_bandname=True,bandname="unwpp-adjusted_population_density")
 # extract_data(zip_dir=outdir, out_dir=outdir)
 # mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name='Pop_density_GPW_2010_2020.tif')
-# =============================================================================
 
 ##Download Global Aridity Index
 # =============================================================================
