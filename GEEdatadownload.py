@@ -11,14 +11,15 @@ from Raster_operations import mosaic_rasters
 import math
 
 NO_DATA_VALUE=-9999
-referenceraster2="E:\\NGA_Project_Data\\shapefiles\\Country_continent_full_shapes\\Global_continents_ref_raster.tif"
+referenceraster1=r'..\Reference_rasters\Global_continents_ref_raster.tif'
+referenceraster2=r'..\Reference_rasters\Global_continents_ref_raster_002.tif'
 
 # =============================================================================
 # # For MODIS/ImageCollection Data
 # =============================================================================
 
 def download_imagecollection_gee(yearlist,start_month,end_month,output_dir,inputshp,
-                                 gee_scale=5000,dataname="ET_",name="MODIS",
+                                 gee_scale=2000,dataname="ET_",name="MODIS",
                                   bandname="ET",imagecollection="MODIS/006/MOD16A2"):
     """
     Download Imagecollection data (i.e. MODIS) from Google Earth Engine by yearly basis
@@ -77,47 +78,86 @@ def download_imagecollection_gee(yearlist,start_month,end_month,output_dir,input
             open(local_file_name,'wb').write(r.content)
 
 
-def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,shapecsv=None,inputshp_dir=None, 
-                                  search_criteria="*worldGrid*.shp", gee_scale=2000,dataname="ET_",name="MODIS",
-                                  bandname="ET",imagecollection="MODIS/006/MOD16A2",factor=1,select_bandname=True):
+def download_GEE_data(yearlist,start_month,end_month,output_dir,shapecsv=None,inputshp_dir=None,
+                                  search_criteria="*worldGrid*.shp", gee_scale=2000,dataname='MODIS_ET'):
     """
-    Download Imagecollection data (i.e. MODIS/Landsat) from Google Earth Engine by range years' mean
-    Parameters
-    ----------
-    yearlist : List of years for which data will be downloaded, i.e., [2010,2020]
-    start_month : Start month of data
-    end_month : End month of data
-    output_dir : File directory path to downloaded data
+    Download Imagecollection/Image data from Google Earth Engine by range years' mean
+
+    Parameters:
+    yearlist : List of years for which data will be downloaded, i.e., [2013,2019].
+    start_month : Start month of data.
+    end_month : End month of data.
+    ***For ee.Image data time parameters should be included just for the code to run properly. The data will be the same for whole time period.
+
+    output_dir : File directory path to downloaded data.
     shapecsv : Csv of coordinates for download extent. Set to None if want to use shapefile instead.
     inputshp_dir : File directory path of input shapefiles (data download extent). Defaults to None.
-    search_criteria : Search criteria for input shapefiles. Defaults to "*worldGrid*.shp"
-    gee_scale : Download Scale
-    bandname : Band to download from Google earth engine
-    imagecollection : Imagecollection name
-    dataname : Name extension added to downloaded file
-    name : Name added to file when downloading
-    factor : Factor (if needed) to multiply with the band 
-    select_bandname : Set to False if imagecollection has no designated bandname (for example: https://samapriya.github.io/awesome-gee-community-datasets/projects/hrsl/#earth-engine-snippet)
+    search_criteria : Search criteria for input shapefiles. Defaults to "*worldGrid*.shp".
+    gee_scale : Download Scale.
+    dataname : Dataname to download from GEE. The code can download data from the following list-
+             ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'SMAP_SM','MODIS_ET','MODIS_EVI',
+             'GPW_pop','SRTM_DEM','SRTM_Slope','ALOS_Landform','Aridity_Index']
+
+    Returns : Downloaded data from GEE.
     """
     ##Initialize
     ee.Initialize()
-    data_download=ee.ImageCollection(imagecollection)
-    
+    data_dict={'TRCLM_precp':'IDAHO_EPSCOR/TERRACLIMATE',
+               'TRCLM_tmmx':'IDAHO_EPSCOR/TERRACLIMATE',
+               'TRCLM_tmmn': 'IDAHO_EPSCOR/TERRACLIMATE',
+               'SMAP_SM':'NASA_USDA/HSL/SMAP10KM_soil_moisture',
+               'MODIS_ET':'MODIS/006/MOD16A2',
+               'MODIS_EVI':'MODIS/006/MOD13Q1',
+               'GPW_pop':'CIESIN/GPWv411/GPW_UNWPP-Adjusted_Population_Density',
+               'SRTM_DEM':'USGS/SRTMGL1_003',
+               'SRTM_Slope':'USGS/SRTMGL1_003',
+               'ALOS_Landform':'CSP/ERGo/1_0/Global/ALOS_landforms',
+               'Aridity_Index':'projects/sat-io/open-datasets/global_ai_et0'}
+
+    if dataname in ['TRCLM_precp','TRCLM_tmax','TRCLM_tmin','SMAP_SM','MODIS_ET','MODIS_EVI','GPW_pop']:
+        data_collection=ee.ImageCollection(data_dict[dataname])
+    else:
+        data_collection=ee.Image(data_dict[dataname])
+
     ##Date Range Creation
     start_date=ee.Date.fromYMD(yearlist[0],start_month,1)
-        
     if end_month==12:
         end_date=ee.Date.fromYMD(yearlist[1]+1,1,1)
-        
     else:
         end_date=ee.Date.fromYMD(yearlist[1],end_month+1,1)
         
     ##Reducing the ImageCollection
-    if select_bandname:
-        data_total=data_download.select(bandname).filterDate(start_date,end_date).mean().multiply(factor).toFloat()
-    else:
-        data_total=data_download.filterDate(start_date,end_date).mean().multiply(factor).toFloat() 
-        
+    if dataname=='TRCLM_precp':
+        data=data_collection.select('pr').filterDate(start_date,end_date).mean().toFloat()
+
+    elif dataname=='TRCLM_tmmx' or dataname=='TRCLM_tmmn':
+        band=dataname.split('_')[1]
+        data=data_collection.select(band).filterDate(start_date,end_date).median().multiply(0.1).toFloat()
+
+    elif dataname=='SMAP_SM':
+        data = data_collection.select('smp').filterDate(start_date, end_date).mean().toFloat()
+
+    elif dataname== 'MODIS_ET':
+        data = data_collection.select('ET').filterDate(start_date, end_date).mean().multiply(0.1).toFloat()
+
+    elif dataname== 'MODIS_EVI':
+        data = data_collection.select('EVI').filterDate(start_date, end_date).mean().multiply(0.0001).toFloat()
+
+    elif dataname=='GPW_pop':
+        data = data_collection.select('unwpp-adjusted_population_density').filterDate(start_date, end_date).mean().toFloat()
+
+    elif dataname=='SRTM_DEM':
+        data=data_collection.select('elevation').toFloat()
+
+    elif dataname=='SRTM_Slope':
+        data = ee.Terrain.slope(data_collection.select('elevation').toFloat())
+
+    elif dataname=='ALOS_Landform':
+        data=data_collection.select('constant').toFloat()
+
+    elif dataname=='Aridity_Index':
+        data=data_collection.select('b1').multiply(0.0001).toFloat()
+
     #Creating Output directory
     makedirs([output_dir])
     
@@ -129,7 +169,7 @@ def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,shap
             gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
               
             #Download URL
-            data_url=data_total.getDownloadURL({'name':name,
+            data_url=data.getDownloadURL({'name':dataname,
                                                 'crs':"EPSG:4326",
                                                 'scale':gee_scale,
                                                 'region':gee_extent})
@@ -148,7 +188,7 @@ def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,shap
             gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
             
             #Download URL
-            data_url=data_total.getDownloadURL({'name':name,
+            data_url=data.getDownloadURL({'name':dataname,
                                             'crs':"EPSG:4326",
                                             'scale':gee_scale,
                                             'region':gee_extent})  
@@ -163,7 +203,7 @@ def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,shap
 # #Download GRACE ensemble data gradient over the year
 # =============================================================================
 def download_Grace_gradient(yearlist,start_month,end_month,output_dir,shapecsv=None,inputshp_dir=None,
-                            search_criteria="*worldGrid*.shp",gee_scale=5000):
+                            search_criteria="*worldGrid*.shp",gee_scale=2000):
     """
     Download ensembled Grace data gradient from Google Earth Engine 
     ----------
@@ -260,7 +300,7 @@ def download_Grace_gradient(yearlist,start_month,end_month,output_dir,shapecsv=N
 # =============================================================================
 
 def download_image_gee(output_dir,bandname,shapecsv=None,inputshp_dir=None,search_criteria="*worldGrid*.shp",factor=1,
-                       gee_scale=5000, dataname="DEM_",name="DEM",image="USGS/SRTMGL1_003",Terrain_slope=False):
+                       gee_scale=2000, dataname="DEM_",image="USGS/SRTMGL1_003",Terrain_slope=False):
     """
     Download Stationary/Single Image from Google Earth Engine.
     Parameters
@@ -271,9 +311,8 @@ def download_image_gee(output_dir,bandname,shapecsv=None,inputshp_dir=None,searc
     search_criteria : Search criteria for input shapefiles. Defaults to "*worldGrid*.shp".
     inputshp_dir : File directory path of input shapefiles (data download extent). Defaults to None.
     factor : Factor to multiply with (if there is scale mentioned in the data) to convert to original scale.
-    gee_scale : Pixel size in m. DEfaults to 5000.
+    gee_scale : Pixel size in m. Defaults to 2000.
     dataname : Name extension added to downloaded file.
-    name : Name added to file when downloading.
     image : Image name from Google Earth Engine.
     Terrain_slope : If the image is a SRTM DEM data and slope data download is needed. Defaults to False. 
     """
@@ -281,7 +320,7 @@ def download_image_gee(output_dir,bandname,shapecsv=None,inputshp_dir=None,searc
     ##Initialize
     ee.Initialize()
     
-    data_download=ee.Image(image).select(bandname).multiply(factor).toFloat()                      
+    data_download=ee.Image(image).select(bandname).multiply(factor).toFloat()
     
     if Terrain_slope:
         data_download=ee.Terrain.slope(data_download)
@@ -296,7 +335,7 @@ def download_image_gee(output_dir,bandname,shapecsv=None,inputshp_dir=None,searc
             minx,miny,maxx,maxy=gpd.read_file(shape).total_bounds
             gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
     
-            download_url=data_download.getDownloadURL({'name':'Grace',
+            download_url=data_download.getDownloadURL({'name':dataname,
                                                         'crs':"EPSG:4326",
                                                         'scale':gee_scale,
                                                         'region':gee_extent})
@@ -314,7 +353,7 @@ def download_image_gee(output_dir,bandname,shapecsv=None,inputshp_dir=None,searc
             minx=row['minx']; miny=row['miny']; maxx=row['maxx']; maxy=row['maxy']
             gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
     
-            download_url=data_download.getDownloadURL({'name':'Grace',
+            download_url=data_download.getDownloadURL({'name':dataname,
                                                         'crs':"EPSG:4326",
                                                         'scale':gee_scale,
                                                         'region':gee_extent})
@@ -352,7 +391,7 @@ def cloudmaskL8sr(image):
 # =============================================================================
 # =============================================================================
 # def download_Landsat_derived_product(yearlist,start_month,end_month,output_dir,inputshp,
-#                                   gee_scale=5000,dataname="Landsat_",name="Landsat",
+#                                   gee_scale=2000,dataname="Landsat_",name="Landsat",
 #                                   imagecollection='LANDSAT/LC08/C01/T1_SR',factor=0.0001,index='NDWI'):
 #     """
 #     Download Imagecollection mean data of Landsat products (NDVI,NDWI,EVI), with cloudmask applied,
@@ -452,7 +491,7 @@ def cloudmask_MODIS09A1(image):
 # #Download MODIS 09A1  datawith cloudmaking    
 # =============================================================================
 def download_MODIS_derived_product(yearlist,start_month,end_month,output_dir,shapecsv=None,inputshp_dir=None,
-                                  search_criteria="*worldGrid*.shp", gee_scale=5000,
+                                  search_criteria="*worldGrid*.shp", gee_scale=2000,
                                   dataname="MODIS_",name="MODIS",
                                   imagecollection="MODIS/006/MOD09A1",factor=0.0001,index='NDWI'):
     """
@@ -571,74 +610,55 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
                 zip_ref.extract(zip_info,path=out_dir)
             else:
                 zip_ref.extractall(path=out_dir)
-                
-
-# =============================================================================
-# shp="E:\\NGA_Project_Data\\scratch_files\\WorldGrid_35_.shp"
-# minx,miny,maxx,maxy=gpd.read_file(shp).total_bounds
-# gee_extent=ee.Geometry.Rectangle((minx,miny,maxx,maxy))
-# imcollect=ee.ImageCollection("MODIS/006/MOD09A1").filterDate('2013-01-01','2019-12-31').filterBounds(gee_extent)
-# masked=imcollect.map(cloudmask_MODIS09A1)
-# data=masked.select('sur_refl_b02').mean().multiply(0.0001).toFloat()
-# data2=masked.select('sur_refl_b06').mean().multiply(0.0001).toFloat()
-# index=data.subtract(data2).divide(data.add(data2))
-# data_url=index.getDownloadURL({'name':'M',
-# 'crs':'EPSG:4326',
-# 'scale':10000})
-# =============================================================================
 
 # =============================================================================
 # #Download data from URL
 # =============================================================================
 
-# =============================================================================
-# import os
-# import requests
-# 
-# def download_from_url(out_dir,urllist):    
-#     """
-#     Download Data from url
-#     Parameters
-#     ----------
-#     out_dir : Location of download
-#     urllist : A list of url to download from
-#     """
-#     
-#     #make dir if not created
-#     if not os.path.exists(out_dir):
-#         os.makedirs(out_dir)
-#     
-#     for url in url_list:
-#         fname=url.rsplit('/',1)[1]
-#         out_fname=os.path.join(out_dir,fname)
-#         print("Downloading",fname,"......")
-#         r=requests.get(url,allow_redirects=True)
-#         open(out_fname,'wb').write(r.content)
-#         
-# #url list
-# url_list=["https://geo.nsstc.nasa.gov/SPoRT/outgoing/crh/4sujay/global_alexi_terra_cfsr_2013.tar"]
-# 
-# 
-# download_from_url(out_dir="F:\\Alexi_Data",urllist=url_list)
-# 
-# =============================================================================
+def download_from_url(out_dir,url_list):
+    """
+    Download Data from url
+    Parameters:
+    out_dir : Filepath to download.
+    url_list : A list of url/urls to download.
 
+    Returns: Data downloaded from url.
+    """
+    makedirs([out_dir])
 
-# =============================================================================
-# #For Global Cropland Data
-# shape_path=os.path.join("G:\\NGA_Project_Data\\continent_extents","*.shp")
-# shapes=glob(shape_path)
-# zipdir="E:\\python_files\\Intro to Python GIS data\\GEE CE  Data\\GFSAD_Crop"
-# outdir="E:\\python_files\\Intro to Python GIS data\\GEE CE  Data\\GFSAD_Crop"
-# 
-# for shape in shapes:
-#     key_name=shape[shape.rfind(os.sep)+1:shape.rfind('_')]
-#     
-#     download_image_gee(output_dir="E:\\python_files\\Intro to Python GIS data\\GEE CE  Data\\GFSAD_Crop",
-#                        inputshp=shape,gee_scale=5000)
-#     
-#     extract_data(zip_dir=zipdir,out_dir=outdir,key_word=key_name+"_",rename_file=True)
-# =============================================================================
+    for url in url_list:
+        fname=url.rsplit('/',1)[1]
+        out_fname=os.path.join(out_dir,fname)
+        print("Downloading",fname,"......")
+        r=requests.get(url,allow_redirects=True)
+        open(out_fname,'wb').write(r.content)
+
+##TERRACLIMATE precipitation Data
+# csv=r'..\Reference_rasters\GEE_Download_coords.csv'
+# #2013_2019
+# download_dir=r'..\Raw_Data\Rainfall\TERRACLIMATE\2013_2019\Raw_TRCLM_2013_2019_Step01'
+# download_GEE_data([2013,2019],start_month=1,end_month=12,output_dir=download_dir,
+#                               shapecsv=csv, gee_scale=2000, dataname='TRCLM_precp')
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
+# #2018_2019
+# download_dir=r'..\Raw_Data\Rainfall\TERRACLIMATE\2018_2019\Raw_TRCLM_2018_2019_Step01'
+# download_GEE_data([2018,2019],start_month=1,end_month=12,output_dir=download_dir,
+#                               shapecsv=csv, gee_scale=2000, dataname='TRCLM_precp')
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
+
+##Download MODIS ET Data
+#Modis ET 2013_2019
+# csv=r'..\Reference_rasters\GEE_Download_coords.csv'
+# download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2013_2019\Raw_ET_2013_2019'
+# download_GEE_data([2013,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
+#                               dataname='MODIS_ET')
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
+#
+# #Modis ET 2018_2019
+# download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2018_2019\Raw_ET_2018_2019'
+# download_GEE_data([2018,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
+#                               dataname='MODIS_ET')
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 
 #Download MODIS NDWI (Cloudmasked)
 #2013_2019
@@ -649,7 +669,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 # download_MODIS_derived_product(yearlist=[2013,2019],start_month=1,end_month=12,output_dir=outdir,
 #                                    shapecsv=csv,inputshp_dir=None,
-#                                   gee_scale=5000,dataname="MODIS_",name="MODIS",index='NDWI')
+#                                   gee_scale=2000,dataname="MODIS_",name="MODIS",index='NDWI')
 # extract_data(zip_dir=outdir, out_dir=outdir)
 # 
 # mosaic_rasters(input_dir=outdir, output_dir=mosaic_dir, raster_name="NDWI_2013_2019.tif",
@@ -663,29 +683,13 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # for shape in shapes:
 #     download_MODIS_derived_product(yearlist=[2018,2019],start_month=1,end_month=12,output_dir=outdir2,
 #                                    inputshp=shape,
-#                                   gee_scale=5000,dataname="MODIS_",name="MODIS",index='NDWI')
+#                                   gee_scale=2000,dataname="MODIS_",name="MODIS",index='NDWI')
 #     extract_data(zip_dir=outdir2, out_dir=outdir2)
 # 
 # mosaic_rasters(input_dir=outdir2, output_dir=mosaic_dir2, raster_name="NDWI_2018_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True) 
 # =============================================================================
 
-##TERRACLIMATE precipitation Data
-# csv=r'..\Reference_rasters\GEE_Download_coords.csv'
-# #2013_2019
-# download_dir=r'..\Raw_Data\Rainfall\TERRACLIMATE\2013_2019\Raw_TRCLM_2013_2019_Step01'
-# download_imagecollection_mean([2013,2019],start_month=1,end_month=12,output_dir=download_dir,
-#                               shapecsv=csv, gee_scale=2000, dataname="TRCLM_",name="TERRACLIMATE",
-#                               bandname="pr",imagecollection="IDAHO_EPSCOR/TERRACLIMATE",
-#                               factor=1)
-# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
-# #2018_2019
-# download_dir=r'..\Raw_Data\Rainfall\TERRACLIMATE\2018_2019\Raw_TRCLM_2018_2019_Step01'
-# # download_imagecollection_mean([2018,2019],start_month=1,end_month=12,output_dir=download_dir,
-# #                               shapecsv=csv, gee_scale=2000, dataname="TRCLM_",name="TERRACLIMATE",
-# #                               bandname="pr",imagecollection="IDAHO_EPSCOR/TERRACLIMATE",
-#                               factor=1)
-# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 ##Download Modis Landcover Data
 # =============================================================================
 # shape_path="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
@@ -694,7 +698,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # 
 # for shape in shapes:
 #     download_imagecollection_gee(yearlist=range(2019,2020),start_month=1,end_month=12,output_dir=outdir,inputshp=shape,
-#                                  gee_scale=5000,dataname="LC_",name="MODIS",
+#                                  gee_scale=2000,dataname="LC_",name="MODIS",
 #                                   bandname="LC_Type1",imagecollection="MODIS/006/MCD12Q1")
 #     extract_data(zip_dir=outdir, out_dir=outdir)
 # =============================================================================
@@ -706,7 +710,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # outdir="E:\\NGA_Project_Data\\GRACE\\GEE_WorldGrid_Step1"
 # mosaic_dir="E:\\NGA_Project_Data\\GRACE\\Global_resampled_Step2"
 # download_Grace_gradient(yearlist=[2013,2017],start_month=1,end_month=12,inputshp_dir=None, shapecsv=csv,output_dir=outdir,
-#                        gee_scale=5000)
+#                        gee_scale=2000)
 # extract_data(zip_dir=outdir, out_dir=outdir)
 # mosaic_rasters(input_dir=outdir,output_dir=mosaic_dir,raster_name="GRACE_2013_2017.tif",ref_raster=referenceraster2,
 #                search_by="*.tif",no_data=NO_DATA_VALUE,resolution=0.05)
@@ -745,7 +749,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # for shape in shapes:
 #     download_imagecollection_mean([2013,2019],start_month=1,end_month=12,
 #                                   output_dir=download_dir_tmax,
-#                                  inputshp=shape, gee_scale=5000,dataname="Tmax_",name="Tmax",
+#                                  inputshp=shape, gee_scale=2000,dataname="Tmax_",name="Tmax",
 #                                  bandname="tmmx",imagecollection="IDAHO_EPSCOR/TERRACLIMATE",factor=0.1)
 # 
 # 
@@ -760,7 +764,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # for shape in shapes:
 #     download_imagecollection_mean([2013,2019],start_month=1,end_month=12,
 #                                   output_dir=download_dir_tmin,
-#                                  inputshp=shape, gee_scale=5000,dataname="Tmin_",name="Tmin",
+#                                  inputshp=shape, gee_scale=2000,dataname="Tmin_",name="Tmin",
 #                                  bandname="tmmn",imagecollection="IDAHO_EPSCOR/TERRACLIMATE",factor=0.1)
 # 
 # 
@@ -781,7 +785,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # for shape in shapes:
 #     download_imagecollection_mean([2018,2019],start_month=1,end_month=12,
 #                                   output_dir=download_dir_tmax2,
-#                                  inputshp=shape, gee_scale=5000,dataname="Tmax_",name="Tmax",
+#                                  inputshp=shape, gee_scale=2,dataname="Tmax_",name="Tmax",
 #                                  bandname="tmmx",imagecollection="IDAHO_EPSCOR/TERRACLIMATE",factor=0.1)
 # 
 # 
@@ -796,7 +800,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # for shape in shapes:
 #     download_imagecollection_mean([2018,2019],start_month=1,end_month=12,
 #                                   output_dir=download_dir_tmin2,
-#                                  inputshp=shape, gee_scale=5000,dataname="Tmin_",name="Tmin",
+#                                  inputshp=shape, gee_scale=2000,dataname="Tmin_",name="Tmin",
 #                                  bandname="tmmn",imagecollection="IDAHO_EPSCOR/TERRACLIMATE",factor=0.1)
 # 
 # 
@@ -878,7 +882,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # for shape in shapes:
 #     download_imagecollection_mean([2013,2019],start_month=1,end_month=12,
 #                                   output_dir=download_dir,
-#                                  inputshp=shape, gee_scale=5000,dataname="EVI_",name="EVI",
+#                                  inputshp=shape, gee_scale=2000,dataname="EVI_",name="EVI",
 #                                  bandname="EVI",imagecollection="MODIS/006/MOD13Q1",factor=0.0001)
 # 
 # 
@@ -894,7 +898,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # for shape in shapes:
 #     download_imagecollection_mean([2018,2019],start_month=1,end_month=12,
 #                                   output_dir=download_dir,
-#                                  inputshp=shape, gee_scale=5000,dataname="EVI_",name="EVI",
+#                                  inputshp=shape, gee_scale=2000,dataname="EVI_",name="EVI",
 #                                  bandname="EVI",imagecollection="MODIS/006/MOD13Q1",factor=0.0001)
 # 
 # 
@@ -904,22 +908,6 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 #                     ref_raster=referenceraster2,create_outdir=True)
 # =============================================================================
 
-##Download MODIS ET Data
-# #Modis ET 2013_2019
-# csv=r'..\Reference_rasters\GEE_Download_coords.csv'
-# download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2013_2019\Raw_ET_2013_2019'
-# download_imagecollection_mean([2013,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
-#                               dataname='ET_',name='MODIS_ET',bandname='ET', imagecollection='MODIS/006/MOD16A2',
-#                               factor=0.1)
-# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
-#
-# #Modis ET 2018_2019
-# download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2018_2019\Raw_ET_2018_2019'
-# download_imagecollection_mean([2018,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
-#                               dataname='ET_',name='MODIS_ET',bandname='ET', imagecollection='MODIS/006/MOD16A2',
-#                               factor=0.1)
-# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
-
 ##Download GPWv411 UN Adjusted POpulation Density 
 # =============================================================================
 # shapes=glob(os.path.join("E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee","*world*.shp"))
@@ -928,7 +916,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # mosaic_dir="E:\\NGA_Project_Data\\population_density\\GPWv411 UN-Adjusted Population Density\\2010_2020\\World_pop_data_step02"
 # for shape in shapes:
 #     download_imagecollection_mean(yearlist=[2010,2020], start_month=1, end_month=1, output_dir=outdir, inputshp=shape,
-#                                   dataname='pop_',name="GPW",gee_scale=5000,
+#                                   dataname='pop_',name="GPW",gee_scale=2000,
 #                                   imagecollection="CIESIN/GPWv411/GPW_UNWPP-Adjusted_Population_Density",
 #                                   select_bandname=True,bandname="unwpp-adjusted_population_density")
 #     extract_data(zip_dir=outdir, out_dir=outdir)
@@ -954,7 +942,7 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # outdir="E:\\NGA_Project_Data\\Global_Aridity\\Raw_Aridity_GEE_step01"  
 # mosaic_dir="E:\\NGA_Project_Data\\Global_Aridity\\Global_Aridity_step02"            
 # for shape in shapes:
-#     download_image_gee(output_dir=outdir,inputshp=shape,bandname='b1',factor=0.0001,gee_scale=5000,
+#     download_image_gee(output_dir=outdir,inputshp=shape,bandname='b1',factor=0.0001,gee_scale=2000,
 #                        dataname="Aridity_",name="Aridity",image="projects/sat-io/open-datasets/global_ai_et0",
 #                        Terrain_slope=False)
 #     extract_data(zip_dir=outdir, out_dir=outdir)
