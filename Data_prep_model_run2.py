@@ -1,7 +1,7 @@
 #Done : LandUse (GFSAD1KCM, FAOLC-cropmask)-create function for adding crop mask on FAOLC, then process to agricultural density
 #Done : Population - convert to population density raster
-#ET (Modis, Alexi)
-#Rainfall 
+#Done : ET (Modis, Alexi)
+#Done : Rainfall
 #Temperature
 #Soil Moisture 
 #NDWI 
@@ -67,3 +67,38 @@ os.chdir(r'..\Codes_Global_GW')
 # outdir=r'..\Resampled Data\Population_Density'
 # apply_gaussian_filter(input_raster=inras, outdir=outdir, raster_name='Population_Density.tif', ignore_nan=True,normalize=True)
 
+##Resampling MODIS ET Data
+# #Modis ET 2013_2019
+# input_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2013_2019\Raw_ET_2013_2019'
+# mosaic_dir=r'..\Resampled Data\ET\MODIS_ET\2013_2019'
+# mosaic_rasters(input_dir=input_dir, output_dir=mosaic_dir, raster_name="MODIS_ET_2013_2019.tif",
+#                     ref_raster=referenceraster2,resolution=0.02)
+#
+# #Modis ET 2018_2019
+# input_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2018_2019\Raw_ET_2018_2019'
+# mosaic_dir=r'..\Resampled Data\ET\MODIS_ET\2018_2019'
+# mosaic_rasters(input_dir=input_dir, output_dir=mosaic_dir, raster_name="MODIS_ET_2018_2019.tif",
+#                     ref_raster=referenceraster2,resolution=0.02)
+
+##Resampling Alexi ET Data
+# #2013_2019
+# inras = r'..\Raw_Data\ET_products\Alexi_ET\mean_rasters\Alexi_ET_2013_2019.tif'
+# outdir = r'..\Resampled Data\ET\Alexi_ET\2013_2019'
+# resample_reproject(input_raster=inras,outdir=outdir,raster_name='Alexi_ET_2013_2019.tif',resample=True)
+#
+# #2018_2019
+# inras = r'..\Raw_Data\ET_products\Alexi_ET\mean_rasters\Alexi_ET_2018_2019.tif'
+# outdir = r'..\Resampled Data\ET\Alexi_ET\2018_2019'
+# resample_reproject(input_raster=inras,outdir=outdir,raster_name='Alexi_ET_2018_2019.tif',resample=True)
+
+##Resampling Terraclimate Rainfall Data
+# #2013_2019
+# input_dir=r'..\Raw_Data\Rainfall\TERRACLIMATE\2013_2019\Raw_TRCLM_2013_2019_Step01'
+# mosaic_dir=r'..\Resampled Data\Rainfall\2013_2019'
+# mosaic_rasters(input_dir=input_dir, output_dir=mosaic_dir, raster_name="Rainfall_2013_2019.tif",
+#                     ref_raster=referenceraster2,resolution=0.02)
+# #2018_2019
+# input_dir=r'..\Raw_Data\Rainfall\TERRACLIMATE\2018_2019\Raw_TRCLM_2018_2019_Step01'
+# mosaic_dir=r'..\Resampled Data\Rainfall\2018_2019'
+# mosaic_rasters(input_dir=input_dir, output_dir=mosaic_dir, raster_name="Rainfall_2018_2019.tif",
+#                     ref_raster=referenceraster2,resolution=0.02)

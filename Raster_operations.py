@@ -161,7 +161,7 @@ def filter_specific_values(input_raster,outdir,raster_name,fillvalue=np.nan,filt
             new_arr[arr==value]=value
     new_arr[np.isnan(new_arr)]=no_data_value
     
-    makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     
     write_raster(raster_arr=new_arr, raster_file=data, transform=data.transform, outfile_path=output_raster)
@@ -188,8 +188,7 @@ def resample_reproject(input_raster,outdir,raster_name,reference_raster=referenc
     Returns : Resampled/Reprojected raster.
     """
     ref_arr,ref_file=read_raster_arr_object(reference_raster)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     
     if resample:
@@ -335,7 +334,7 @@ def crop_raster_by_extent(input_raster,ref_file,output_dir,raster_name,invert=Fa
     cropped_arr=cropped_arr.squeeze()  #Remove axes of length 1 from the array
     
     #naming output file
-    makedirs(output_dir)
+    makedirs([output_dir])
     output_raster=os.path.join(output_dir,raster_name)
     
     #saving output raster
@@ -401,8 +400,7 @@ def clip_resample_raster_cutline(input_raster_dir, output_raster_dir, input_shap
     
     input_raster=gdal.Open(input_raster_dir)
     
-    if not os.path.exists(output_raster_dir):
-        os.makedirs(output_raster_dir)
+    makedirs([output_raster_dir])
         
     #naming output raster
     if naming_from_both:
@@ -482,7 +480,7 @@ def mosaic_rasters(input_dir,output_dir,raster_name,ref_raster=referenceraster2,
     merged_arr=np.where(ref_arr==0,merged_arr,ref_arr)
     merged_arr=merged_arr.squeeze()
 
-    makedirs(output_dir)
+    makedirs([output_dir])
     out_raster=os.path.join(output_dir,raster_name)
     write_raster(raster_arr=merged_arr,raster_file=ref_file,transform=ref_file.transform,outfile_path=out_raster,
                  no_data_value=no_data,ref_file=ref_raster)
@@ -520,8 +518,7 @@ def mean_rasters(input_dir,outdir,raster_name,reference_raster=None,searchby="*.
     arr_mean=arr_new/val
     arr_mean[np.isnan(arr_mean)] = NO_DATA_VALUE
         
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     
     write_raster(raster_arr=arr_mean,raster_file=ras_file,transform=ras_file.transform,
@@ -551,8 +548,7 @@ def mean_2_rasters(input1,input2,outdir,raster_name,nodata=NO_DATA_VALUE):
     
     mean_arr[np.isnan(mean_arr)] = NO_DATA_VALUE
         
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     
     write_raster(raster_arr=mean_arr,raster_file=rasfile1,transform=rasfile1.transform,
@@ -577,7 +573,7 @@ def array_multiply(input_raster1,input_raster2,outdir,raster_name):
     arr2,data2=read_raster_arr_object(input_raster2)
     new_arr=np.multiply(arr1,arr2)
 
-    makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     write_raster(raster_arr=new_arr, raster_file=data1, transform=data1.transform, outfile_path=output_raster)
 
@@ -632,8 +628,7 @@ def create_slope_raster(input_raster,outdir,raster_name):
     """
     dem_options=gdal.DEMProcessingOptions(format="GTiff",computeEdges=True,alg='Horn',slopeFormat='percent',scale=100000)
     
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     
     gdal.DEMProcessing(destName=output_raster, srcDS=input_raster, processing='slope', options=dem_options)
@@ -663,7 +658,7 @@ def create_nanfilled_raster(input_raster,outdir,raster_name,ref_raster=reference
     new_arr=np.where(np.isnan(ras_arr),ref_arr,ras_arr)
     new_arr=new_arr.reshape(ref_file.shape[0],ref_file.shape[1])
     
-    makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     write_raster(raster_arr=new_arr, raster_file=ras_file, transform=ras_file.transform, outfile_path=output_raster)
     
@@ -689,7 +684,7 @@ def paste_val_on_ref_raster(input_raster,outdir,raster_name,ref_raster=reference
     new_arr=np.where(ref_arr==0,ras_arr,ref_arr)
     new_arr=new_arr.reshape(ref_file.shape[0],ref_file.shape[1])
     
-    makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     write_raster(raster_arr=new_arr, raster_file=ras_file, transform=ras_file.transform, outfile_path=output_raster)    
 
@@ -732,7 +727,7 @@ def apply_gaussian_filter(input_raster,outdir,raster_name,sigma=3,ignore_nan=Tru
     ref_arr=read_raster_arr_object(ref_raster,get_file=False)
     raster_arr_flt[np.isnan(ref_arr)]=nodata
 
-    makedirs(outdir)
+    makedirs([outdir])
     write_raster(raster_arr=raster_arr_flt, raster_file=raster_file, transform=raster_file.transform, 
                  outfile_path=os.path.join(outdir,raster_name))
 
@@ -778,7 +773,7 @@ def Classify_InSAR_raster(input_raster,outdir,raster_name, start_date,end_date, 
     arr=np.where((arr<-1)&(arr>=-5),sub_bet_1cm_5cm,arr)
     arr=np.where(arr<-5,sub_greater_5cm,arr)
     
-    makedirs(outdir)
+    makedirs([outdir])
     output_raster=os.path.join(outdir,raster_name)
     
     outfilepath=write_raster(raster_arr=arr, raster_file=file, transform=file.transform, outfile_path=output_raster)
@@ -797,38 +792,7 @@ def Classify_InSAR_raster(input_raster,outdir,raster_name, start_date,end_date, 
 # Classify_InSAR_raster(input_raster=fp, outdir=outdir, raster_name='California_reclass.tif',
 #                       resampled_raster_name='California_reclass_resampled.tif',start_date="2015/06/13",end_date="2019/09/19")
 # =============================================================================
-    
-##Resampling Alexi ET Produce
 
-#creating mean rasters       
-# =============================================================================
-# data_dir = 'E:\\NGA_Project_Data\\ET_products\\Alexi_ET\\year_wise\\2013_2019'
-# outdir = "E:\\NGA_Project_Data\\ET_products\\Alexi_ET\\mean_rasters_Step2"
-# ref_raster = "E:\\NGA_Project_Data\\shapefiles\\Country_continent_full_shapes\\Global_Continents_ref_raster.tif"
-# mean_rasters(data_dir, outdir,raster_name="Alexi_ET_2013_2019.tif", ref_raster, searchby='*ET*.tif')
-# 
-# data_dir2 = 'E:\\NGA_Project_Data\\ET_products\\Alexi_ET\\year_wise\\2018_2019'
-# outdir2 = "E:\\NGA_Project_Data\\ET_products\\Alexi_ET\\mean_rasters_Step2"      
-# mean_rasters(data_dir2, outdir2,raster_name="Alexi_ET_2018_2019.tif", ref_raster, searchby='*ET*.tif')
-# 
-# #Clipping Alexi ET Product with Continent Cutlines
-# input_rasters=glob(os.path.join("E:\\NGA_Project_Data\\ET_products\\Alexi_ET\\mean_rasters_Step2","*2013*.tif"))
-# output_dir="E:\\NGA_Project_Data\\ET_products\\Alexi_ET\\Alexi_continent_yearly_mean_Step3\\Alexi_2013_2019"
-# input_shapes=glob(os.path.join("E:\\NGA_Project_Data\\shapefiles\\continent_extents","*continent*.shp"))
-# 
-# for shape in input_shapes:
-#     for raster in input_rasters:
-#         clip_resample_raster_cutline(input_raster_dir=raster, output_raster_dir=output_dir, input_shape_dir=shape)
-# 
-# input_rasters2=glob(os.path.join("E:\\NGA_Project_Data\\ET_products\\Alexi_ET\\mean_rasters_Step2","*2018*.tif"))
-# output_dir2="E:\\NGA_Project_Data\\ET_products\\Alexi_ET\\Alexi_continent_yearly_mean_Step3\\Alexi_2018_2019"
-# for shape in input_shapes:
-#     for raster in input_rasters2:
-#         clip_resample_raster_cutline(input_raster_dir=raster, output_raster_dir=output_dir2, input_shape_dir=shape)
-# =============================================================================
-
-
-  
 ##Sediment Thickness
 #Renaming
 # =============================================================================

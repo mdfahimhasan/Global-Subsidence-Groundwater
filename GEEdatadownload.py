@@ -119,7 +119,7 @@ def download_imagecollection_mean(yearlist,start_month,end_month,output_dir,shap
         data_total=data_download.filterDate(start_date,end_date).mean().multiply(factor).toFloat() 
         
     #Creating Output directory
-    makedirs(output_dir)
+    makedirs([output_dir])
     
     if inputshp_dir:
         shapes=glob(os.path.join(inputshp_dir,search_criteria))
@@ -216,7 +216,7 @@ def download_Grace_gradient(yearlist,start_month,end_month,output_dir,shapecsv=N
         .add(grace_jpl_trend.select(0)).select(0).divide(3)
     
     #Creating Output Directory
-    makedirs(output_dir)
+    makedirs([output_dir])
     
     if inputshp_dir:
         shapes=glob(os.path.join(inputshp_dir,search_criteria))
@@ -287,7 +287,7 @@ def download_image_gee(output_dir,bandname,shapecsv=None,inputshp_dir=None,searc
         data_download=ee.Terrain.slope(data_download)
         
     #Creating Output Directory
-    makedirs(output_dir)
+    makedirs([output_dir])
     
     if inputshp_dir:
         shapes=glob(os.path.join(inputshp_dir,search_criteria))
@@ -490,7 +490,7 @@ def download_MODIS_derived_product(yearlist,start_month,end_month,output_dir,sha
         end_date=ee.Date.fromYMD(yearlist[1],end_month+1,1)
     
     #Creating Output Directory
-    makedirs(output_dir)
+    makedirs([output_dir])
     
     dataset=ee.ImageCollection(imagecollection)
     cloudmasked=dataset.filterDate(start_date,end_date).map(cloudmask_MODIS09A1)
@@ -559,10 +559,9 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
     rename_file : True if file rename is required while extracting
     """
     print('Extracting zip files.....')
-    
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    
+
+    makedirs([out_dir])
+
     for zip_file in glob(os.path.join(zip_dir,searchby)):
         with zipfile.ZipFile(zip_file,'r') as zip_ref:
             if rename_file:
@@ -670,42 +669,23 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # mosaic_rasters(input_dir=outdir2, output_dir=mosaic_dir2, raster_name="NDWI_2018_2019.tif",
 #                     ref_raster=referenceraster2,create_outdir=True) 
 # =============================================================================
-   
-    
-##For TERRACLIMATE precipitation Data
-# =============================================================================
-# shape_path="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
-# shapes=glob(os.path.join(shape_path,"*world*.shp"))
-# #2013_2019 TERRACLIMATE download
-# download_dir="E:\\NGA_Project_Data\\Rainfall_data\\TERRACLIMATE\\2013_2019\\Raw_TRCLM_Step01"
-# mosaic_dir="E:\\NGA_Project_Data\\Rainfall_data\\TERRACLIMATE\\2013_2019\\World_TRCLM_Step02"
-# 
-# for shape in shapes:
-#     download_imagecollection_mean([2013,2019],start_month=1,end_month=12,
-#                                   output_dir=download_dir,
-#                                  inputshp=shape, gee_scale=5000,dataname="TRCLM_",name="TERRACLIMATE",
-#                                  bandname="pr",imagecollection="IDAHO_EPSCOR/TERRACLIMATE")
-# 
-# 
-#     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)  
-#     
-# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="TRCLM_pr_2013_2019.tif",
-#                      ref_raster=referenceraster2,create_outdir=True) 
-# #2018_2019 TERRACLIMATE download
-# download_dir="E:\\NGA_Project_Data\\Rainfall_data\\TERRACLIMATE\\2018_2019\\Raw_TRCLM_Step01"
-# mosaic_dir="E:\\NGA_Project_Data\\Rainfall_data\\TERRACLIMATE\\2018_2019\\World_TRCLM_Step02"
-# 
-# for shape in shapes:
-#     download_imagecollection_mean([2018,2019],start_month=1,end_month=12,output_dir=download_dir,
-#                                  inputshp=shape, gee_scale=5000,dataname="TRCLM_",name="TERRACLIMATE",
-#                                  bandname="pr",imagecollection="IDAHO_EPSCOR/TERRACLIMATE")
-# 
-#     extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)  
-# 
-# mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="TRCLM_pr_2018_2019.tif",
-#                      ref_raster=referenceraster2,create_outdir=True) 
-# =============================================================================
 
+##TERRACLIMATE precipitation Data
+# csv=r'..\Reference_rasters\GEE_Download_coords.csv'
+# #2013_2019
+# download_dir=r'..\Raw_Data\Rainfall\TERRACLIMATE\2013_2019\Raw_TRCLM_2013_2019_Step01'
+# download_imagecollection_mean([2013,2019],start_month=1,end_month=12,output_dir=download_dir,
+#                               shapecsv=csv, gee_scale=2000, dataname="TRCLM_",name="TERRACLIMATE",
+#                               bandname="pr",imagecollection="IDAHO_EPSCOR/TERRACLIMATE",
+#                               factor=1)
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
+# #2018_2019
+# download_dir=r'..\Raw_Data\Rainfall\TERRACLIMATE\2018_2019\Raw_TRCLM_2018_2019_Step01'
+# # download_imagecollection_mean([2018,2019],start_month=1,end_month=12,output_dir=download_dir,
+# #                               shapecsv=csv, gee_scale=2000, dataname="TRCLM_",name="TERRACLIMATE",
+# #                               bandname="pr",imagecollection="IDAHO_EPSCOR/TERRACLIMATE",
+#                               factor=1)
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 ##Download Modis Landcover Data
 # =============================================================================
 # shape_path="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
@@ -925,31 +905,20 @@ def extract_data(zip_dir,out_dir,searchby="*.zip",rename_file=True):
 # =============================================================================
 
 ##Download MODIS ET Data
-
-#Modis ET 2013_2019
-csv=r'..\Reference_rasters\GEE_Download_coords.csv'
-download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2013_2019\Raw_ET_2013_2019'
-mosaic_dir=r'..\Resampled Data\ET\MODIS_ET\2013_2019'
-download_imagecollection_mean([2013,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
-                              dataname='ET_',name='MODIS_ET',bandname='ET', imagecollection='MODIS/006/MOD16A2',
-                              factor=0.1)
-extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
-
-mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="MODIS_ET_2013_2019.tif",
-                    ref_raster=referenceraster2)
-
-#Modis ET 2018_2019
-download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2018_2019\Raw_ET_2018_2019'
-mosaic_dir=r'..\Resampled Data\ET\MODIS_ET\2018_2019'
-
-download_imagecollection_mean([2018,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
-                              dataname='ET_',name='MODIS_ET',bandname='ET', imagecollection='MODIS/006/MOD16A2',
-                              factor=0.1)
-extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
-
-mosaic_rasters(input_dir=download_dir, output_dir=mosaic_dir, raster_name="MODIS_ET_2018_2019.tif",
-                    ref_raster=referenceraster2)
-# =============================================================================
+# #Modis ET 2013_2019
+# csv=r'..\Reference_rasters\GEE_Download_coords.csv'
+# download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2013_2019\Raw_ET_2013_2019'
+# download_imagecollection_mean([2013,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
+#                               dataname='ET_',name='MODIS_ET',bandname='ET', imagecollection='MODIS/006/MOD16A2',
+#                               factor=0.1)
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
+#
+# #Modis ET 2018_2019
+# download_dir=r'..\Raw_Data\ET_products\MODIS_ET\ET_2018_2019\Raw_ET_2018_2019'
+# download_imagecollection_mean([2018,2019],start_month=1,end_month=12,output_dir=download_dir,shapecsv=csv,gee_scale=2000,
+#                               dataname='ET_',name='MODIS_ET',bandname='ET', imagecollection='MODIS/006/MOD16A2',
+#                               factor=0.1)
+# extract_data(zip_dir=download_dir,out_dir=download_dir,searchby="*.zip",rename_file=True)
 
 ##Download GPWv411 UN Adjusted POpulation Density 
 # =============================================================================
