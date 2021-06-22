@@ -42,7 +42,7 @@ def overlay(shape1,shape2,outshape,how='difference'):
     shape2=gpd.read_file(shape2)
 
     #overlay
-    overlay_shape=gpd.overlay(shape1,shape2,how='difference')
+    overlay_shape=gpd.overlay(shape1,shape2,how=how)
     overlay_shape.to_file(outshape)
 
 def buffer(shape,outshape,Reprojection=True,buffer=1000,projected_epsg_code=8857):
@@ -132,26 +132,6 @@ def separate_shapes(input_shape,output_dir,index_col=True,label='Id'):
            new_shape=shape[shape[label]==each]
            new_shape.to_file(os.path.join(output_dir,name))
            num=num+1
-
-            
-def append_shapes(shape1,shape2,output_shape):
-    """
-    Append one shape to other.
-
-    parameters:
-    shape1 : Shapefile 1 with filepath.
-    shape2 : Shapefile 2 with filepath.
-    output_shape : Output shape file with filepath.
-
-    Returns:None.
-    """
-    gdf1=gpd.read_file(shape1)
-    gdf2=gpd.read_file(shape2)
-    
-    new_gdf=gdf1.append(gdf2)
-    new_gdf.to_file(output_shape)
-    
-    
 
 # =============================================================================
 # #Separating World Grid Shapefiles for dowloading GEE data

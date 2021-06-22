@@ -14,7 +14,7 @@ referenceraster2="E:\\NGA_Project_Data\\shapefiles\\Country_continent_full_shape
 # =============================================================================
 # GS_G5_shp="E:\\NGA_Project_Data\\Model Run\\Subsidence_shapefiles\\GS_G5.shp"
 # outras="E:\\NGA_Project_Data\\Model Run\\Working_dir\\Subsidence_G5.tif"
-# rops.shapefile_to_raster(input_shape=GS_G5_shp, output_raster=outras,burn_attr=False,burnvalue=1,allTouched=False)
+# rops.shapefile_to_raster(input_shape=GS_G5_shp, output_raster=outras,burn_attr=False,burnvalue=1,alltouched=False)
 # #creating nan-filled subsidence raster
 # subsidence_raster="E:\\NGA_Project_Data\\Model Run\\Working_dir\\Subsidence_G5.tif"
 # outras="E:\\NGA_Project_Data\\Model Run\\Global_Predictors_raster\\Subsidence_G5.tif"
