@@ -1,4 +1,4 @@
-import os
+# import os
 import rasterio as rio
 from rasterio.merge import merge
 from rasterio.mask import mask
@@ -6,21 +6,18 @@ from glob import glob
 import numpy as np
 import gdal
 import json
-import geopandas as gpd
 from fiona import transform
-from shapely.geometry import box
+from shapely.geometry import box, mapping
 import geopandas as gpd
 import astropy.convolution as apc
 from scipy.ndimage import gaussian_filter
-from sysops import *
+from System_operations import *
 from datetime import datetime
 
-NO_DATA_VALUE = -9999
+No_Data_Value = -9999
 
-os.chdir(r'E:\NGA_Project_Data\Codes_Global_GW')
-
-referenceraster1 = r'..\Data\Reference_rasters\Global_continents_ref_raster.tif'
-referenceraster2 = r'..\Data\Reference_rasters\Global_continents_ref_raster_002.tif'
+referenceraster1 = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
+referenceraster2 = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
 
 # =============================================================================
@@ -60,7 +57,7 @@ def read_raster_arr_object(input_raster, band=1, raster_object=False, get_file=T
 # =============================================================================
 # #Writing Raster to File
 # =============================================================================
-def write_raster(raster_arr, raster_file, transform, outfile_path, no_data_value=NO_DATA_VALUE,
+def write_raster(raster_arr, raster_file, transform, outfile_path, no_data_value=No_Data_Value,
                  ref_file=None):
     """
     Write raster file in GeoTIFF format
@@ -100,7 +97,7 @@ def write_raster(raster_arr, raster_file, transform, outfile_path, no_data_value
 # #filter raster
 # =============================================================================
 def filter_lower_larger_value(input_raster, output_dir, band=1, lower=True, larger=False, filter_value=0,
-                              new_value=np.nan, no_data_value=NO_DATA_VALUE):
+                              new_value=np.nan, no_data_value=No_Data_Value):
     """
     filter out and replace value in raster
 
@@ -130,7 +127,7 @@ def filter_lower_larger_value(input_raster, output_dir, band=1, lower=True, larg
 
 
 def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, filter_value=[10, 11],
-                           new_value=False, value_new=1, no_data_value=NO_DATA_VALUE, paste_on_ref_raster=False,
+                           new_value=False, value_new=1, no_data_value=No_Data_Value, paste_on_ref_raster=False,
                            ref_raster=referenceraster2):
     """
     Filter and replace values in raster.
@@ -176,7 +173,7 @@ def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, 
 # #Resample or Reproject Raster
 # =============================================================================
 
-def resample_reproject(input_raster, outdir, raster_name, reference_raster=referenceraster2, resample=True,
+def resample_reproject(input_raster, output_dir, raster_name, reference_raster=referenceraster2, resample=True,
                        reproject=False,
                        change_crs_to="EPSG:4326", both=False):
     """
@@ -184,7 +181,7 @@ def resample_reproject(input_raster, outdir, raster_name, reference_raster=refer
 
     Parameters:
     input_raster : Input raster Directory with filename.
-    outdir : Output raster directory.
+    output_dir : Output raster directory.
     raster_name: Output raster name.
     reference_raster : Reference raster path with file name.
     resample : Set True to resample only. Set reproject and both to False when resample=True.
@@ -194,8 +191,8 @@ def resample_reproject(input_raster, outdir, raster_name, reference_raster=refer
     Returns : Resampled/Reprojected raster.
     """
     ref_arr, ref_file = read_raster_arr_object(reference_raster)
-    makedirs([outdir])
-    output_raster = os.path.join(outdir, raster_name)
+    makedirs([output_dir])
+    output_raster = os.path.join(output_dir, raster_name)
 
     if resample:
         gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, width=ref_arr.shape[1],
@@ -208,6 +205,7 @@ def resample_reproject(input_raster, outdir, raster_name, reference_raster=refer
         gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, width=ref_arr.shape[1],
                   height=ref_arr.shape[0], dstSRS=change_crs_to, outputType=gdal.GDT_Float32)
 
+    return output_raster
 
 # =============================================================================
 # #Reproject Coordinates
@@ -240,7 +238,7 @@ def rename_copy_raster(input_raster, output_dir, rename=False, new_name=None, ch
     input_raster: input raster directory with raster name.
     output_dir : output raster (renamed) directory.
     rename : Set to True if want to rename the raster.
-    new_name : new name of the raster if rename is True. Default set to None.
+    new_name : new name of the raster if rename is True. Default set to None. For example 'ET.tif'.
     change_dtype : False if datatype should remain unchanged. Set True to change data type to 'Float32'.
 
     Returns : Renamed and copied raster with filepath.
@@ -262,7 +260,7 @@ def rename_copy_raster(input_raster, output_dir, rename=False, new_name=None, ch
 # #Changing No Data Value
 # =============================================================================
 
-def change_nodata_value(input_raster_dir, new_nodata=NO_DATA_VALUE):
+def change_nodata_value(input_raster_dir, new_nodata=No_Data_Value):
     """
     change no data value for single banded raster
 
@@ -293,7 +291,7 @@ def change_nodata_value(input_raster_dir, new_nodata=NO_DATA_VALUE):
 # #Changing a specific array value to no data
 # =============================================================================
 
-def change_band_value_to_nodata(input_raster, outfile_path, band_val_to_change=0, nodata=NO_DATA_VALUE):
+def change_band_value_to_nodata(input_raster, outfile_path, band_val_to_change=0, nodata=No_Data_Value):
     """
     changing a band value of a raster to no data value 
 
@@ -336,7 +334,7 @@ def crop_raster_by_extent(input_raster, ref_file, output_dir, raster_name, inver
     """
 
     # opening input raster
-    raset_arr, input_file = read_raster_arr_object(input_raster)
+    raster_arr, input_file = read_raster_arr_object(input_raster)
 
     if '.shp' in ref_file:
         ref_extent = gpd.read_File(ref_file)
@@ -362,22 +360,63 @@ def crop_raster_by_extent(input_raster, ref_file, output_dir, raster_name, inver
                  outfile_path=output_raster)
 
 
+# Unstable for Austrlia
+def extract_raster_array_by_shapefile(input_raster, ref_shape, output_dir=None, raster_name=None, invert=False, crop=True,
+                                      save_cropped_arr=False):
+    """
+    Extract a raster array within the input shapefile.
+
+    Parameters
+    ----------
+    input_raster: Input raster file path.
+    ref_shape : Reference shape file to crop input_raster.
+    output_dir : Defaults to None. Set a output raster directory path if saved_cropped_arr is True.
+    raster_name : Defaults to None. Set a output raster name if saved_cropped_arr is True.
+    invert : If False (default) pixels outside shapes will be masked.
+             If True, pixels inside shape will be masked.
+    crop : Whether to crop the raster to the extent of the shapes. Set to False if invert=True is used.
+    save_cropped_arr : Set to true if want to save cropped/masked raster array. If True, must provide raster_name and
+                       output_dir.
+
+    Returns : Cropped raster.
+    """
+    # opening input raster
+    input_arr, input_file = read_raster_arr_object(input_raster)
+    shapefile = gpd.read_file(ref_shape)
+    geoms = shapefile['geometry'].values  # list of shapely geometries
+    geoms = [mapping(geoms[0])]
+
+    # masking
+    cropped_arr, cropped_transform = mask(dataset=input_file, shapes=geoms, filled=True, crop=crop, invert=invert)
+    cropped_arr = cropped_arr.squeeze()  # Remove axes of length 1 from the array
+
+    if save_cropped_arr:
+        # naming output file
+        makedirs([output_dir])
+        output_raster = os.path.join(output_dir, raster_name)
+
+        # saving output raster
+        write_raster(raster_arr=cropped_arr, raster_file=input_file, transform=cropped_transform,
+                     outfile_path=output_raster)
+    return cropped_arr, cropped_transform
+
+
 # =============================================================================
 # #Mask and Resample Global Raster Data by Reference Raster
 # =============================================================================
 def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referenceraster2, resolution=0.02,
-                       nodata=NO_DATA_VALUE,
+                       nodata=No_Data_Value,
                        paste_on_ref_raster=False, pasted_outdir=None, pasted_raster_name=None):
     """
     Mask a Global Raster Data by Reference Raster. 
 
     Parameters:
     input_raster : Input raster name with filepath.
-    outdir : Output raster directory.
+    output_dir : Output raster directory.
     raster_name : Output raster name.
     ref_raster : Global reference raster filepath. Defaults to referenceraster2.
     resolution : Resolution of output raster. Defaults to 0.02 degree in GCS_WGS_1984.
-    nodata : No data value. Defaults to NO_DATA_VALUE of -9999.
+    nodata : No data value. Defaults to No_Data_Value of -9999.
     
     #second part of the code, use if necessary.
     paste_on_ref_raster : Set True if the masked raster's value need to be pasted on reference raster.
@@ -408,84 +447,53 @@ def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referencera
 # #Clipping Raster by Shapefile Cutline, Processing NoData, Pixel Size, CRS
 # =============================================================================
 
-def clip_resample_raster_cutline(input_raster_dir, output_raster_dir, input_shape_dir, coordinate="EPSG:4326",
-                                 xpixel=0.05, ypixel=0.05, NoData=NO_DATA_VALUE, naming_from_both=True):
+def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, coordinate="EPSG:4326",
+                                 xpixel=0.02, ypixel=0.02, NoData=No_Data_Value, naming_from_both=True):
     """
     clip raster by shapefile (cutline) to exact extent, resample pixel size and coordinate system
 
     Parameters
     ----------
-    input_raster_dir : Input raster directory with filename
-    output_raster_dir : Output raster directory
-    input_shape_dir : Input shapefile (cutline) directory 
+    input_raster : Input raster.
+    output_raster_dir : Output raster directory.
+    input_shape : Input shapefile (cutline).
     coordinate : Output coordinate system. The default is "EPSG:4326".
-    xpixel : X pixel size. The default is 0.05.
-    ypixel :  Y pixel size. The default is 0.05.
+    xpixel : X pixel size. The default is 0.02.
+    ypixel :  Y pixel size. The default is 0.02.
     NoData : No Data value. By default None.
-    naming_from_both : If clipped raster need to contain both name from raster and shapefile set True. Otherwise set False.
+    naming_from_both : If clipped raster need to contain both name from raster and shapefile set True.
+                       Otherwise set False.
+
+    Returns : Clipped raster array and raster file.
     """
 
-    input_raster = gdal.Open(input_raster_dir)
+    raster_file = gdal.Open(input_raster)
 
     makedirs([output_raster_dir])
 
-    # naming output raster
     if naming_from_both:
-        raster_part = input_raster_dir[input_raster_dir.rfind(os.sep) + 1:]
-        shape_part = input_shape_dir[input_shape_dir.rfind(os.sep) + 1:input_shape_dir.rfind("_")]
+        raster_part = input_raster[input_raster.rfind('/') + 1:]
+        shape_part = input_shape[input_shape.rfind(os.sep) + 1:input_shape.rfind("_")]
         output_path = os.path.join(output_raster_dir, shape_part + "_" + raster_part)
     else:
-        raster_part = input_raster_dir[input_raster_dir.rfind(os.sep) + 1:]
+        raster_part = input_raster[input_raster.rfind(os.sep) + 1:]
         output_path = os.path.join(output_raster_dir, raster_part)
-    # Warping
-    dataset = gdal.Warp(destNameOrDestDS=output_path, srcDSOrSrcDSTab=input_raster, dstSRS=coordinate,
-                        targetAlignedPixels=True,
-                        xRes=xpixel, yRes=ypixel, cutlineDSName=input_shape_dir, cropToCutline=True, dstNodata=NoData)
 
+    dataset = gdal.Warp(destNameOrDestDS=output_path, srcDSOrSrcDSTab=raster_file, dstSRS=coordinate,
+              targetAlignedPixels=True, xRes=xpixel, yRes=ypixel, cutlineDSName=input_shape, cropToCutline=True,
+              dstNodata=NoData)
     del dataset
 
+    clipped_arr, clipped_file = read_raster_arr_object(output_path)
 
-# =============================================================================
-# #Clipping MODIS Raster by Shapefile Cutline, Processing NoData, Pixel Size, CRS (Data Only Downloaded by Python Gee Download Code)
-# =============================================================================
-
-def clip_resample_MODIS_cutline(input_raster_dir, output_raster_dir, input_shape_dir, coordinate="EPSG:4326",
-                                xpixel=0.05, ypixel=0.05, NoData=NO_DATA_VALUE):
-    """
-    clip MODIS raster by shapefile (cutline) to exact extent, resample pixel size and coordinate system
-
-    Parameters
-    ----------
-    input_raster_dir : Input raster directory with filename. Use glob for multiple rasters
-    output_raster_dir : Output raster directory
-    input_shape_dir : Input shapefile (cutline) directory 
-    coordinate : Output coordinate system. The default is "EPSG:4326".
-    xpixel : X pixel size. The default is 0.05.
-    ypixel :  Y pixel size. The default is 0.05.
-    NoData : No Data value. By default None.
-    """
-
-    input_raster = gdal.Open(input_raster_dir)
-
-    # naming output raster
-    Out_raster_name = input_raster_dir[input_raster_dir.rfind(
-        os.sep) + 1:]  # Raster name will remain the same, only directory will change
-    output_path = os.path.join(output_raster_dir, Out_raster_name)
-
-    # Warping
-
-    dataset = gdal.Warp(destNameOrDestDS=output_path, srcDSOrSrcDSTab=input_raster, dstSRS=coordinate,
-                        targetAlignedPixels=True,
-                        xRes=xpixel, yRes=ypixel, cutlineDSName=input_shape_dir, cropToCutline=True, dstNodata=NoData)
-
-    del dataset
+    return clipped_arr, clipped_file
 
 
 # =============================================================================
 # #Mosaic Multiple Rasters    
 # =============================================================================
 def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraster2, search_by="*.tif",
-                   resolution=0.02, no_data=NO_DATA_VALUE):
+                   resolution=0.02, no_data=No_Data_Value):
     """
     Mosaics multiple rasters into a single raster (rasters have to be in the same directory).
 
@@ -525,7 +533,7 @@ def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraste
 # #Mosaic 2 Rasters
 # =============================================================================
 def mosaic_two_rasters(input_raster1, input_raster2, output_dir, raster_name, ref_raster=referenceraster2,
-                       resolution=0.02, no_data=NO_DATA_VALUE):
+                       resolution=0.02, no_data=No_Data_Value):
     """
     Mosaics two rasters into a single raster (rasters have to be in the same directory).
 
@@ -565,7 +573,7 @@ def mosaic_two_rasters(input_raster1, input_raster2, output_dir, raster_name, re
 # #Mean rasters from a folder 
 # =============================================================================
 
-def mean_rasters(input_dir, outdir, raster_name, reference_raster=None, searchby="*.tif", no_data_value=NO_DATA_VALUE):
+def mean_rasters(input_dir, outdir, raster_name, reference_raster=None, searchby="*.tif", no_data_value=No_Data_Value):
     """
     mean multiple rasters from a directory. 
 
@@ -592,7 +600,7 @@ def mean_rasters(input_dir, outdir, raster_name, reference_raster=None, searchby
             arr_new = arr_new + each_arr
         val = val + 1
     arr_mean = arr_new / val
-    arr_mean[np.isnan(arr_mean)] = NO_DATA_VALUE
+    arr_mean[np.isnan(arr_mean)] = No_Data_Value
 
     makedirs([outdir])
     output_raster = os.path.join(outdir, raster_name)
@@ -604,7 +612,7 @@ def mean_rasters(input_dir, outdir, raster_name, reference_raster=None, searchby
 # =============================================================================
 # # Mean 2 Rasters
 # =============================================================================
-def mean_2_rasters(input1, input2, outdir, raster_name, nodata=NO_DATA_VALUE):
+def mean_2_rasters(input1, input2, outdir, raster_name, nodata=No_Data_Value):
     """
     mean 2 rasters . 
 
@@ -623,7 +631,7 @@ def mean_2_rasters(input1, input2, outdir, raster_name, nodata=NO_DATA_VALUE):
 
     mean_arr = np.mean(np.array([arr1, arr2]), axis=0)
 
-    mean_arr[np.isnan(mean_arr)] = NO_DATA_VALUE
+    mean_arr[np.isnan(mean_arr)] = No_Data_Value
 
     makedirs([outdir])
     output_raster = os.path.join(outdir, raster_name)
@@ -642,7 +650,7 @@ def array_multiply(input_raster1, input_raster2, outdir, raster_name):
     Parameters:
     input_raster1 : Raster 1 file with file name.
     input_raster2 : Raster 1 file with file name.
-    outdir : Output Raster Directory.
+    output_dir : Output Raster Directory.
     raster_name : Output raster name.
 
     Returns:None.
@@ -662,7 +670,7 @@ def array_multiply(input_raster1, input_raster2, outdir, raster_name):
 # =============================================================================
 def shapefile_to_raster(input_shape, output_dir, raster_name, burn_attr=False, attribute="",
                         ref_raster=referenceraster2,
-                        resolution=0.02, burnvalue=1, alltouched=False, nodatavalue=NO_DATA_VALUE):
+                        resolution=0.02, burnvalue=1, alltouched=False, nodatavalue=No_Data_Value):
     """
     Converts polygon shapefile to raster by attribute value or burn value.
 
@@ -676,7 +684,7 @@ def shapefile_to_raster(input_shape, output_dir, raster_name, burn_attr=False, a
     resolution : Resolution of the raster. Defaults to 0.05.
     burnvalue : Value for burning into raster. Only needed when burn_attr is False. Defaults to 1.
     alltouched : If True all pixels touched by lines or polygons will be updated.
-    nodatavalue : NO_DATA_VALUE.
+    nodatavalue : No_Data_Value.
 
     Returns:None.
     """
@@ -707,7 +715,7 @@ def create_slope_raster(input_raster, outdir, raster_name):
 
     Parameter:
     input_raster : Input raster with filepath.
-    outdir : Output raster directory.
+    output_dir : Output raster directory.
     raster_name : Output raster name.
 
     Returns: None.
@@ -731,7 +739,7 @@ def create_nanfilled_raster(input_raster, outdir, raster_name, ref_raster=refere
 
     parameters:
     input_raster : Input raster.
-    outdir : Output raster directory.
+    output_dir : Output raster directory.
     raster_name : output raster name.
     ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster2.
 
@@ -759,7 +767,7 @@ def paste_val_on_ref_raster(input_raster, outdir, raster_name, value=0, ref_rast
 
     parameters:
     input_raster : Input raster.
-    outdir : Output raster directory.
+    output_dir : Output raster directory.
     raster_name : output raster name.
     value : Value in reference raster used in comparison.
     ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster2.
@@ -786,18 +794,18 @@ def paste_val_on_ref_raster(input_raster, outdir, raster_name, value=0, ref_rast
 # #Gaussian Filter
 # =============================================================================
 def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan=True, normalize=True,
-                          nodata=NO_DATA_VALUE, ref_raster=referenceraster2):
+                          nodata=No_Data_Value, ref_raster=referenceraster2):
     """
     Applies Gaussian filter to raster.
 
     Parameters:
     input_raster : Input Raster.
-    outdir : Output Raster Directory.
+    output_dir : Output Raster Directory.
     raster_name : Output raster name.
     sigma : Standard Deviation for gaussian kernel. Defaults to 3.
     ignore_nan :  Set true to ignore nan values during convolution.
     normalize : Set true to normalize the filtered raster at the end.
-    nodata : NO_DATA_VALUE.
+    nodata : No_Data_Value.
     ref_raster : Reference Raster. Defaults to referenceraster2.
 
     Returns: Gaussian filtered raster.
@@ -840,7 +848,7 @@ def Classify_InSAR_raster(input_raster, outdir, raster_name, cnra_data=False, st
 
     Parameters :
     input_raster : Input Raster filepath.
-    outdir : Output Directory path.
+    output_dir : Output Directory path.
     raster_name : Output raster name.
     cnra_data : If the data is from 'California National Resources Agency', set True to convert values into cm/year.
     start_date : If cnra data, start day of the data in string format. Format must be like "2015/12/31"
@@ -892,23 +900,26 @@ def Classify_InSAR_raster(input_raster, outdir, raster_name, cnra_data=False, st
 
 
 # # California InSAR Data Processing
-# outdir = r'..\InSAR_Data\Processed_resampled'
+# output_dir = r'..\InSAR_Data\Processed_resampled'
 # fp = r'..\InSAR_Data\California\California_vert_disp_20150613_20190919.tif'
 #
-# path=Classify_InSAR_raster(input_raster=fp, outdir=outdir, raster_name='California_reclass.tif', cnra_data=True,
+# path=Classify_InSAR_raster(input_raster=fp, output_dir=output_dir, raster_name='California_reclass.tif', cnra_data=True,
 #                       resampled_raster_name='California_reclass_resampled.tif', start_date="2015/06/13",
 #                       end_date="2019/09/19")
 
 # # Arizona InSAR Data Processing
-# outdir=r'..\InSAR_Data\Processed_resampled'
+# output_dir=r'..\InSAR_Data\Processed_resampled'
 # fp=r'..\InSAR_Data\Arizona\2010_2019\MS_2010_2019.tif'
 #
-# Classify_InSAR_raster(input_raster=fp, outdir=outdir, raster_name='Arizona_reclass.tif',
+# Classify_InSAR_raster(input_raster=fp, output_dir=output_dir, raster_name='Arizona_reclass.tif',
 #                       resampled_raster_name='Arizona_reclass_resampled.tif')
 
-# Quetta Valley InSAR Data Processing
-outdir = r'..\InSAR_Data\Processed_resampled'
-fp = r'E:\NGA_Project_Data\InSAR_Data\Pakistan_Quetta\Quetta_2017_2021.tif'
+# # Quetta Valley InSAR Data Processing
+# output_dir = r'..\InSAR_Data\Processed_resampled'
+# fp = r'E:\NGA_Project_Data\InSAR_Data\Pakistan_Quetta\Quetta_2017_2021.tif'
+#
+# Classify_InSAR_raster(input_raster=fp, output_dir=output_dir, raster_name='Quetta_reclass.tif',
+#                       resampled_raster_name='Quetta_reclass_resampled.tif', unit_change=True, unit_scale=100)
 
-Classify_InSAR_raster(input_raster=fp, outdir=outdir, raster_name='Quetta_reclass.tif',
-                      resampled_raster_name='Quetta_reclass_resampled.tif', unit_change=True, unit_scale=100)
+
+

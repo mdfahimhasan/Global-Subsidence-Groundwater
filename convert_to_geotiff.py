@@ -2,7 +2,7 @@ import os
 import numpy as np
 import rasterio
 from glob import glob
-from sysops import makedirs
+from System_operations import makedirs
 
 NO_DATA_VALUE=-9999
 
@@ -59,7 +59,7 @@ def txt_to_tif(input_file, outdir=None, raster_name=None, skiprows=0, separator=
 
     Params:
     input_file : Input .ascii/.dat file.
-    outdir : Output raster directory.
+    output_dir : Output raster directory.
     raster_name : Output raster name.
     skiprows : Number of starting rows to Skip. Defaults to 0.
     separator : Separator. Defaults to None.
@@ -69,7 +69,7 @@ def txt_to_tif(input_file, outdir=None, raster_name=None, skiprows=0, separator=
     cellsize : Pixel size. Default is 0.5 degree for GCS WGS 1984.
     first_x : X coordinate of first cell at top left corner.
     first_y : Y coordinate of first cell at top left corner.
-    nodata: No data value in the final raster. Defaults to NO_DATA_VALUE of -9999.
+    nodata: No data value in the final raster. Defaults to No_Data_Value of -9999.
 
     Returns:None.
     """
@@ -104,15 +104,15 @@ def txt_to_tif(input_file, outdir=None, raster_name=None, skiprows=0, separator=
 # path="E:\\NGA_Project_Data\\Soil_Data\\ZOBLERSOILDERIVED_540\\data\\z_soiltype.dat"
 # outfp="E:\\NGA_Project_Data\\Soil_Data\\ZOBLERSOILDERIVED_540\\data"
 # 
-# txt_to_tif(input_dat=path, outdir=outfp, raster_name="z_soiltype.tif",skiprows=6,nrows=360,ncols=720)
+# txt_to_tif(input_dat=path, output_dir=outfp, raster_name="z_soiltype.tif",skiprows=6,nrows=360,ncols=720)
 # =============================================================================
 
 ## Converting Global Lithology Data
 # ascii_data=r'..\Data\Raw_Data\Global_Lithology\glim_wgs84_0point5deg.txt.asc'
-# outdir=r'..\Data\Raw_Data\Global_Lithology'
+# output_dir=r'..\Data\Raw_Data\Global_Lithology'
 #
-# txt_to_tif(input_file = ascii_data, outdir = None, raster_name = None,
+# txt_to_tif(input_file = ascii_data, output_dir = None, raster_name = None,
 #              skiprows=6, separator=None, nrows = 360, ncols = 720, datatype = "Float32",
-#                cellsize=0.5, first_x=-180, first_y=90, nodata=NO_DATA_VALUE)
+#                cellsize=0.5, first_x=-180, first_y=90, nodata=No_Data_Value)
 
 

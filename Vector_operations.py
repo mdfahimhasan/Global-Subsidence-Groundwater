@@ -136,6 +136,6 @@ def separate_shapes(input_shape,output_dir,index_col=True,label='Id'):
 # =============================================================================
 # #Separating World Grid Shapefiles for dowloading GEE data
 # shape="E:\\NGA_Project_Data\\scratch_files\\WorldGrid.shp"
-# outdir="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
-# separate_shapes(shape,outdir)
+# output_dir="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
+# separate_shapes(shape,output_dir)
 # =============================================================================
