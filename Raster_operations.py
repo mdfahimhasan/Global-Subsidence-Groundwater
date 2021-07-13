@@ -174,10 +174,11 @@ def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, 
 # =============================================================================
 
 def resample_reproject(input_raster, output_dir, raster_name, reference_raster=referenceraster2, resample=True,
-                       reproject=False,
-                       change_crs_to="EPSG:4326", both=False):
+                       reproject=False, change_crs_to="EPSG:4326", both=False, nodata=No_Data_Value):
     """
     Resample/Reproject/Both resample and reproject a raster according to a reference raster.
+
+    ** might not have no effect on changing nodata value in some cases. Have to do array operations in those cases.
 
     Parameters:
     input_raster : Input raster Directory with filename.
@@ -187,6 +188,7 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
     resample : Set True to resample only. Set reproject and both to False when resample=True.
     reproject : Set True to reproject only. Set resample and both to False when reproject=True.
     both : Set True to both resample and reproject. Set resample and reproject to False when both=True.
+    nodata : No Data value in the processed raster.
     
     Returns : Resampled/Reprojected raster.
     """
@@ -195,15 +197,21 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
     output_raster = os.path.join(output_dir, raster_name)
 
     if resample:
-        gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, width=ref_arr.shape[1],
-                  height=ref_arr.shape[0], outputType=gdal.GDT_Float32)
+        resampled_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, format='GTiff',
+                                     width=ref_arr.shape[1], height=ref_arr.shape[0], outputType=gdal.GDT_Float32,
+                                     dstNodata=nodata)
+        del resampled_raster
     if reproject:
-        gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, dstSRS=change_crs_to,
-                  outputType=gdal.GDT_Float32)
+        reprojected_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,
+                                       dstSRS=change_crs_to, format='GTiff', outputType=gdal.GDT_Float32,
+                                       dstNodata=nodata)
+        del reprojected_raster
 
     if both:
-        gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, width=ref_arr.shape[1],
-                  height=ref_arr.shape[0], dstSRS=change_crs_to, outputType=gdal.GDT_Float32)
+        processed_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,
+                                     width=ref_arr.shape[1], height=ref_arr.shape[0], format='GTiff',
+                                     dstSRS=change_crs_to, outputType=gdal.GDT_Float32, dstNodata=nodata)
+        del processed_raster
 
     return output_raster
 
@@ -405,8 +413,7 @@ def extract_raster_array_by_shapefile(input_raster, ref_shape, output_dir=None, 
 # #Mask and Resample Global Raster Data by Reference Raster
 # =============================================================================
 def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referenceraster2, resolution=0.02,
-                       nodata=No_Data_Value,
-                       paste_on_ref_raster=False, pasted_outdir=None, pasted_raster_name=None):
+                       nodata=No_Data_Value, paste_on_ref_raster=False, pasted_outdir=None, pasted_raster_name=None):
     """
     Mask a Global Raster Data by Reference Raster. 
 
@@ -718,7 +725,7 @@ def create_slope_raster(input_raster, outdir, raster_name):
     output_dir : Output raster directory.
     raster_name : Output raster name.
 
-    Returns: None.
+    Returns: Slope raster.
     """
     dem_options = gdal.DEMProcessingOptions(format="GTiff", computeEdges=True, alg='Horn', slopeFormat='percent',
                                             scale=100000)
@@ -726,7 +733,11 @@ def create_slope_raster(input_raster, outdir, raster_name):
     makedirs([outdir])
     output_raster = os.path.join(outdir, raster_name)
 
-    gdal.DEMProcessing(destName=output_raster, srcDS=input_raster, processing='slope', options=dem_options)
+    slope_raster=gdal.DEMProcessing(destName=output_raster, srcDS=input_raster, processing='slope', options=dem_options)
+
+    del slope_raster
+
+    return output_raster
 
 
 # =============================================================================
