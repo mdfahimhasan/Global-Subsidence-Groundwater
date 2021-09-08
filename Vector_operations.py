@@ -1,42 +1,61 @@
+# Author: Md Fahim Hasan
+# Email: mhm4b@mst.edu
+
 import os
+from glob import glob
 import geopandas as gpd
+
 
 def select_by_attribute(shape,column,value,outshape):
     """
     Select by column attribute
 
     Parameters:
-        shape: Input shapefile path.
-        column: Shapefile column to compare.
-        value: A list of string or value to make comparison.
-        outshape (TYPE): Output shapefile path.
+    shape: Input shapefile path.
+    column: Shapefile column to compare.
+    value: A list of string or value to make comparison.
+    outshape (TYPE): Output shapefile path.
 
-    Returns:None.
+    Returns:Shapefile with selected attribute..
     """
     shape=gpd.read_file(shape)
     select_shape=shape[shape[column]==value]
     select_shape.to_file(outshape)
 
-def append_shapefile(shape1,shape2,outshape,ignore_index=True):
+def append_two_shapefiles(shape1, shape2, outshape, ignore_index=True):
+    """
+    Append 2 shapefiles.
+
+    Parameters:
+    shape1 : Filepath of shapefile 1.
+    shape2 : Filepath of shapefile 2.
+    outshape : Output shapefile filepath.
+    ignore_index : Default set to True to ignore index while saving created shapefile./
+
+    Returns: Joined shapefile.
+    -------
+
+    """
     df1=gpd.read_file(shape1)
     df2=gpd.read_file(shape2)
     
     #append
     df_append=df1.append(df2,ignore_index=ignore_index)
     df_append.to_file(outshape)
-    
+
+
 def overlay(shape1,shape2,outshape,how='difference'):
     """
-    overlay operations (Intersection, Union, Symetrical Difference, DIfference) on two shapefiles.
+    overlay operations (Intersection, Union, Symetrical Difference, Difference) on two shapefiles.
 
     Parameters:
-        shape1: Shapefile 1 path.
-        shape2: Shapefile 2 path.
-        outshape: Output Shapefile after overlay operation with file path.
-        how (TYPE, optional): Overlay operation type (Intersection, Union, Symetrical Difference,
-                              DIfference). Defaults to 'difference'.
-    
-    Returns: None.
+    shape1: Shapefile 1 path.
+    shape2: Shapefile 2 path.
+    outshape: Output Shapefile after overlay operation with file path.
+    how (TYPE, optional): Overlay operation type (Intersection, Union, Symetrical Difference,
+                          DIfference). Defaults to 'difference'.
+
+    Returns: Output shapefile after overlay operation.
     """
     shape1=gpd.read_file(shape1)
     shape2=gpd.read_file(shape2)
@@ -45,25 +64,26 @@ def overlay(shape1,shape2,outshape,how='difference'):
     overlay_shape=gpd.overlay(shape1,shape2,how=how)
     overlay_shape.to_file(outshape)
 
-def buffer(shape,outshape,Reprojection=True,buffer=1000,projected_epsg_code=8857):
+
+def buffer(shape, outshape, reprojection=True, buffer=1000, projected_epsg_code=8857):
     """
     Fixed Buffer around a shapefile.
 
     Parameters:
-        shape: Shapefile around which buffer will be done.
-        outshape: Output Shapefile after buffer operation with file path.
-        Reprojection: Defaults to True. Set False if Geographic to Projected conversion is not 
-                      needed.
-        buffer: Buffer distance. Value should be in meter. Defaults to 1000m.
-        projected_epsg_code: Convert to projected coordinate system if input shapefile's 
-                             coordinate system is Geographic. Defaults to 8857 
-                             (Equal Earth (World))
+    shape: Shapefile around which buffer will be done.
+    outshape: Output Shapefile after buffer operation with file path.
+    reprojection: Defaults to True. Set False if Geographic to Projected conversion is not
+                  needed.
+    buffer: Buffer distance. Value should be in meter. Defaults to 1000m.
+    projected_epsg_code: Convert to projected coordinate system if input shapefile's
+                         coordinate system is Geographic. Defaults to 8857
+                         (Equal Earth (World))
         
-    Returns: None.
+    Returns: Shapefile with buffer area.
     """
     shape=gpd.read_file(shape)
     
-    if Reprojection:
+    if reprojection:
         shape_projected=shape.to_crs(epsg=projected_epsg_code)
         
         buffer_shape=shape_projected['geometry'].buffer(distance=buffer)
@@ -72,27 +92,28 @@ def buffer(shape,outshape,Reprojection=True,buffer=1000,projected_epsg_code=8857
     else:
         buffer_shape=shape['geometry'].buffer(distance=buffer)
         buffer_shape.to_file(outshape)
-        
-def buffer_variable(shape,outshape,buffer_coef=0.0015,Reprojection=True,projected_epsg_code=8857):
+
+
+def buffer_variable(shape, outshape, buffer_coef=0.0015, reprojection=True, projected_epsg_code=8857):
     """
     Variable Buffer around a shapefile 
     (buffer distance is a function of area of the corresponding shapefile).
 
     Parameters:
-        shape: Shapefile around which buffer will be done.
-        outshape: Output Shapefile after buffer operation with file path.
-        Reprojection: Defaults to True. Set False if Geographic to Projected conversion is not 
-                      needed.
-        buffer_coef: Buffer coefficient to calculate distance. Defaults to 0.00015 % of area.
-        projected_epsg_code: Convert to projected coordinate system if input shapefile's 
-                             coordinate system is Geographic. Defaults to 8857 
-                             (Equal Earth (World))
+    shape: Shapefile around which buffer will be done.
+    outshape: Output Shapefile after buffer operation with file path.
+    reprojection: Defaults to True. Set False if Geographic to Projected conversion is not
+                  needed.
+    buffer_coef: Buffer coefficient to calculate distance. Defaults to 0.00015 % of area.
+    projected_epsg_code: Convert to projected coordinate system if input shapefile's
+                         coordinate system is Geographic. Defaults to 8857
+                         (Equal Earth (World))
         
-    Returns: None.
+    Returns: Shapefile with variable buffer area.
     """
     shape=gpd.read_file(shape)
     
-    if Reprojection:
+    if reprojection:
         shape_projected=shape.to_crs(epsg=projected_epsg_code)
         
         shape_projected['buffer']=shape_projected['geometry'].area*(buffer_coef/100)
@@ -103,7 +124,8 @@ def buffer_variable(shape,outshape,buffer_coef=0.0015,Reprojection=True,projecte
         shape['buffer']=shape['geometry'].area*(buffer_coef/100)
         buffer_shape=shape['geometry'].buffer(distance=shape['buffer'])
         buffer_shape.to_file(outshape)
-    
+
+
 def separate_shapes(input_shape,output_dir,index_col=True,label='Id'):
     """
     Separate individual shapes from a single shapefile.
@@ -112,9 +134,9 @@ def separate_shapes(input_shape,output_dir,index_col=True,label='Id'):
     input_shape : Input shape file.
     output_dir : Output shapefile sirectory..
     index_col : If new index column need to be created. Defaults to True.
-    label : Label based on which separation will occur. Defaults to 'Id'.
+    label : Label based on which separation will occur. Defaults to 'Id'. Only needed if index_col is False.
 
-    Returns: None.
+    Returns: Separated shapefiles.
     """
     shape=gpd.read_file(input_shape)
     
@@ -133,9 +155,27 @@ def separate_shapes(input_shape,output_dir,index_col=True,label='Id'):
            new_shape.to_file(os.path.join(output_dir,name))
            num=num+1
 
-# =============================================================================
-# #Separating World Grid Shapefiles for dowloading GEE data
-# shape="E:\\NGA_Project_Data\\scratch_files\\WorldGrid.shp"
-# output_dir="E:\\NGA_Project_Data\\shapefiles\\world_grid_shapes_for_gee"
-# separate_shapes(shape,output_dir)
-# =============================================================================
+
+def append_multiple_shapefiles(shapefile_dir, outshape, shapefile_searchby='*.shp', ignore_index=True):
+    """
+    Append multiple shapefiles.
+
+    Parameters:
+    shapefile_dir : Directory path of shapefiles.
+    outshape : Filepath of appended final shapefile.
+    shapefile_searchby : search criteria for shapefiles from shapefile_dir.
+    ignore_index : Default set to True to ignore index while saving created shapefile.
+
+    Returns: Joined shapefile.
+    """
+    df_append = None
+    df = None
+    shapefiles = glob(os.path.join(shapefile_dir, shapefile_searchby))
+    for num in range(len(shapefiles)):
+        if num == 0:
+            df = gpd.read_file(shapefiles[num])
+        else:
+            df1 = gpd.read_file(shapefiles[num])
+            df_append = df.append(df1, ignore_index)
+            df = df_append
+    df_append.to_file(outshape)

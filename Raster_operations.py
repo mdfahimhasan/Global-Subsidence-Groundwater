@@ -1,4 +1,6 @@
-# import os
+# Author: Md Fahim Hasan
+# Email: mhm4b@mst.edu
+
 import rasterio as rio
 from rasterio.merge import merge
 from rasterio.mask import mask
@@ -256,10 +258,16 @@ def rename_copy_raster(input_raster, output_dir, rename=False, new_name=None, ch
     makedirs([output_dir])
     if rename:
         output_raster = os.path.join(output_dir, new_name)
+        write_raster(raster_arr=arr, raster_file=file, transform=file.transform, outfile_path=output_raster)
     else:
-        output_raster_name = input_raster[input_raster.rfind(os.sep) + 1:]
-        output_raster = os.path.join(output_dir, output_raster_name)
-    write_raster(raster_arr=arr, raster_file=file, transform=file.transform, outfile_path=output_raster)
+        try:
+            output_raster_name = input_raster[input_raster.rfind('/') + 1:]
+            output_raster = output_dir + '/' + output_raster_name
+            write_raster(raster_arr=arr, raster_file=file, transform=file.transform, outfile_path=output_raster)
+        except:
+            output_raster_name = input_raster[input_raster.rfind(os.sep) + 1:]
+            output_raster = os.path.join(output_dir, output_raster_name)
+            write_raster(raster_arr=arr, raster_file=file, transform=file.transform, outfile_path=output_raster)
 
     return output_raster
 

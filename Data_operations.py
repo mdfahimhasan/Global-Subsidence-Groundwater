@@ -1,5 +1,9 @@
+# Author: Md Fahim Hasan
+# Email: mhm4b@mst.edu
+
 import ee
 import pickle
+import shutil
 from glob import glob
 import zipfile
 import requests
@@ -10,16 +14,16 @@ from datetime import datetime
 
 No_Data_Value = -9999
 
-referenceraster1 = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
-referenceraster2 = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
+referenceraster1 = '../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
+referenceraster2 = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
-csv = r'../Data/Reference_rasters_shapes/GEE_Download_coords.csv'
-grid_for_gee = r'../Data/Reference_rasters/world_grid_shapes_for_gee'
-os.chdir(r'../Codes_Global_GW')
+csv = '../Data/Reference_rasters_shapes/GEE_Download_coords.csv'
+grid_for_gee = '../Data/Reference_rasters/world_grid_shapes_for_gee'
+os.chdir('../Codes_Global_GW')
 
 gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil',
                  'MODIS_ET', 'MODIS_EVI', 'SRTM_DEM', 'ALOS_Landform', 'Aridity_Index',
-                 'Clay_content', 'Grace', 'MODIS_NDWI']
+                 'Clay_content_200cm', 'Grace', 'MODIS_NDWI']
 
 
 # #Extract Data
@@ -131,7 +135,7 @@ def download_gee_data(yearlist, start_month, end_month, output_dir, dataname, sh
     gee_scale : Download Scale.
     dataname : Dataname to download from GEE. The code can download data from the following list-
              ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'SMAP_smp','TRCLM_soil,'MODIS_ET','MODIS_EVI',
-             'GPW_pop','SRTM_DEM','ALOS_Landform','Aridity_Index','Clay_content']
+             'GPW_pop','SRTM_DEM','ALOS_Landform','Aridity_Index','Clay_content_200cm']
     month_conversion : Convert n-day composite data (MOD16 ET) to monthly data.
     nodata : No Data value. Defaults to -9999.
 
@@ -150,7 +154,7 @@ def download_gee_data(yearlist, start_month, end_month, output_dir, dataname, sh
                  'SRTM_DEM': 'USGS/SRTMGL1_003',
                  'ALOS_Landform': 'CSP/ERGo/1_0/Global/ALOS_landforms',
                  'Aridity_Index': 'projects/sat-io/open-datasets/global_ai_et0',
-                 'Clay_content': 'OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02'}
+                 'Clay_content_200cm': 'OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02'}
 
     if dataname in ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'SMAP_smp', 'TRCLM_soil', 'MODIS_ET', 'MODIS_EVI',
                     'GPW_pop']:
@@ -199,7 +203,7 @@ def download_gee_data(yearlist, start_month, end_month, output_dir, dataname, sh
     elif dataname == 'Aridity_Index':
         data = data_collection.select('b1').multiply(0.0001).toFloat()
 
-    elif dataname == 'Clay_content':
+    elif dataname == 'Clay_content_200cm':
         data = data_collection.select('b200').toFloat()
 
     makedirs([output_dir])
@@ -381,7 +385,6 @@ def download_image_gee(output_dir, bandname, shapecsv=None, factor=1, gee_scale=
 
 
 # #MODIS CLoudmask
-
 def cloudmask_MODIS09A1(image):
     """
     Removing cloudmask from MODIS (MOD09A1.006 Terra Surface Reflectance 8-Day Global 500m) data.
@@ -508,7 +511,7 @@ def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, ge
     """
     Download data from GEE. The code can download data from the following list.
     ['TRCLM_precp','TRCLM_tmmx','TRCLM_tmmn','TRCLM_soil','MODIS_ET','MODIS_EVI','GPW_pop',
-    'SRTM_DEM','ALOS_Landform','Aridity_Index','Clay_content','Grace','MODIS_NDWI']
+    'SRTM_DEM','ALOS_Landform','Aridity_Index','Clay_content_200cm','Grace','MODIS_NDWI']
 
     Parameters:
     data_list : List of data to download.
@@ -577,9 +580,9 @@ def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, ge
             elif data == 'Aridity_Index':
                 download_gee_data(yearlist, start_month, end_month, downdir_AI, 'Aridity_Index', shape_csv,
                                   gee_scale=gee_scale)
-            elif data == 'Clay_content':
-                download_gee_data(yearlist, start_month, end_month, downdir_Clay_content, 'Clay_content', shape_csv,
-                                  gee_scale=gee_scale)
+            elif data == 'Clay_content_200cm':
+                download_gee_data(yearlist, start_month, end_month, downdir_Clay_content, 'Clay_content_200cm',
+                                  shape_csv, gee_scale=gee_scale)
 
     return download_dir, downdir_NDWI, downdir_EVI, downdir_Grace, downdir_TRCLM_precp, downdir_TRCLM_soil, \
            downdir_TRCLM_Tmin, downdir_TRCLM_Tmax, downdir_PopDensity_GPW, downdir_MODIS_ET, downdir_SRTM_DEM, \
@@ -607,7 +610,7 @@ def prepare_lu_data(gfsad_lu=r'../Data/Raw_Data/Land_Use_Data/Raw/Global Food Se
     prepare_irrigated_cropmask : Set False if need to load already existing 'Irrigation_cropmask' data layer
                                  (created from GFSAD1KCM).
     processing_faolc : Set True to process faolc data.
-    skip_processing : Set False to process the rasters. Defaults to True (Raster filepath taken from existing rasters)
+    skip_predictor_subsidence_compilation : Set False to process the rasters. Defaults to True (Raster filepath taken from existing rasters)
 
     Returns : Processed (resampled and gaussian filtered) GFSAD1KCM and faolc land use data.
     """
@@ -668,7 +671,7 @@ def prepare_popdensity_data(
     Parameters:
     pop_dataset : Raw population dataset path.
     output_dir : FIlepath of final resampled data directory.
-    skip_processing : Set False to process the raster. Defaults to True (Raster filepath taken from existing raster)
+    skip_predictor_subsidence_compilation : Set False to process the raster. Defaults to True (Raster filepath taken from existing raster)
 
     Returns : Processed (resampled and gaussian filtered) population density raster.
     """
@@ -688,10 +691,10 @@ def prepare_popdensity_data(
     return popdensity_raster
 
 
-def prepare_glhymps_lithology_data(lithology=r'../Data/Raw_Data/Global_Lithology/glim_wgs84_0point5deg.tif',
-                                   glhymps=r'../Data/Raw_Data/Global_Hydrogeology/GLHYMPS_permeability.tif',
-                                   interdir=r'../Data/Intermediate_working_dir',
-                                   output_dir=r'../Data/Resampled_Data/Lithology_Permeability', skip_processing=True):
+def prepare_glhymps_lithology_data(lithology='../Data/Raw_Data/Global_Lithology/glim_wgs84_0point5deg.tif',
+                                   glhymps='../Data/Raw_Data/Global_Hydrogeology/GLHYMPS_permeability.tif',
+                                   interdir='../Data/Intermediate_working_dir',
+                                   output_dir='../Data/Resampled_Data/Lithology_Permeability', skip_processing=True):
     """
     Processing Global Lithology and Global Permeability datasets.
 
@@ -700,7 +703,7 @@ def prepare_glhymps_lithology_data(lithology=r'../Data/Raw_Data/Global_Lithology
     glhymps : Filepath of Global Permeability raw raster dataset. Set to None if want to skip processing.
     intermediate_dir : Interim directory filepath used in storing intermediate files.
     output_dir : Output directory path.
-    skip_processing : Set False to process the raster. Defaults to True (Raster filepath taken from existing raster)
+    skip_predictor_subsidence_compilation : Set False to process the raster. Defaults to True (Raster filepath taken from existing raster)
 
     Returns : Resampled Global Lithology and Permeability dataset.
     """
@@ -715,21 +718,21 @@ def prepare_glhymps_lithology_data(lithology=r'../Data/Raw_Data/Global_Lithology
         if glhymps:
             print('Processing Global Permeability Dataset...')
             permeability_raster = mask_by_ref_raster(input_raster=glhymps, outdir=interdir,
-                                                     raster_name='Global_permeability.tif', paste_on_ref_raster=True,
+                                                     raster_name='Global_Permeability.tif', paste_on_ref_raster=True,
                                                      pasted_outdir=output_dir,
                                                      pasted_raster_name='Global_Permeability.tif',
                                                      ref_raster=referenceraster2, resolution=0.02)
             print('Processed Global Permeability Dataset')
     else:
-        lithology_raster = r'../Data/Resampled_Data/Lithology_Permeability/Global_Lithology.tif'
-        permeability_raster = r'../Data/Resampled_Data/Lithology_Permeability/Global_permeability.tif'
+        lithology_raster = '../Data/Resampled_Data/Lithology_Permeability/Global_Lithology.tif'
+        permeability_raster = '../Data/Resampled_Data/Lithology_Permeability/Global_Permeability.tif'
 
     return lithology_raster, permeability_raster
 
 
-def prepare_sediment_thickness_data(input_raster=r'../Data/Raw_Data/Global_Sediment_Thickness'
-                                                 r'/average_soil_and_sedimentary-deposit_thickness.tif',
-                                    output_dir=r'../Data/Resampled_Data/Sediment_Thickness',
+def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sediment_Thickness'
+                                                 '/average_soil_and_sedimentary-deposit_thickness.tif',
+                                    output_dir='../Data/Resampled_Data/Sediment_Thickness',
                                     raster_name='Global_Sediment_Thickness.tif', skip_processing=False):
     """
     Processing Global Sediment thickness dataset.
@@ -738,7 +741,7 @@ def prepare_sediment_thickness_data(input_raster=r'../Data/Raw_Data/Global_Sedim
     input_raster : Input raster filepath with filename.
     output_dir : Output raster directory path.
     raster_name : Output raster name.
-    skip_processing : Set to True if want to skip processing.
+    skip_predictor_subsidence_compilation : Set to True if want to skip processing.
 
     Returns : Resampled sedeiment thickness raster.
     """
@@ -753,7 +756,7 @@ def prepare_sediment_thickness_data(input_raster=r'../Data/Raw_Data/Global_Sedim
                                        resampled_raster_path)
         print('Processed Sediment Thickness Dataset')
     else:
-        sediment_raster = r'../Data/Resampled_Data/Sediment_Thickness/Global_Sediment_Thickness.tif'
+        sediment_raster = '../Data/Resampled_Data/Sediment_Thickness/Global_Sediment_Thickness.tif'
 
     return sediment_raster
 
@@ -785,10 +788,10 @@ def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_d
     outdir_sed_thickness : Output directory for saving processed sediment thickness raster.
     outdir_pop : Output directory for saving processed population raster.
     skip_download : Set to False if want to downlad data from GEE. Default set to True.
-    skip_processing : Set to False if want to process datasets.
+    skip_predictor_subsidence_compilation : Set to False if want to process datasets.
     geedatalist : Data list to download from GEE. Can download data from the following list-
                   ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'MODIS_ET', 'MODIS_EVI', 'SRTM_DEM',
-                  'ALOS_Landform', 'Aridity_Index', 'Clay_content', 'Grace', 'MODIS_NDWI']
+                  'ALOS_Landform', 'Aridity_Index', 'Clay_content_200cm', 'Grace', 'MODIS_NDWI']
     downloadcsv : Csv (with coordinates) filepath used in downloading data from GEE>
     gee_scale : scale to use in downloading data from GEE in meter. Default set to 2000m.
 
@@ -823,7 +826,7 @@ def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_d
     Downloaded_list = {'EVI': EVI, 'Grace': Grace, 'TRCLM_precp': TRCLM_precp, 'TRCLM_soil': TRCLM_soil,
                        'TRCLM_Tmin': TRCLM_Tmin, 'TRCLM_Tmax': TRCLM_Tmax, 'MODIS_ET': MODIS_ET, 'SRTM_Slope': SRTM_DEM,
                        'ALOS_Landform': ALOS_Landform, 'Aridity_Index': Aridity_Index,
-                       'Clay_content': Clay_content, 'Alexi_ET': Alexi_ET}
+                       'Clay_content_200cm': Clay_content, 'Alexi_ET': Alexi_ET}
 
     if not skip_processing:
         resampled_gee_rasters = {}
@@ -887,12 +890,12 @@ def join_georeferenced_data(input_polygons_dir, joined_subsidence_polygons, sear
     return joined_subsidence_polygons
 
 
-def prepare_subsidence_raster(input_polygons_dir=r'../InSAR_Data/Georeferenced_subsidence_data',
-                              joined_subsidence_polygon=r'../InSAR_Data/Resampled_subsidence_data'
-                                                        r'/interim_working_dir/georef_subsidence_polygons.shp',
-                              insar_data_dir=r'../InSAR_Data/Resampled_subsidence_data',
-                              interim_dir=r'../InSAR_Data/Resampled_subsidence_data/interim_working_dir',
-                              output_dir=r'../InSAR_Data/Resampled_subsidence_data/final_subsidence_raster',
+def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_subsidence_data',
+                              joined_subsidence_polygon='../InSAR_Data/Resampled_subsidence_data'
+                                                        '/interim_working_dir/georef_subsidence_polygons.shp',
+                              insar_data_dir='../InSAR_Data/Resampled_subsidence_data',
+                              interim_dir='../InSAR_Data/Resampled_subsidence_data/interim_working_dir',
+                              output_dir='../InSAR_Data/Resampled_subsidence_data/final_subsidence_raster',
                               skip_polygon_merge=False, subsidence_column='Class_name',
                               final_subsidence_raster='Subsidence_training.tif',
                               polygon_search_criteria='*Subsidence*.shp',
@@ -933,21 +936,23 @@ def prepare_subsidence_raster(input_polygons_dir=r'../InSAR_Data/Georeferenced_s
         print('Processed Subsidence Polygons')
 
         print('Processing InSAR Data...')
-        arr, merged_insar = mosaic_rasters(insar_data_dir, interim_dir, raster_name='joined_insar_data.tif',
-                                           ref_raster=refraster, search_by=insar_search_criteria, resolution=0.02)
-        arr, subsidence_data = mosaic_two_rasters(merged_insar, subsidence_raster, output_dir, final_subsidence_raster,
-                                                  resolution=0.02)
+        insar_arr, merged_insar = mosaic_rasters(insar_data_dir, interim_dir, raster_name='joined_insar_data.tif',
+                                                 ref_raster=refraster, search_by=insar_search_criteria, resolution=0.02)
+
+        final_subsidence_arr, subsidence_data = mosaic_two_rasters(merged_insar, subsidence_raster, output_dir,
+                                                                       final_subsidence_raster, resolution=0.02)
         print('Created Final Subsidence Raster')
 
         return subsidence_data
 
     else:
-        return os.path.join(output_dir, final_subsidence_raster)
+        subsidence_data = os.path.join(output_dir, final_subsidence_raster)
+        return subsidence_data
 
 
 def compile_predictors_subsidence_data(gee_data_dict, gfsadlu_data, faolc_data, lithology_data, permeability_data,
                                        sediment_thickness_data, popdensity_data, subsidence_data, output_dir,
-                                       skip_processing=False):
+                                       skip_compiling_predictor_subsidence_data=False):
     """
     Compile predictor datasets and subsidence data in a single folder (to be used for creating predictor database)
 
@@ -961,11 +966,12 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsadlu_data, faolc_data, 
     popdensity_data : Resampled population density datapath.
     subsidence_data : Resampled subsidence datapath.
     output_dir : Output directory filepath.
-    skip_processing : Set to True if want to skip compiling all the data again.
+    skip_predictor_subsidence_compilation : Set to True if want to skip compiling all the data again.
 
     Returns : Output directory filepath.
     """
-    if not skip_processing:
+    if not skip_compiling_predictor_subsidence_data:
+        shutil.rmtree(output_dir, ignore_errors=True)
         makedirs([output_dir])
         for key in gee_data_dict.keys():
             rename_copy_raster(gee_data_dict[key], output_dir, rename=True, new_name=(key + '.tif'))
@@ -977,5 +983,107 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsadlu_data, faolc_data, 
         rename_copy_raster(sediment_thickness_data, output_dir, rename=False)
         rename_copy_raster(popdensity_data, output_dir, rename=False)
         rename_copy_raster(subsidence_data, output_dir, rename=True, new_name='Subsidence.tif')
-
+        rename_copy_raster('../Data/Resampled_Data/PCA_Geology/continent_raster/pca1_continent.tif', output_dir,
+                           rename=True, new_name='pca_geology.tif')
+        rename_copy_raster('../Data/Resampled_Data/PCA_Clay/continent_raster/pca1_continent.tif', output_dir,
+                           rename=True, new_name='pca_clay_content.tif')
     return output_dir
+
+
+def download_clay_data(yearlist, output_dir, dataname, shapecsv=csv, gee_scale=2000, nodata=No_Data_Value):
+    """
+    Download Imagecollection/Image data from Google Earth Engine by range years' mean/median.
+
+    Parameters:
+    yearlist : List of years for which data will be downloaded, i.e., [2013,2019].
+    start_month : Start month of data.
+    end_month : End month of data.
+    ***For ee.Image data time parameters should be included just for the code to run properly.
+    The data will be the same for whole time period.
+
+    output_dir : File directory path to downloaded data.
+    shapecsv : Csv of coordinates for download extent. Defaults to csv (filepath of worldgrid coordinates' csv).
+               Set to None if want to use shapefile instead.
+    gee_scale : Download Scale.
+    dataname : Dataname to download from GEE. The code can download data from the following list-
+             ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'SMAP_smp','TRCLM_soil,'MODIS_ET','MODIS_EVI',
+             'GPW_pop','SRTM_DEM','ALOS_Landform','Aridity_Index','Clay_content']
+    month_conversion : Convert n-day composite data (MOD16 ET) to monthly data.
+    nodata : No Data value. Defaults to -9999.
+
+    Returns : Downloaded data from GEE.
+    """
+    # Initialize
+    ee.Initialize()
+    data_dict = {'clay_content_0cm': 'OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02',
+                 'clay_content_10cm': 'OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02',
+                 'clay_content_30cm': 'OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02',
+                 'clay_content_60cm': 'OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02',
+                 'clay_content_100cm': 'OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02',
+                 'clay_content_200cm': 'OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02'}
+
+    data_collection = ee.Image(data_dict[dataname])
+
+    if dataname == 'clay_content_0cm':
+        data = data_collection.select('b0').toFloat()
+    elif dataname == 'clay_content_10cm':
+        data = data_collection.select('b10').toFloat()
+    elif dataname == 'clay_content_30cm':
+        data = data_collection.select('b30').toFloat()
+    elif dataname == 'clay_content_60cm':
+        data = data_collection.select('b60').toFloat()
+    elif dataname == 'clay_content_100cm':
+        data = data_collection.select('b100').toFloat()
+    elif dataname == 'clay_content_200cm':
+        data = data_collection.select('b200').toFloat()
+
+    makedirs([output_dir])
+    coords_df = pd.read_csv(shapecsv)
+    for index, row in coords_df.iterrows():
+        # Define Extent
+        minx = row['minx']
+        miny = row['miny']
+        maxx = row['maxx']
+        maxy = row['maxy']
+        gee_extent = ee.Geometry.Rectangle((minx, miny, maxx, maxy))
+
+        # Download URL
+        data_url = data.getDownloadURL({'name': dataname,
+                                        'crs': "EPSG:4326",
+                                        'scale': gee_scale,
+                                        'region': gee_extent})
+        # dowloading the data
+        key_word = row['shape']
+        local_file_name = os.path.join(output_dir, key_word + str(yearlist[0]) + '_' + str(yearlist[1]) + '.zip')
+        print('Downloading', local_file_name, '.....')
+        r = requests.get(data_url, allow_redirects=True)
+        open(local_file_name, 'wb').write(r.content)
+
+        if index == coords_df.index[-1]:
+            extract_data(zip_dir=output_dir, out_dir=output_dir, rename_file=True)
+            mosaic_dir = makedirs([os.path.join(output_dir, 'merged_rasters')])
+            mosaic_name = dataname + '_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
+            merged_arr, merged_raster = mosaic_rasters(input_dir=output_dir, output_dir=mosaic_dir,
+                                                       raster_name=mosaic_name,
+                                                       ref_raster=referenceraster2, search_by='*.tif', resolution=0.02,
+                                                       no_data=nodata)
+
+            return merged_raster
+
+
+# yearlist = [2013, 2019]
+# output_dir = '../Data/Raw_Data/GEE_data/Clay_content_openlandmap'
+#
+# clay_0cm = download_clay_data(yearlist, output_dir=os.path.join(output_dir, 'claycontent_0cm'),
+#                                dataname='clay_content_0cm', shapecsv=csv, gee_scale=2000, nodata=No_Data_Value)
+# clay_10cm = download_clay_data(yearlist, output_dir=os.path.join(output_dir, 'claycontent_10cm'),
+#                                dataname='clay_content_10cm', shapecsv=csv, gee_scale=2000, nodata=No_Data_Value)
+# clay_30cm = download_clay_data(yearlist, output_dir=os.path.join(output_dir, 'claycontent_30cm'),
+#                                dataname='clay_content_30cm', shapecsv=csv, gee_scale=2000, nodata=No_Data_Value)
+# clay_60cm = download_clay_data(yearlist, output_dir=os.path.join(output_dir, 'claycontent_60cm'),
+#                                dataname='clay_content_60cm', shapecsv=csv, gee_scale=2000, nodata=No_Data_Value)
+# clay_100cm = download_clay_data(yearlist, output_dir=os.path.join(output_dir, 'claycontent_100cm'),
+#                                dataname='clay_content_100cm', shapecsv=csv, gee_scale=2000, nodata=No_Data_Value)
+# clay_200cm = download_clay_data(yearlist, output_dir=os.path.join(output_dir, 'claycontent_200cm'),
+#                                dataname='clay_content_200cm', shapecsv=csv, gee_scale=2000, nodata=No_Data_Value)
+# print(clay_0cm, clay_10cm, clay_30cm, clay_60cm, clay_100cm, clay_200cm)

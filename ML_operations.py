@@ -1,3 +1,6 @@
+# Author: Md Fahim Hasan
+# Email: mhm4b@mst.edu
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -14,10 +17,10 @@ from sklearn.inspection import plot_partial_dependence
 from Raster_operations import *
 from System_operations import *
 
-referenceraster2 = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
+referenceraster2 = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
 
-def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_processing=False):
+def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataframe_creation=False):
     """
     create dataframe from predictor rasters.
 
@@ -25,17 +28,17 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_proce
     input_raster_dir : Input rasters directory.
     output_csv : Output csv file with filepath.
     search_by : Input raster search criteria. Defaults to '*.tif'.
-    skip_processing : Set to True if want to skip processing.
+    skip_predictor_subsidence_compilation : Set to True if want to skip processing.
 
     Returns: predictor_df dataframe created from predictor rasters.
     """
     print('Creating Predictors csv...')
-    if not skip_processing:
+    if not skip_dataframe_creation:
         predictors = glob(os.path.join(input_raster_dir, search_by))
 
         predictor_dict = {}
         for predictor in predictors:
-            variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind(".")]
+            variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind('.')]
             raster_arr, file = read_raster_arr_object(predictor, get_file=True)
             raster_arr = raster_arr.flatten()
             predictor_dict[variable_name] = raster_arr
@@ -51,7 +54,7 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_proce
         return predictor_df
 
 
-def split_train_test_ratio(predictor_csv, exclude_columns=(), pred_attr='Subsidence', test_size=0.3, random_state=0,
+def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subsidence', test_size=0.3, random_state=0,
                            shuffle=True, outdir=None):
     """
     Split dataset into train and test data based on a ratio
@@ -68,9 +71,11 @@ def split_train_test_ratio(predictor_csv, exclude_columns=(), pred_attr='Subside
     Returns: X_train, X_test, y_train, y_test
     """
     input_df = pd.read_csv(predictor_csv)
-    drop_columns = list(exclude_columns) + [pred_attr]
+    drop_columns = exclude_columns + [pred_attr]
+    print('Dropping Columns-', exclude_columns)
     x = input_df.drop(columns=drop_columns)
     y = input_df[pred_attr]
+    print('Predictors:', x.columns)
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state,
                                                         shuffle=shuffle)
@@ -95,7 +100,8 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
                         pred_attr='Subsidence', test_size=0.3, random_state=0, shuffle=True, output_dir=None,
                         n_estimators=500, bootstrap=True, oob_score=True, n_jobs=-1, max_features='auto',
                         accuracy=True, save=True, accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
-                        predictor_importance=False, predictor_imp_keyword='RF'):
+                        predictor_importance=False, predictor_imp_keyword='RF',
+                        plot_pdp=False):
     """
     Build Machine Learning Classifier. Can run 'Random Forest', 'Extra Trees Classifier' and 'XGBClassifier'.
 
@@ -126,7 +132,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     Returns: rf_classifier (A fitted random forest model)
     """
 
-    # Spliting Training and Tesing Data
+    # Splitting Training and Testing Data
     x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv=predictor_csv,
                                                               exclude_columns=exclude_columns, pred_attr=pred_attr,
                                                               test_size=test_size, random_state=random_state,
@@ -135,23 +141,23 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     makedirs([modeldir])
     model_file = os.path.join(modeldir, model)
 
-    # Machinle Learning Models
+    # Machine Learning Models
     if not load_model:
         if model == 'RF':
             classifier = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state,
                                                 bootstrap=bootstrap,
                                                 n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
 
-        if model == 'ETC':
-            classifier = ExtraTreesClassifier(n_estimators=n_estimators, random_state=random_state,
-                                              bootstrap=bootstrap,
-                                              n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
+        # if model == 'ETC':
+        #     classifier = ExtraTreesClassifier(n_estimators=n_estimators, random_state=random_state,
+        #                                       bootstrap=bootstrap,
+        #                                       n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
 
-        if model == 'XGBC':
-            classifier = XGBClassifier(n_estimators=n_estimators, random_state=random_state, learning_rate=0.0098,
-                                       grow_policy='lossguide', booster='gbtree', objective='multi:softmax',
-                                       subsample=0.75, n_jobs=n_jobs,
-                                       colsample_bytree=1, colsample_bylevel=1, colsample_bynode=1)
+        # if model == 'XGBC':
+        #     classifier = XGBClassifier(n_estimators=n_estimators, random_state=random_state, learning_rate=0.0098,
+        #                                grow_policy='lossguide', booster='gbtree', objective='multi:softmax',
+        #                                subsample=0.75, n_jobs=n_jobs,
+        #                                colsample_bytree=1, colsample_bylevel=1, colsample_bynode=1)
         classifier = classifier.fit(x_train, y_train)
         y_pred = classifier.predict(x_test)
         pickle.dump(classifier, open(model_file, mode='wb+'))
@@ -162,8 +168,8 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     if accuracy:
         classification_accuracy(y_test, y_pred, classifier, x_train, save, accuracy_dir, cm_name,
                                 predictor_importance, predictor_imp_keyword)
-    # if pdp:
-    #     pdp_plot(classifier=classifier, X_train=X_train, output_dir=plot_save)
+    if plot_pdp:
+        pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword)
 
     return classifier
 
@@ -187,14 +193,17 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
 
     Returns: Confusion matrix, score and predictor importance graph.
     """
-    labels = ['<1cm subsidence', '1-5 cm Subsidence', '>5cm Subsidence']
+    column_labels = [np.array(['predictied', 'predictied', 'predictied']),
+                     np.array(['<1cm subsidence', '1-5 cm Subsidence', '>5cm Subsidence'])]
+    index_labels = [np.array(['Actual', 'Actual', 'Actual']),
+                    np.array(['<1cm subsidence', '1-5 cm Subsidence', '>5cm Subsidence'])]
     cm = confusion_matrix(y_test, y_pred)
-    cm_df = pd.DataFrame(cm, columns=labels, index=labels)
+    cm_df = pd.DataFrame(cm, columns=column_labels, index=index_labels)
 
     if save:
         makedirs([accuracy_dir])
         csv = os.path.join(accuracy_dir, cm_name)
-        cm_df.to_csv(csv, index=False)
+        cm_df.to_csv(csv, index=True)
 
     print(cm_df, '\n')
     print('Recall Score {:.2f}'.format(recall_score(y_test, y_pred, average='micro')))
@@ -205,7 +214,7 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
         x_train_df = pd.DataFrame(x_train)
         col_labels = np.array(x_train_df.columns)
         importance = np.array(classifier.feature_importances_)
-        imp_dict = {'feature_names':col_labels, 'feature_importance':importance}
+        imp_dict = {'feature_names': col_labels, 'feature_importance': importance}
         imp_df = pd.DataFrame(imp_dict)
         imp_df.sort_values(by=['feature_importance'], ascending=False, inplace=True)
         plt.figure(figsize=(10, 8))
@@ -216,36 +225,53 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
         plt.savefig((accuracy_dir + '/' + predictor_imp_keyword + '_pred_importance.png'))
 
 
-def pdp_plot(x_train, classifier, outdir,  # title1='PDP <5cm Subsidence.png',
-             # title2='PDP >5cm Subsidence.png'
+def pdp_plot(classifier, x_train, output_dir, title1='PDP less 1cm Subsidence.png',
+             title2='PDP 1 to 5cm Subsidence.png', title3='PDP greater 5cm Subsidence.png', plot_save_keyword='RF'
              ):
     plot_names = x_train.columns.tolist()
     feature_indices = range(len(plot_names))
 
-    # Class 5
-    fig, ax = plt.subplots()
-    ax.set_title('Partial Dependence Plot for <5cm Subsidence')
+    # Class <1cm
+    plot_partial_dependence(classifier, x_train, target=1, features=feature_indices, feature_names=plot_names,
+                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1, random_state=0,
+                            grid_resolution=20)
+    fig = plt.gcf()
+    fig.set_size_inches(20, 15)
+    fig.suptitle('Partial Dependence Plot for <1cm Subsidence')
+    fig.subplots_adjust(wspace=0.1, hspace=0.5)
+    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + title1), dpi=300, bbox_inches='tight')
+    print('pdp for <1cm saved')
+
+    # Class 1-5cm
     plot_partial_dependence(classifier, x_train, target=5, features=feature_indices, feature_names=plot_names,
                             response_method='predict_proba', percentiles=(0, 1), n_jobs=-1, random_state=0,
-                            ax=ax)
-    plt.rcParams['font.size'] = '8'
-    fig.tight_layout(pad=0.1, w_pad=0.1, h_pad=3)
-    # fig.savefig(os.path.join(output_dir,title1),dpi=300, bbox_inches='tight')
+                            grid_resolution=20)
+    fig = plt.gcf()
+    fig.set_size_inches(20, 15)
+    fig.suptitle('Partial Dependence Plot for 1-5cm Subsidence')
+    fig.subplots_adjust(wspace=0.1, hspace=0.5)
+    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + title2), dpi=300, bbox_inches='tight')
+    print('pdp for 1-5cm saved')
 
-    # Class 10
-    fig, ax = plt.subplots()
-    ax.set_title('Partial Dependence Plot for >5cm Subsidence')
+    # Class >5cm
     plot_partial_dependence(classifier, x_train, target=10, features=feature_indices, feature_names=plot_names,
                             response_method='predict_proba', percentiles=(0, 1), n_jobs=-1, random_state=0,
-                            ax=ax)
-    plt.rcParams['font.size'] = '8'
-    fig.tight_layout(pad=0.1, w_pad=0.1, h_pad=3)
-    # fig.savefig(os.path.join(output_dir,title2),dpi=300, bbox_inches='tight')
+                            grid_resolution=20)
+    fig = plt.gcf()
+    fig.set_size_inches(20, 15)
+    fig.suptitle('Partial Dependence Plot for >5cm Subsidence')
+    fig.subplots_adjust(wspace=0.1, hspace=0.5)
+    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + title3), dpi=300, bbox_inches='tight')
+    print('pdp for >5cm saved')
 
 
 def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], search_by='*.tif',
-                             continent_shapes_dir=r'../Data/Reference_rasters_shapes/continent_extents',
-                             prediction_raster_dir=r'../Model Run/Prediction_rasters',
+                             continent_search_by='*continent.shp',
+                             continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
+                             prediction_raster_dir='../Model Run/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
                              prediction_raster_keyword='RF'):
     """
@@ -255,7 +281,8 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
     predictors_dir : Predictor rasters' directory.
     model : A fitted model obtained from randon_forest_classifier function.
     yearlist : List of years for the prediction.
-    search_by : Predictor rasters search search_by. Defaults to '*.tif'.
+    search_by : Predictor rasters search criteria. Defaults to '*.tif'.
+    continent_search_by : Continent shapefile search criteria. Defaults to '*continent.tif'.
     continent_shapes_dir : Directory path of continent shapefiles.
     prediction_raster_dir : Output directory of prediction raster.
     exclude_columns : Predictor rasters' name that will be excluded from the model. Defaults to ().
@@ -265,8 +292,13 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
     Returns: None.
     """
     predictor_rasters = glob(os.path.join(predictors_dir, search_by))
-    continent_shapes = glob(os.path.join(continent_shapes_dir, '*continent.shp'))
+    continent_shapes = glob(os.path.join(continent_shapes_dir, continent_search_by))
     drop_columns = list(exclude_columns) + [pred_attr]
+
+    continent_prediction_raster_dir = os.path.join(prediction_raster_dir, 'continent_prediction_rasters_'
+                                                   + str(yearlist[0]) + '_' + str(yearlist[1]))
+    makedirs([prediction_raster_dir])
+    makedirs([continent_prediction_raster_dir])
 
     for continent in continent_shapes:
         continent_name = continent[continent.rfind(os.sep) + 1:continent.rfind('_')]
@@ -276,7 +308,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         for predictor in predictor_rasters:
             variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind(".")]
             if variable_name not in drop_columns:
-                clipped_predictor_dir = os.path.join(r'../Model Run/Predictors_2013_2019', continent_name+'_predictors_'
+                clipped_predictor_dir = os.path.join('../Model Run/Predictors_2013_2019', continent_name+'_predictors_'
                                                      + str(yearlist[0]) + '_' + str(yearlist[1]))
                 raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
                                                                        naming_from_both=False)
@@ -289,7 +321,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         predictor_df = pd.DataFrame(predictor_dict)
         predictor_df = predictor_df.dropna(axis=0)
 
-        predictor_csv_dir = r'../Model Run/Predictors_csv/continent_csv'
+        predictor_csv_dir = '../Model Run/Predictors_csv/continent_csv'
         makedirs([predictor_csv_dir])
         predictor_csv_name = continent_name + '_predictors.csv'
         predictor_csv = os.path.join(predictor_csv_dir, predictor_csv_name)
@@ -301,16 +333,13 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         for nan_pos in nan_position_dict.values():
             y_pred[nan_pos] = raster_file.nodata
         y_pred_arr = y_pred.reshape(raster_shape)
-        continent_prediction_raster_dir = os.path.join(prediction_raster_dir, 'continent_prediction_rasters_'
-                                                       + str(yearlist[0]) + '_' + str(yearlist[1]))
-        makedirs([prediction_raster_dir])
-        makedirs([continent_prediction_raster_dir])
+
         prediction_raster_name = continent_name + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
         predicted_raster = os.path.join(continent_prediction_raster_dir, prediction_raster_name)
         write_raster(raster_arr=y_pred_arr, raster_file=raster_file, transform=raster_file.transform,
                      outfile_path=predicted_raster)
         print('Prediction raster created for', continent_name)
 
-    mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir,
-                   raster_name=prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif')
+    raster_name = prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
+    mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name)
     print('Global prediction raster created')

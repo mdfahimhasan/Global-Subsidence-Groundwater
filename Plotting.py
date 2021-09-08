@@ -1,3 +1,6 @@
+# Author: Md Fahim Hasan
+# Email: mhm4b@mst.edu
+
 import os
 from glob import glob
 import matplotlib.pyplot as plt
@@ -74,8 +77,8 @@ def plot_multi_raster_hist(input_raster_dir,nrow=1,ncol=2,search_by="*.tif",figs
     
     plot_rasters=glob(os.path.join(input_raster_dir,search_by))
     
-    i=0
-    fig,ax=plt.subplots(nrows=nrow,ncols=ncol,figsize=figsize,sharey=True,sharex=True)
+    i = 0
+    fig, ax = plt.subplots(nrows=nrow,ncols=ncol,figsize=figsize, sharey=True,sharex=True)
     
     for raster in plot_rasters: 
         arr=read_raster_arr_object(raster,get_file=False)
