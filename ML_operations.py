@@ -223,7 +223,7 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
         plt.ylabel('FEATURE NAMES')
         plt.tight_layout()
         plt.savefig((accuracy_dir + '/' + predictor_imp_keyword + '_pred_importance.png'))
-
+        print('Feature importance plot saved')
 
 def pdp_plot(classifier, x_train, output_dir, title1='PDP less 1cm Subsidence.png',
              title2='PDP 1 to 5cm Subsidence.png', title3='PDP greater 5cm Subsidence.png', plot_save_keyword='RF'
