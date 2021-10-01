@@ -4,10 +4,10 @@
 from Data_operations import *
 from ML_operations import *
 
-gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil',
-                 'MODIS_ET', 'MODIS_EVI', 'SRTM_DEM', 'SRTM_Slope',
-                 'ALOS_Landform', 'Aridity_Index', 'Clay_content', 'Grace', 'MODIS_PET']
-
+gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_pet', 'MODIS_ET', 'MODIS_EVI',
+                 'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'ALOS_Landform', 'Aridity_Index', 'Grace',
+                 'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
+                 'clay_content_100cm', 'clay_content_200cm']
 
 yearlist = [2013, 2019]
 start_month = 1
@@ -17,25 +17,20 @@ gfsad_lu = '../Data/Raw_Data/Land_Use_Data/Raw/Global Food Security- GFSAD1KCM/G
 giam_lu = '../Data/Raw_Data/Land_Use_Data/Raw/gmlulca_10classes_global/gmlulca_10classes_global.tif'
 fao_lu = '../Data/Raw_Data/Land_Use_Data/Raw/FAO_LC/RasterFile/aeigw_pct_aei.tif'
 outdir_lu = '../Data/Resampled_Data/Land_Use'
-lithology = '../Data/Raw_Data/Global_Lithology/glim_wgs84_0point5deg.tif'
-permeability = '../Data/Raw_Data/Global_Hydrogeology/GLHYMPS_permeability.tif'
 intermediate_dir = '../Data/Intermediate_working_dir'
-outdir_lith_perm = '../Data/Resampled_Data/Lithology_Permeability'
 sediment_thickness = '../Data/Raw_Data/Global_Sediment_Thickness/average_soil_and_sedimentary-deposit_thickness.tif'
 outdir_sed_thickness = '../Data/Resampled_Data/Sediment_Thickness'
 sediment_thickness_exx = '../Data/Raw_Data/EXXON_Sediment_Thickness/Global_Sediment_thickness_EXX.tif'
 outdir_pop = '../Data/Resampled_Data/Pop_Density'
 
-
-gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster, lithology_raster, permeability_raster, \
- sediment_thickness_raster, sediment_thickness_raster_exxon, \
- popdensity_raster = prepare_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
-                                                gfsad_lu, giam_lu, fao_lu, intermediate_dir, outdir_lu,
-                                                lithology, permeability, outdir_lith_perm,
-                                                sediment_thickness, outdir_sed_thickness, sediment_thickness_exx,
-                                                outdir_pop,
-                                                skip_download=True, skip_processing=False,  # #
-                                                geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
+gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster, sediment_thickness_raster, \
+sediment_thickness_raster_exxon, \
+popdensity_raster = prepare_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
+                                               gfsad_lu, giam_lu, fao_lu, intermediate_dir, outdir_lu,
+                                               sediment_thickness, outdir_sed_thickness, sediment_thickness_exx,
+                                               outdir_pop, perform_pca=False,
+                                               skip_download=True, skip_processing=True,  # #
+                                               geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
 
 input_polygons_dir = '../InSAR_Data/Georeferenced_subsidence_data'
 joined_subsidence_polygon = '../InSAR_Data/Resampled_subsidence_data/interim_working_dir/georef_subsidence_polygons.shp'
@@ -52,9 +47,8 @@ subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subside
 
 predictor_dir = '../Model Run/Predictors_2013_2019'
 predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster,
-                                                   lithology_raster, permeability_raster, popdensity_raster,
-                                                   sediment_thickness_raster, subsidence_raster, predictor_dir,
-                                                   skip_compiling_predictor_subsidence_data=False)  # #
+                                                   popdensity_raster, sediment_thickness_raster, subsidence_raster,
+                                                   predictor_dir, skip_compiling_predictor_subsidence_data=False)  # #
 csv_dir = '../Model Run/Predictors_csv'
 makedirs([csv_dir])
 train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
@@ -65,13 +59,12 @@ modeldir = '../Model Run/Model'
 model = 'RF'
 
 # change for model run
-exclude_columns = ['Alexi_ET', 'Global_Lithology', 'ALOS_Landform', 'Global_Sediment_Thickness',
-                   'Clay_content_200cm', 'Global_Permeability', 'MODIS_ET', 'MODIS_PET',
-                   'Irrigated_Area_Density', 'NDWI', 'Global_Sed_Thickness_Exx', 'Surfacewater_proximity', 'Grace',
-                   'GW_Irrigation_Density_giam']
+exclude_columns = ['Alexi_ET', 'ALOS_Landform', 'MODIS_ET', 'MODIS_PET',
+                   'Irrigated_Area_Density', 'NDWI', 'Global_Sediment_Thickness', 'Global_Sed_Thickness_Exx',
+                   'Surfacewater_proximity', 'Grace', 'GW_Irrigation_Density_fao']
 
-prediction_raster_keyword = 'RF44'
-cmatrix_name = 'RF44_cmatrix.csv'
+prediction_raster_keyword = 'RF48'
+cmatrix_name = 'RF48_cmatrix.csv'
 
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, shuffle=True, output_dir=csv_dir,

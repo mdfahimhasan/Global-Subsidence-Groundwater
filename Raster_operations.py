@@ -490,6 +490,7 @@ def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, c
         raster_part = input_raster[input_raster.rfind('/') + 1:]
         shape_part = input_shape[input_shape.rfind(os.sep) + 1:input_shape.rfind("_")]
         output_path = os.path.join(output_raster_dir, shape_part + "_" + raster_part)
+        print(output_path)
     else:
         raster_part = input_raster[input_raster.rfind(os.sep) + 1:]
         output_path = os.path.join(output_raster_dir, raster_part)
@@ -694,7 +695,7 @@ def shapefile_to_raster(input_shape, output_dir, raster_name, burn_attr=False, a
     output_raster : Output raster directory.
     raster_name : Output raster name.
     burn_attr : Set to True if raster needs to be created using a specific attribute value. Defaults to False.
-    attribute : Attibute name to use creating raster file. Defaults to "".
+    attribute : Attribute name to use creating raster file. Defaults to "".
     ref_raster : Reference raster to get minx,miny,maxx,maxy. Defaults to referenceraster2.
     resolution : Resolution of the raster. Defaults to 0.05.
     burnvalue : Value for burning into raster. Only needed when burn_attr is False. Defaults to 1.

@@ -8,8 +8,10 @@ from glob import glob
 from Raster_operations import write_raster, clip_resample_raster_cutline, mosaic_rasters
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from System_operations import makedirs
 
 No_Data_Value = -9999
+
 
 def perform_pca_clay(pca_raster_list, dict_keyword_list=None, output_raster_dir='../Data/Resampled_Data/PCA_Clay'):
 
@@ -81,26 +83,12 @@ def perform_pca_clay(pca_raster_list, dict_keyword_list=None, output_raster_dir=
         write_raster(pca_component1, clay_0cm_file, clay_0cm_file.transform, pca_raster1)
 
     input_dir = output_raster_dir
-    continet_raster_dir = os.path.join(input_dir, 'continent_raster')
+    continent_raster_dir = os.path.join(input_dir, 'continent_raster')
+    makedirs(continent_raster_dir)
 
-    mosaic_rasters(output_raster_dir, continet_raster_dir, 'pca1_continent.tif', search_by='*pca1.tif')
+    mosaiced_arr, mosaiced_raster = mosaic_rasters(output_raster_dir, continent_raster_dir, 'pca_clay_content.tif',
+                                                   search_by='*pca1.tif')
 
     print('PCA Clay results saved as raster')
 
-
-clay_0cm = '../Data/Raw_Data/GEE_data/Clay_content_openlandmap/claycontent_0cm/merged_rasters/' \
-           'clay_content_0cm_2013_2019.tif'
-clay_10cm = '../Data/Raw_Data/GEE_data/Clay_content_openlandmap/claycontent_10cm/merged_rasters/' \
-            'clay_content_10cm_2013_2019.tif'
-clay_30cm = '../Data/Raw_Data/GEE_data/Clay_content_openlandmap/claycontent_30cm/merged_rasters/' \
-            'clay_content_30cm_2013_2019.tif'
-clay_60cm = '../Data/Raw_Data/GEE_data/Clay_content_openlandmap/claycontent_60cm/merged_rasters/' \
-            'clay_content_60cm_2013_2019.tif'
-clay_100cm = '../Data/Raw_Data/GEE_data/Clay_content_openlandmap/claycontent_100cm/merged_rasters/' \
-             'clay_content_100cm_2013_2019.tif'
-clay_200cm = '../Data/Raw_Data/GEE_data/Clay_content_openlandmap/claycontent_200cm/merged_rasters/' \
-             'clay_content_200cm_2013_2019.tif'
-
-pca_raster_list = [clay_0cm, clay_10cm, clay_30cm, clay_60cm, clay_100cm, clay_200cm]
-
-# perform_pca_clay(pca_raster_list)
+    return mosaiced_raster
