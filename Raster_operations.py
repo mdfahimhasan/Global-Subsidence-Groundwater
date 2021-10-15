@@ -18,8 +18,7 @@ from datetime import datetime
 
 No_Data_Value = -9999
 
-referenceraster1 = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
-referenceraster2 = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
+referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
 
 # =============================================================================
@@ -130,7 +129,7 @@ def filter_lower_larger_value(input_raster, output_dir, band=1, lower=True, larg
 
 def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, filter_value=[10, 11],
                            new_value=False, value_new=1, no_data_value=No_Data_Value, paste_on_ref_raster=False,
-                           ref_raster=referenceraster2):
+                           ref_raster=referenceraster):
     """
     Filter and replace values in raster.
 
@@ -145,7 +144,7 @@ def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, 
     value_new : Value that the filtered value will get if new_value is set to True. Default set to 1.
     no_data_value : No data value. Default is -9999.
     paste_on_ref_raster : Set to True if filtered values should be pasted on reference raster.
-    ref_raster : Reference raster to paste values on. Defaults to referenceraster2.
+    ref_raster : Reference raster to paste values on. Defaults to referenceraster.
 
     Returns : Raster with filtered values.
     """
@@ -175,7 +174,7 @@ def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, 
 # #Resample or Reproject Raster
 # =============================================================================
 
-def resample_reproject(input_raster, output_dir, raster_name, reference_raster=referenceraster2, resample=True,
+def resample_reproject(input_raster, output_dir, raster_name, reference_raster=referenceraster, resample=True,
                        reproject=False, change_crs_to="EPSG:4326", both=False, nodata=No_Data_Value):
     """
     Resample/Reproject/Both resample and reproject a raster according to a reference raster.
@@ -420,7 +419,7 @@ def extract_raster_array_by_shapefile(input_raster, ref_shape, output_dir=None, 
 # =============================================================================
 # #Mask and Resample Global Raster Data by Reference Raster
 # =============================================================================
-def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referenceraster2, resolution=0.02,
+def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referenceraster, resolution=0.02,
                        nodata=No_Data_Value, paste_on_ref_raster=False, pasted_outdir=None, pasted_raster_name=None):
     """
     Mask a Global Raster Data by Reference Raster. 
@@ -429,7 +428,7 @@ def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referencera
     input_raster : Input raster name with filepath.
     output_dir : Output raster directory.
     raster_name : Output raster name.
-    ref_raster : Global reference raster filepath. Defaults to referenceraster2.
+    ref_raster : Global reference raster filepath. Defaults to referenceraster.
     resolution : Resolution of output raster. Defaults to 0.02 degree in GCS_WGS_1984.
     nodata : No data value. Defaults to No_Data_Value of -9999.
     
@@ -453,7 +452,7 @@ def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referencera
     if paste_on_ref_raster:
         pasted_raster = paste_val_on_ref_raster(input_raster=output_raster, outdir=pasted_outdir,
                                                 raster_name=pasted_raster_name,
-                                                ref_raster=referenceraster2)
+                                                ref_raster=referenceraster)
         output_raster = pasted_raster
     return output_raster
 
@@ -490,7 +489,7 @@ def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, c
         raster_part = input_raster[input_raster.rfind('/') + 1:]
         shape_part = input_shape[input_shape.rfind(os.sep) + 1:input_shape.rfind("_")]
         output_path = os.path.join(output_raster_dir, shape_part + "_" + raster_part)
-        print(output_path)
+
     else:
         raster_part = input_raster[input_raster.rfind(os.sep) + 1:]
         output_path = os.path.join(output_raster_dir, raster_part)
@@ -508,7 +507,7 @@ def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, c
 # =============================================================================
 # #Mosaic Multiple Rasters    
 # =============================================================================
-def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraster2, search_by="*.tif",
+def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraster, search_by="*.tif",
                    resolution=0.02, no_data=No_Data_Value):
     """
     Mosaics multiple rasters into a single raster (rasters have to be in the same directory).
@@ -548,7 +547,7 @@ def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraste
 # =============================================================================
 # #Mosaic 2 Rasters
 # =============================================================================
-def mosaic_two_rasters(input_raster1, input_raster2, output_dir, raster_name, ref_raster=referenceraster2,
+def mosaic_two_rasters(input_raster1, input_raster2, output_dir, raster_name, ref_raster=referenceraster,
                        resolution=0.02, no_data=No_Data_Value):
     """
     Mosaics two rasters into a single raster (rasters have to be in the same directory).
@@ -685,7 +684,7 @@ def array_multiply(input_raster1, input_raster2, outdir, raster_name):
 # #Convert Shapefile to Raster
 # =============================================================================
 def shapefile_to_raster(input_shape, output_dir, raster_name, burn_attr=False, attribute="",
-                        ref_raster=referenceraster2,
+                        ref_raster=referenceraster,
                         resolution=0.02, burnvalue=1, alltouched=False, nodatavalue=No_Data_Value):
     """
     Converts polygon shapefile to raster by attribute value or burn value.
@@ -696,7 +695,7 @@ def shapefile_to_raster(input_shape, output_dir, raster_name, burn_attr=False, a
     raster_name : Output raster name.
     burn_attr : Set to True if raster needs to be created using a specific attribute value. Defaults to False.
     attribute : Attribute name to use creating raster file. Defaults to "".
-    ref_raster : Reference raster to get minx,miny,maxx,maxy. Defaults to referenceraster2.
+    ref_raster : Reference raster to get minx,miny,maxx,maxy. Defaults to referenceraster.
     resolution : Resolution of the raster. Defaults to 0.05.
     burnvalue : Value for burning into raster. Only needed when burn_attr is False. Defaults to 1.
     alltouched : If True all pixels touched by lines or polygons will be updated.
@@ -752,7 +751,7 @@ def create_slope_raster(input_raster, outdir, raster_name):
 # =============================================================================
 # #creating nanfilled raster from original raster
 # =============================================================================
-def create_nanfilled_raster(input_raster, outdir, raster_name, ref_raster=referenceraster2):
+def create_nanfilled_raster(input_raster, outdir, raster_name, ref_raster=referenceraster):
     """
     Create a nan-filled raster with a reference raster. If there is nan value on raster that 
     will be filled by zero from reference raster.
@@ -761,7 +760,7 @@ def create_nanfilled_raster(input_raster, outdir, raster_name, ref_raster=refere
     input_raster : Input raster.
     output_dir : Output raster directory.
     raster_name : output raster name.
-    ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster2.
+    ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster.
 
     Returns:None.
     """
@@ -780,7 +779,7 @@ def create_nanfilled_raster(input_raster, outdir, raster_name, ref_raster=refere
     return output_raster
 
 
-def paste_val_on_ref_raster(input_raster, outdir, raster_name, value=0, ref_raster=referenceraster2):
+def paste_val_on_ref_raster(input_raster, outdir, raster_name, value=0, ref_raster=referenceraster):
     """
     Paste value from a raster on the reference raster. If there are nan values on raster that 
     will be filled by nan from reference raster.
@@ -790,7 +789,7 @@ def paste_val_on_ref_raster(input_raster, outdir, raster_name, value=0, ref_rast
     output_dir : Output raster directory.
     raster_name : output raster name.
     value : Value in reference raster used in comparison.
-    ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster2.
+    ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster.
 
     Returns:None.
     """
@@ -814,7 +813,7 @@ def paste_val_on_ref_raster(input_raster, outdir, raster_name, value=0, ref_rast
 # #Gaussian Filter
 # =============================================================================
 def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan=True, normalize=True,
-                          nodata=No_Data_Value, ref_raster=referenceraster2):
+                          nodata=No_Data_Value, ref_raster=referenceraster):
     """
     Applies Gaussian filter to raster.
 
@@ -826,7 +825,7 @@ def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan
     ignore_nan :  Set true to ignore nan values during convolution.
     normalize : Set true to normalize the filtered raster at the end.
     nodata : No_Data_Value.
-    ref_raster : Reference Raster. Defaults to referenceraster2.
+    ref_raster : Reference Raster. Defaults to referenceraster.
 
     Returns: Gaussian filtered raster.
     """
@@ -917,29 +916,6 @@ def Classify_InSAR_raster(input_raster, outdir, raster_name, cnra_data=False, st
                   outputType=gdal.GDT_Float32)
 
     return resampled_raster
-
-
-# # California InSAR Data Processing
-# output_dir = r'..\InSAR_Data\Processed_resampled'
-# fp = r'..\InSAR_Data\California\California_vert_disp_20150613_20190919.tif'
-#
-# path=Classify_InSAR_raster(input_raster=fp, output_dir=output_dir, raster_name='California_reclass.tif', cnra_data=True,
-#                       resampled_raster_name='California_reclass_resampled.tif', start_date="2015/06/13",
-#                       end_date="2019/09/19")
-
-# # Arizona InSAR Data Processing
-# output_dir=r'..\InSAR_Data\Processed_resampled'
-# fp=r'..\InSAR_Data\Arizona\2010_2019\MS_2010_2019.tif'
-#
-# Classify_InSAR_raster(input_raster=fp, output_dir=output_dir, raster_name='Arizona_reclass.tif',
-#                       resampled_raster_name='Arizona_reclass_resampled.tif')
-
-# # Quetta Valley InSAR Data Processing
-# output_dir = r'..\InSAR_Data\Processed_resampled'
-# fp = r'E:\NGA_Project_Data\InSAR_Data\Pakistan_Quetta\Quetta_2017_2021.tif'
-#
-# Classify_InSAR_raster(input_raster=fp, output_dir=output_dir, raster_name='Quetta_reclass.tif',
-#                       resampled_raster_name='Quetta_reclass_resampled.tif', unit_change=True, unit_scale=100)
 
 
 

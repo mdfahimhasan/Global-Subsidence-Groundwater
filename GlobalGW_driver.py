@@ -9,6 +9,7 @@ gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM
                  'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
                  'clay_content_100cm', 'clay_content_200cm']
 
+
 yearlist = [2013, 2019]
 start_month = 1
 end_month = 12
@@ -43,33 +44,34 @@ subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subside
                                               skip_polygon_merge=True, subsidence_column='Class_name',  # #
                                               final_subsidence_raster='Subsidence_training.tif',
                                               polygon_search_criteria='*Subsidence*.shp',
-                                              insar_search_criteria='*reclass_resampled*.tif', already_prepared=True)
+                                              insar_search_criteria='*reclass_resampled*.tif',
+                                              already_prepared=True)  # #
 
 predictor_dir = '../Model Run/Predictors_2013_2019'
 predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster,
-                                                   popdensity_raster, sediment_thickness_raster, subsidence_raster,
-                                                   predictor_dir, skip_compiling_predictor_subsidence_data=False)  # #
+                                                   sediment_thickness_raster, popdensity_raster, subsidence_raster,
+                                                   predictor_dir, skip_compiling_predictor_subsidence_data=True)  # #
 csv_dir = '../Model Run/Predictors_csv'
 makedirs([csv_dir])
 train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif',
-                                skip_dataframe_creation=False)  # #
+                                skip_dataframe_creation=True)  # #
 
 modeldir = '../Model Run/Model'
 model = 'RF'
 
 # change for model run
-exclude_columns = ['Alexi_ET', 'ALOS_Landform', 'MODIS_ET', 'MODIS_PET',
-                   'Irrigated_Area_Density', 'NDWI', 'Global_Sediment_Thickness', 'Global_Sed_Thickness_Exx',
-                   'Surfacewater_proximity', 'Grace', 'GW_Irrigation_Density_fao']
+exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_giam',
+                   'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
+                   'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
 
-prediction_raster_keyword = 'RF48'
-cmatrix_name = 'RF48_cmatrix.csv'
+prediction_raster_keyword = 'RF54'
+cmatrix_name = 'RF54_cmatrix.csv'
 
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, shuffle=True, output_dir=csv_dir,
                                n_estimators=500, bootstrap=True, oob_score=True, n_jobs=-2, max_features='auto',
-                               accuracy=True, save=True, cm_name=cmatrix_name, predictor_importance=True,
+                               accuracy=True, save=True, cm_name=cmatrix_name, predictor_importance=True,  # #
                                predictor_imp_keyword=prediction_raster_keyword, plot_pdp=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
@@ -78,4 +80,4 @@ create_prediction_raster(predictors_dir, ML_model, yearlist=[2013, 2019], search
                          continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                          prediction_raster_dir='../Model Run/Prediction_rasters',
                          exclude_columns=exclude_columns, pred_attr='Subsidence',
-                         prediction_raster_keyword=prediction_raster_keyword)
+                         prediction_raster_keyword=prediction_raster_keyword, predict_probability=True)

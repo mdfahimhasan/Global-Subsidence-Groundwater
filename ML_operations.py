@@ -225,6 +225,7 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
         plt.savefig((accuracy_dir + '/' + predictor_imp_keyword + '_pred_importance.png'))
         print('Feature importance plot saved')
 
+
 def pdp_plot(classifier, x_train, output_dir, title1='PDP less 1cm Subsidence.png',
              title2='PDP 1 to 5cm Subsidence.png', title3='PDP greater 5cm Subsidence.png', plot_save_keyword='RF'
              ):
@@ -273,7 +274,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
-                             prediction_raster_keyword='RF'):
+                             prediction_raster_keyword='RF', predict_probability=True):
     """
     Create predicted raster from random forest model.
 
@@ -288,8 +289,10 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
     exclude_columns : Predictor rasters' name that will be excluded from the model. Defaults to ().
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     prediction_raster_keyword : Keyword added to final prediction raster name.
+    predict_probability : Set to False if prediction of probability is not required. Default set to True.
 
-    Returns: None.
+    Returns: Subsidence prediction raster and
+             Subsidence prediction probability raster (if prediction_probability=True).
     """
     predictor_rasters = glob(os.path.join(predictors_dir, search_by))
     continent_shapes = glob(os.path.join(continent_shapes_dir, continent_search_by))
@@ -340,6 +343,26 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                      outfile_path=predicted_raster)
         print('Prediction raster created for', continent_name)
 
+        if predict_probability:
+            y_pred_proba = model.predict_proba(x)
+            y_pred_proba = np.amax(y_pred_proba, axis=1)
+
+            for nan_pos in nan_position_dict.values():
+                y_pred_proba[nan_pos] = raster_file.nodata
+            y_pred_proba_arr = y_pred_proba.reshape(raster_shape)
+
+            probability_raster_name = continent_name + '_proba_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
+            probability_raster = os.path.join(continent_prediction_raster_dir, probability_raster_name)
+            write_raster(raster_arr=y_pred_proba_arr, raster_file=raster_file, transform=raster_file.transform,
+                         outfile_path=probability_raster)
+            print('Prediction probability raster created for', continent_name)
+
     raster_name = prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
-    mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name)
+    mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name, search_by='*prediction*.tif')
     print('Global prediction raster created')
+
+    if predict_probability:
+        proba_raster_name = prediction_raster_keyword + '_proba_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
+        mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
+                       search_by='*proba*.tif')
+        print('Global prediction probability raster created')
