@@ -7,7 +7,7 @@ import seaborn as sns
 import pickle
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, precision_score, recall_score
 from xgboost import XGBClassifier
 # from sklearn.svm import SVC
 # from sklearn.pipeline import Pipeline
@@ -16,6 +16,7 @@ from xgboost import XGBClassifier
 from sklearn.inspection import plot_partial_dependence
 from Raster_operations import *
 from System_operations import *
+
 
 referenceraster2 = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
@@ -101,7 +102,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
                         n_estimators=500, bootstrap=True, oob_score=True, n_jobs=-1, max_features='auto',
                         accuracy=True, save=True, accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
-                        plot_pdp=False):
+                        plot_pdp=False, plot_confusion_matrix=True):
     """
     Build Machine Learning Classifier. Can run 'Random Forest', 'Extra Trees Classifier' and 'XGBClassifier'.
 
@@ -121,13 +122,14 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
     n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
     max_features : The number of features to consider when looking for the best split. Defaults to None.
-    multiclass : If multiclass classification, set True for getting model performance. Defaults to False.
     save : Set True to save confusion matrix as csv. Defaults to False.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
     predictor_imp_keyword : Keyword to save predictor important plot.
-    # ADD PDP VARIABLES
+    plot_save_keyword : Keyword to add before saved PDP plots.
+    plot_pdp : Set to True if want to plot PDP.
+    plot_confusion_matrix : Set to True if want to plot confusion matrix.
 
     Returns: rf_classifier (A fitted random forest model)
     """
@@ -167,7 +169,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
 
     if accuracy:
         classification_accuracy(y_test, y_pred, classifier, x_train, save, accuracy_dir, cm_name,
-                                predictor_importance, predictor_imp_keyword)
+                                predictor_importance, predictor_imp_keyword, plot_confusion_matrix)
     if plot_pdp:
         pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword)
 
@@ -176,7 +178,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
 
 def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
                             accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
-                            predictor_importance=False, predictor_imp_keyword='RF'):
+                            predictor_importance=False, predictor_imp_keyword='RF', plot_confusion_matrix=True):
     """
     Classification accuracy assessment.
 
@@ -193,55 +195,144 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
 
     Returns: Confusion matrix, score and predictor importance graph.
     """
-    column_labels = [np.array(['predictied', 'predictied', 'predictied']),
-                     np.array(['<1cm subsidence', '1-5 cm Subsidence', '>5cm Subsidence'])]
+    column_labels = [np.array(['Predicted', 'Predicted', 'Predicted']),
+                     np.array(['<1cm/yr subsidence', '1-5cm/yr subsidence', '>5cm/yr subsidence'])]
     index_labels = [np.array(['Actual', 'Actual', 'Actual']),
-                    np.array(['<1cm subsidence', '1-5 cm Subsidence', '>5cm Subsidence'])]
+                    np.array(['<1cm/yr subsidence', '1-5cm/yr subsidence', '>5cm/yr subsidence'])]
     cm = confusion_matrix(y_test, y_pred)
     cm_df = pd.DataFrame(cm, columns=column_labels, index=index_labels)
+    pd.options.display.width = 0
+    print(cm_df, '\n')
 
     if save:
         makedirs([accuracy_dir])
+        cm_name = predictor_imp_keyword + '_' + cm_name
         csv = os.path.join(accuracy_dir, cm_name)
         cm_df.to_csv(csv, index=True)
+    if plot_confusion_matrix:
+        disp = ConfusionMatrixDisplay(cm, display_labels=np.array(['<1cm', '1-5 cm', '>5cm']))
+        disp.plot(cmap='YlGn')
+        plt.tight_layout()
+        plot_name = cm_name[:cm_name.rfind('.')] + '.png'
+        plt.savefig((accuracy_dir + '/' + plot_name), dpi=300)
 
-    print(cm_df, '\n')
-    print('Recall Score {:.2f}'.format(recall_score(y_test, y_pred, average='micro')))
-    print('Precision Score {:.2f}'.format(precision_score(y_test, y_pred, average='micro')))
-    print('Accuracy Score {:.2f}'.format(accuracy_score(y_test, y_pred)))
+    overall_accuracy = round(accuracy_score(y_test, y_pred), 2)
+
+    # print('Recall Score {:.2f}'.format(recall_score(y_test, y_pred, average='micro')))
+    # print('Precision Score {:.2f}'.format(precision_score(y_test, y_pred, average='micro')))
+    print('Accuracy Score {}'.format(overall_accuracy))
+
+    accuracy_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_accuracy.csv'
+    save_model_accuracy(cm_df, overall_accuracy, accuracy_csv_name)
 
     if predictor_importance:
+        predictor_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
+                          'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
+                          'Global_Sediment_Thickness': 'Sediment Thickness',
+                          'Global_Sed_Thickness_Exx': 'Sediment Thickness Exxon',
+                          'GW_Irrigation_Density_fao': 'GW Irrigation Density fao',
+                          'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
+                          'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET',
+                          'MODIS_PET': 'MODIS PET', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
+                          'SRTM_Slope': 'Slope', 'Subsidence': 'Subsidence',
+                          'TRCLM_PET': 'PET', 'TRCLM_precp': 'Precipitation',
+                          'TRCLM_soil': 'Soil moisture', 'TRCLM_Tmax': 'Tmax',
+                          'TRCLM_Tmin': 'Tmin'}
         x_train_df = pd.DataFrame(x_train)
+        x_train_df = x_train_df.rename(columns=predictor_dict)
         col_labels = np.array(x_train_df.columns)
         importance = np.array(classifier.feature_importances_)
         imp_dict = {'feature_names': col_labels, 'feature_importance': importance}
         imp_df = pd.DataFrame(imp_dict)
         imp_df.sort_values(by=['feature_importance'], ascending=False, inplace=True)
         plt.figure(figsize=(10, 8))
+        plt.rcParams['font.size'] = 15
         sns.barplot(x=imp_df['feature_importance'], y=imp_df['feature_names'])
-        plt.xlabel('FEATURE IMPORTANCE')
-        plt.ylabel('FEATURE NAMES')
+        plt.xlabel('Predictor Importance')
+        plt.ylabel('Predictor Names')
         plt.tight_layout()
         plt.savefig((accuracy_dir + '/' + predictor_imp_keyword + '_pred_importance.png'))
         print('Feature importance plot saved')
 
+    return cm_df, overall_accuracy
 
-def pdp_plot(classifier, x_train, output_dir, title1='PDP less 1cm Subsidence.png',
-             title2='PDP 1 to 5cm Subsidence.png', title3='PDP greater 5cm Subsidence.png', plot_save_keyword='RF'
+
+def save_model_accuracy(cm_df, overall_accuracy, accuracy_csv_name):
+    """
+    Save model accuracy parameters as csv.
+
+    Parameters:
+    cm_df : Confusion matrix dataframe (input from 'classification_accuracy' function).
+    overall_accuracy : Overall accuracy value (input from 'classification_accuracy' function).
+    accuracy_csv_name : Name of the csv file to save.
+
+    Returns : Saved csv with model accuracy values.
+    """
+    from operator import truediv
+    act_pixel_less_1cm = sum(cm_df.loc[('Actual', '<1cm/yr subsidence'), ])
+    act_pixel_1cm_to_5cm = sum(cm_df.loc[('Actual', '1-5cm/yr subsidence'), ])
+    act_pixel_greater_5cm = sum(cm_df.loc[('Actual', '>5cm/yr subsidence'), ])
+    pred_pixel_less_1cm = cm_df.loc[('Actual', '<1cm/yr subsidence'), ('Predicted', '<1cm/yr subsidence')]
+    pred_pixel_1cm_to_5cm = cm_df.loc[('Actual', '1-5cm/yr subsidence'), ('Predicted', '1-5cm/yr subsidence')]
+    pred_pixel_greater_1cm = cm_df.loc[('Actual', '>5cm/yr subsidence'), ('Predicted', '>5cm/yr subsidence')]
+
+    actual_no_pixels = [act_pixel_less_1cm, act_pixel_1cm_to_5cm, act_pixel_greater_5cm]
+    accurately_pred_pixel = [pred_pixel_less_1cm, pred_pixel_1cm_to_5cm, pred_pixel_greater_1cm]
+    accuracy = list(map(truediv, accurately_pred_pixel, actual_no_pixels))
+    accuracy = [round(i, 2) for i in accuracy]
+
+    total_accuracy = np.array([overall_accuracy, overall_accuracy, overall_accuracy])
+    accuracy_dataframe = pd.DataFrame({'Actual No. of Pixels': actual_no_pixels,
+                                       'Accurately Predicted Pixels': accurately_pred_pixel, 'Accuracy': accuracy,
+                                       'Overall Accuracy': total_accuracy},
+                                      index=['<1cm/yr subsidence', '1-5cm/yr subsidence', '>5cm/yr subsidence'])
+    accuracy_dataframe.to_csv(accuracy_csv_name)
+
+
+def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
              ):
+    """
+    Plot Partial Dependence Plot for the model.
+
+    Parameters:
+    classifier :ML model classifier.
+    x_train : X train array.
+    output_dir : Output directory path to save the plots.
+    plot_save_keyword : Keyword to add before saved PDP plots.
+
+    Returns : PDP plots.
+    """
+
+    predictor_dict = {'Alexi_ET': 'Alexi ET (mm)', 'Aridity_Index': 'Aridity Index',
+                      'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
+                      'Global_Sediment_Thickness': 'Sediment Thickness (m)',
+                      'Global_Sed_Thickness_Exx': 'Sediment Thickness Exxon (km)',
+                      'GW_Irrigation_Density_fao': 'GW Irrigation Density fao',
+                      'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
+                      'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET (mm)',
+                      'MODIS_PET': 'MODIS PET (mm)', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
+                      'SRTM_Slope': 'Slope (%)', 'Subsidence': 'Subsidence (cm/yr)',
+                      'TRCLM_PET': 'PET (mm)', 'TRCLM_precp': 'Precipitation (mm)',
+                      'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax': 'Tmax (deg C)', 'TRCLM_Tmin': 'Tmin (deg C)'}
+
+    x_train = x_train.rename(columns=predictor_dict)
     plot_names = x_train.columns.tolist()
     feature_indices = range(len(plot_names))
 
+    plt.rcParams['font.size'] = 18
+
     # Class <1cm
+
     plot_partial_dependence(classifier, x_train, target=1, features=feature_indices, feature_names=plot_names,
                             response_method='predict_proba', percentiles=(0, 1), n_jobs=-1, random_state=0,
                             grid_resolution=20)
     fig = plt.gcf()
     fig.set_size_inches(20, 15)
-    fig.suptitle('Partial Dependence Plot for <1cm Subsidence')
+    fig.suptitle('Partial Dependence Plot for <1cm/yr Subsidence', size=22, y=1)
     fig.subplots_adjust(wspace=0.1, hspace=0.5)
     fig.tight_layout(rect=[0, 0.05, 1, 0.95])
-    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + title1), dpi=300, bbox_inches='tight')
+    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + 'PDP less 1cm Subsidence.png'),
+                dpi=300, bbox_inches='tight')
     print('pdp for <1cm saved')
 
     # Class 1-5cm
@@ -250,10 +341,11 @@ def pdp_plot(classifier, x_train, output_dir, title1='PDP less 1cm Subsidence.pn
                             grid_resolution=20)
     fig = plt.gcf()
     fig.set_size_inches(20, 15)
-    fig.suptitle('Partial Dependence Plot for 1-5cm Subsidence')
+    fig.suptitle('Partial Dependence Plot for 1-5cm/yr Subsidence', size=22, y=1)
     fig.subplots_adjust(wspace=0.1, hspace=0.5)
     fig.tight_layout(rect=[0, 0.05, 1, 0.95])
-    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + title2), dpi=300, bbox_inches='tight')
+    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + 'PDP 1 to 5cm Subsidence.png'),
+                dpi=300, bbox_inches='tight')
     print('pdp for 1-5cm saved')
 
     # Class >5cm
@@ -262,10 +354,11 @@ def pdp_plot(classifier, x_train, output_dir, title1='PDP less 1cm Subsidence.pn
                             grid_resolution=20)
     fig = plt.gcf()
     fig.set_size_inches(20, 15)
-    fig.suptitle('Partial Dependence Plot for >5cm Subsidence')
+    fig.suptitle('Partial Dependence Plot for >5cm/yr Subsidence', size=22, y=1)
     fig.subplots_adjust(wspace=0.1, hspace=0.5)
     fig.tight_layout(rect=[0, 0.05, 1, 0.95])
-    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + title3), dpi=300, bbox_inches='tight')
+    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + 'PDP greater 5cm Subsidence.png'),
+                dpi=300, bbox_inches='tight')
     print('pdp for >5cm saved')
 
 
@@ -274,7 +367,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
-                             prediction_raster_keyword='RF', predict_probability=True):
+                             prediction_raster_keyword='RF', predict_probability_greater_1cm=True):
     """
     Create predicted raster from random forest model.
 
@@ -289,7 +382,8 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
     exclude_columns : Predictor rasters' name that will be excluded from the model. Defaults to ().
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     prediction_raster_keyword : Keyword added to final prediction raster name.
-    predict_probability : Set to False if prediction of probability is not required. Default set to True.
+    predict_probability_greater_1cm : Set to False if probability of prediction of each classes (<1cm, 1-5cm, >5cm)
+                                      is required. Default set to True to predict probability of prediction for >1cm.
 
     Returns: Subsidence prediction raster and
              Subsidence prediction probability raster (if prediction_probability=True).
@@ -343,7 +437,22 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                      outfile_path=predicted_raster)
         print('Prediction raster created for', continent_name)
 
-        if predict_probability:
+        if predict_probability_greater_1cm:
+            y_pred_proba = model.predict_proba(x)
+            y_pred_proba = y_pred_proba[:, 1] + y_pred_proba[:, 2]
+
+            for nan_pos in nan_position_dict.values():
+                y_pred_proba[nan_pos] = raster_file.nodata
+            y_pred_proba_arr = y_pred_proba.reshape(raster_shape)
+
+            probability_raster_name = continent_name + '_proba_greater_1cm_' + str(yearlist[0]) + '_' + \
+                                      str(yearlist[1]) + '.tif'
+            probability_raster = os.path.join(continent_prediction_raster_dir, probability_raster_name)
+            write_raster(raster_arr=y_pred_proba_arr, raster_file=raster_file, transform=raster_file.transform,
+                         outfile_path=probability_raster)
+            print('Prediction probability for >1cm created for', continent_name)
+
+        else:
             y_pred_proba = model.predict_proba(x)
             y_pred_proba = np.amax(y_pred_proba, axis=1)
 
@@ -361,7 +470,14 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
     mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name, search_by='*prediction*.tif')
     print('Global prediction raster created')
 
-    if predict_probability:
+    if predict_probability_greater_1cm:
+        proba_raster_name = prediction_raster_keyword + '_proba_greater_1cm_' + str(yearlist[0]) + '_' + \
+                            str(yearlist[1]) + '.tif'
+        mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
+                       search_by='*proba_greater_1cm*.tif')
+        print('Global prediction probability raster created')
+
+    else:
         proba_raster_name = prediction_raster_keyword + '_proba_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
         mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
                        search_by='*proba*.tif')

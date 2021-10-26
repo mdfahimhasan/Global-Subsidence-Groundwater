@@ -21,17 +21,17 @@ def create_training_stats(train_test_csv, exclude_columns=['ALOS_Landform', 'Gra
 
     train_test_df = pd.read_csv(train_test_csv)
     train_test_df = train_test_df.drop(columns=exclude_columns + [pred_attr])
-    predictor_dict = {'Alexi_ET': 'Alexi_ET (mm)', 'Aridity_Index': 'Aridity_Index',
+    predictor_dict = {'Alexi_ET': 'Alexi ET (mm)', 'Aridity_Index': 'Aridity Index',
                       'Clay_content_PCA': 'Clay_content_PCA', 'EVI': 'EVI',
-                      'Global_Sediment_Thickness': 'Sediment_Thickness (m)',
-                      'Global_Sed_Thickness_Exx': 'Sediment_Thickness_Exx (km)',
-                      'GW_Irrigation_Density_fao': 'GW_Irrigation_Density_fao',
-                      'GW_Irrigation_Density_giam': 'GW_Irrigation_Density_giam',
-                      'Irrigated_Area_Density': 'Irrigated_Area_Density', 'MODIS_ET': 'MODIS_ET (mm)',
-                      'MODIS_PET': 'MODIS_PET (mm)', 'NDWI' : 'NDWI', 'Population_Density': 'Population_Density',
-                      'SRTM_Slope': 'SRTM_Slope (%)', 'Subsidence': 'Subsidence (cm/yr)',
-                      'TRCLM_PET': 'TRCLM_PET (mm)', 'TRCLM_precp': 'TRCLM_precp (mm)',
-                      'TRCLM_soil': 'Soil_moisture (mm)', 'TRCLM_Tmax' : 'Tmax (deg C)', 'TRCLM_Tmin' : 'Tmin (deg C)'}
+                      'Global_Sediment_Thickness': 'Sediment Thickness (m)',
+                      'Global_Sed_Thickness_Exx': 'Sediment Thickness Exxon (km)',
+                      'GW_Irrigation_Density_fao': 'GW Irrigation Density fao',
+                      'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
+                      'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET (mm)',
+                      'MODIS_PET': 'MODIS PET (mm)', 'NDWI' : 'NDWI', 'Population_Density': 'Population Density',
+                      'SRTM_Slope': 'Slope (%)', 'Subsidence': 'Subsidence (cm/yr)',
+                      'TRCLM_PET': 'PET (mm)', 'TRCLM_precp': 'Precipitation (mm)',
+                      'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax' : 'Tmax (deg C)', 'TRCLM_Tmin' : 'Tmin (deg C)'}
 
     Name = []
     Min = []
@@ -80,7 +80,7 @@ csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 def stat_clay_data(clay_0cm, clay_10cm, clay_30cm, clay_60cm, clay_100cm, clay_200cm,
                    subsidence_training_data='../InSAR_Data/Resampled_subsidence_data/final_subsidence_raster/'
                                             'Subsidence_training.tif'):
-    clay_list = [Clay_0cm, Clay_10cm, Clay_30cm, Clay_60cm, Clay_100cm, Clay_200cm]
+    clay_list = [clay_0cm, clay_10cm, clay_30cm, clay_60cm, clay_100cm, clay_200cm]
     Name = ['Clay_0cm', 'Clay_10cm', 'Clay_30cm', 'Clay_60cm', 'Clay_100cm', 'Clay_200cm']
 
     subsidence_arr = read_raster_arr_object(subsidence_training_data, get_file=False)

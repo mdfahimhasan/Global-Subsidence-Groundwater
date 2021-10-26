@@ -61,18 +61,18 @@ modeldir = '../Model Run/Model'
 model = 'RF'
 
 # change for model run
-exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_giam',
+exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
                    'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
                    'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
 
-prediction_raster_keyword = 'RF54'
-cmatrix_name = 'RF54_cmatrix.csv'
+prediction_raster_keyword = 'RF53'
 
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, shuffle=True, output_dir=csv_dir,
                                n_estimators=500, bootstrap=True, oob_score=True, n_jobs=-2, max_features='auto',
-                               accuracy=True, save=True, cm_name=cmatrix_name, predictor_importance=True,  # #
-                               predictor_imp_keyword=prediction_raster_keyword, plot_pdp=True)  # #
+                               accuracy=True, save=True, predictor_importance=True,  # #
+                               predictor_imp_keyword=prediction_raster_keyword, plot_pdp=True, # #
+                               plot_confusion_matrix=True)
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
 create_prediction_raster(predictors_dir, ML_model, yearlist=[2013, 2019], search_by='*.tif',
@@ -80,4 +80,4 @@ create_prediction_raster(predictors_dir, ML_model, yearlist=[2013, 2019], search
                          continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                          prediction_raster_dir='../Model Run/Prediction_rasters',
                          exclude_columns=exclude_columns, pred_attr='Subsidence',
-                         prediction_raster_keyword=prediction_raster_keyword, predict_probability=True)
+                         prediction_raster_keyword=prediction_raster_keyword, predict_probability_greater_1cm=True)
