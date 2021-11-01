@@ -7,7 +7,8 @@ import seaborn as sns
 import pickle
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, precision_score, recall_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
+    precision_score, recall_score, f1_score
 from xgboost import XGBClassifier
 # from sklearn.svm import SVC
 # from sklearn.pipeline import Pipeline
@@ -16,7 +17,6 @@ from xgboost import XGBClassifier
 from sklearn.inspection import plot_partial_dependence
 from Raster_operations import *
 from System_operations import *
-
 
 referenceraster2 = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
@@ -56,7 +56,7 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
 
 
 def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subsidence', test_size=0.3, random_state=0,
-                           shuffle=True, outdir=None):
+                           outdir=None):
     """
     Split dataset into train and test data based on a ratio
 
@@ -66,7 +66,6 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence'.
     test_size : The percentage of test dataset. Defaults to 0.3.
     random_state : Seed value. Defaults to 0.
-    shuffle : Whether or not to shuffle data before spliting. Defaults to True.
     output_dir : Set a output directory if training and test dataset need to be saved. Defaults to None.
 
     Returns: X_train, X_test, y_train, y_test
@@ -79,7 +78,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     print('Predictors:', x.columns)
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state,
-                                                        shuffle=shuffle)
+                                                        shuffle=True, stratify=y)
 
     if outdir:
         x_train_df = pd.DataFrame(x_train)
@@ -99,8 +98,8 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF', load_model=False,
                         pred_attr='Subsidence', test_size=0.3, random_state=0, shuffle=True, output_dir=None,
-                        n_estimators=500, bootstrap=True, oob_score=True, n_jobs=-1, max_features='auto',
-                        accuracy=True, save=True, accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
+                        n_estimators=800, bootstrap=True, oob_score=True, n_jobs=-1, max_features='auto',
+                        accuracy=True, accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
                         plot_pdp=False, plot_confusion_matrix=True):
     """
@@ -115,14 +114,13 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     test_size : The percentage of test dataset. Defaults to 0.3.
     random_state : Seed value. Defaults to 0.
-    shuffle : Whether or not to shuffle data before spliting. Defaults to True.
+    shuffle : Whether or not to shuffle data before splitting. Defaults to True.
     output_dir : Set a output directory if training and test dataset need to be saved. Defaults to None.
     n_estimators : The number of trees in the forest.. Defaults to 500.
     bootstrap : Whether bootstrap samples are used when building trees. Defaults to True.
     oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
     n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
     max_features : The number of features to consider when looking for the best split. Defaults to None.
-    save : Set True to save confusion matrix as csv. Defaults to False.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
@@ -138,7 +136,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv=predictor_csv,
                                                               exclude_columns=exclude_columns, pred_attr=pred_attr,
                                                               test_size=test_size, random_state=random_state,
-                                                              shuffle=shuffle, outdir=output_dir)
+                                                              outdir=output_dir)
     # Making directory for model
     makedirs([modeldir])
     model_file = os.path.join(modeldir, model)
@@ -149,7 +147,6 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
             classifier = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state,
                                                 bootstrap=bootstrap,
                                                 n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
-
         # if model == 'ETC':
         #     classifier = ExtraTreesClassifier(n_estimators=n_estimators, random_state=random_state,
         #                                       bootstrap=bootstrap,
@@ -160,6 +157,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
         #                                grow_policy='lossguide', booster='gbtree', objective='multi:softmax',
         #                                subsample=0.75, n_jobs=n_jobs,
         #                                colsample_bytree=1, colsample_bylevel=1, colsample_bynode=1)
+
         classifier = classifier.fit(x_train, y_train)
         y_pred = classifier.predict(x_test)
         pickle.dump(classifier, open(model_file, mode='wb+'))
@@ -168,7 +166,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
         classifier = pickle.load(open(model_file, mode='rb'))
 
     if accuracy:
-        classification_accuracy(y_test, y_pred, classifier, x_train, save, accuracy_dir, cm_name,
+        classification_accuracy(y_test, y_pred, classifier, x_train, accuracy_dir, cm_name,
                                 predictor_importance, predictor_imp_keyword, plot_confusion_matrix)
     if plot_pdp:
         pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword)
@@ -176,7 +174,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     return classifier
 
 
-def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
+def classification_accuracy(y_test, y_pred, classifier, x_train,
                             accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                             predictor_importance=False, predictor_imp_keyword='RF', plot_confusion_matrix=True):
     """
@@ -187,7 +185,6 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
     y_pred : y_pred data from build_ML_classifier() function.
     classifier : ML classifier from build_ML_classifier() function.
     x_train : x train from 'split_train_test_ratio' function.
-    save : Set True to save confusion matrix.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
@@ -195,20 +192,21 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
 
     Returns: Confusion matrix, score and predictor importance graph.
     """
+    makedirs([accuracy_dir])
+
+    # Plotting and saving confusion matrix
     column_labels = [np.array(['Predicted', 'Predicted', 'Predicted']),
                      np.array(['<1cm/yr subsidence', '1-5cm/yr subsidence', '>5cm/yr subsidence'])]
     index_labels = [np.array(['Actual', 'Actual', 'Actual']),
                     np.array(['<1cm/yr subsidence', '1-5cm/yr subsidence', '>5cm/yr subsidence'])]
     cm = confusion_matrix(y_test, y_pred)
     cm_df = pd.DataFrame(cm, columns=column_labels, index=index_labels)
+    cm_name = predictor_imp_keyword + '_' + cm_name
+    csv = os.path.join(accuracy_dir, cm_name)
+    cm_df.to_csv(csv, index=True)
     pd.options.display.width = 0
     print(cm_df, '\n')
 
-    if save:
-        makedirs([accuracy_dir])
-        cm_name = predictor_imp_keyword + '_' + cm_name
-        csv = os.path.join(accuracy_dir, cm_name)
-        cm_df.to_csv(csv, index=True)
     if plot_confusion_matrix:
         disp = ConfusionMatrixDisplay(cm, display_labels=np.array(['<1cm', '1-5 cm', '>5cm']))
         disp.plot(cmap='YlGn')
@@ -216,15 +214,32 @@ def classification_accuracy(y_test, y_pred, classifier, x_train, save=True,
         plot_name = cm_name[:cm_name.rfind('.')] + '.png'
         plt.savefig((accuracy_dir + '/' + plot_name), dpi=300)
 
+    # print Overall accuracy
     overall_accuracy = round(accuracy_score(y_test, y_pred), 2)
-
-    # print('Recall Score {:.2f}'.format(recall_score(y_test, y_pred, average='micro')))
-    # print('Precision Score {:.2f}'.format(precision_score(y_test, y_pred, average='micro')))
     print('Accuracy Score {}'.format(overall_accuracy))
 
+    # Saving model accuracy for individual classes
     accuracy_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_accuracy.csv'
     save_model_accuracy(cm_df, overall_accuracy, accuracy_csv_name)
 
+    # generating classification report
+    label_names = ['<1cm/yr', '1-5cm/yr', '>5cm/yr']
+    classification_report_dict = classification_report(y_test, y_pred, target_names=label_names, output_dict=True)
+    del classification_report_dict['accuracy']
+    classification_report_df = pd.DataFrame(classification_report_dict)
+    classification_report_df.drop(labels='support', inplace=True)
+    micro_precision = round(precision_score(y_test, y_pred, average='micro'), 2)
+    micro_recall = round(recall_score(y_test, y_pred, average='micro'), 2)
+    micro_f1 = round(f1_score(y_test, y_pred, average='micro'), 2)
+
+    classification_report_df['micro avg'] = [micro_precision, micro_recall, micro_f1]
+    cols = classification_report_df.columns.tolist()
+    cols = cols[:3] + cols[-1:] + cols[3:5]  # rearranging columns
+    classification_report_df = classification_report_df[cols].round(2)
+    classification_report_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_classification report.csv'
+    classification_report_df.to_csv(classification_report_csv_name)
+
+    # predictor importance plot
     if predictor_importance:
         predictor_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
                           'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
@@ -269,9 +284,9 @@ def save_model_accuracy(cm_df, overall_accuracy, accuracy_csv_name):
     Returns : Saved csv with model accuracy values.
     """
     from operator import truediv
-    act_pixel_less_1cm = sum(cm_df.loc[('Actual', '<1cm/yr subsidence'), ])
-    act_pixel_1cm_to_5cm = sum(cm_df.loc[('Actual', '1-5cm/yr subsidence'), ])
-    act_pixel_greater_5cm = sum(cm_df.loc[('Actual', '>5cm/yr subsidence'), ])
+    act_pixel_less_1cm = sum(cm_df.loc[('Actual', '<1cm/yr subsidence')])
+    act_pixel_1cm_to_5cm = sum(cm_df.loc[('Actual', '1-5cm/yr subsidence')])
+    act_pixel_greater_5cm = sum(cm_df.loc[('Actual', '>5cm/yr subsidence')])
     pred_pixel_less_1cm = cm_df.loc[('Actual', '<1cm/yr subsidence'), ('Predicted', '<1cm/yr subsidence')]
     pred_pixel_1cm_to_5cm = cm_df.loc[('Actual', '1-5cm/yr subsidence'), ('Predicted', '1-5cm/yr subsidence')]
     pred_pixel_greater_1cm = cm_df.loc[('Actual', '>5cm/yr subsidence'), ('Predicted', '>5cm/yr subsidence')]
@@ -405,12 +420,12 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         for predictor in predictor_rasters:
             variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind(".")]
             if variable_name not in drop_columns:
-                clipped_predictor_dir = os.path.join('../Model Run/Predictors_2013_2019', continent_name+'_predictors_'
-                                                     + str(yearlist[0]) + '_' + str(yearlist[1]))
+                clipped_predictor_dir = os.path.join('../Model Run/Predictors_2013_2019', continent_name +
+                                                     '_predictors_' + str(yearlist[0]) + '_' + str(yearlist[1]))
                 raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
                                                                        naming_from_both=False)
                 raster_shape = raster_arr.shape
-                raster_arr = raster_arr.reshape(raster_shape[0]*raster_shape[1])
+                raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
                 nan_position_dict[variable_name] = np.isnan(raster_arr)
                 raster_arr[nan_position_dict[variable_name]] = 0
                 predictor_dict[variable_name] = raster_arr

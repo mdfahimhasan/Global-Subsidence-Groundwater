@@ -495,8 +495,8 @@ def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, c
         output_path = os.path.join(output_raster_dir, raster_part)
 
     dataset = gdal.Warp(destNameOrDestDS=output_path, srcDSOrSrcDSTab=raster_file, dstSRS=coordinate,
-              targetAlignedPixels=True, xRes=xpixel, yRes=ypixel, cutlineDSName=input_shape, cropToCutline=True,
-              dstNodata=NoData)
+                        targetAlignedPixels=True, xRes=xpixel, yRes=ypixel, cutlineDSName=input_shape,
+                        cropToCutline=True, dstNodata=NoData)
     del dataset
 
     clipped_arr, clipped_file = read_raster_arr_object(output_path)
