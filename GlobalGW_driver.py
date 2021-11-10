@@ -64,13 +64,14 @@ exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
                    'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
                    'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
 
-prediction_raster_keyword = 'RF56'
+prediction_raster_keyword = 'RF61'
 
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                               n_estimators=1000, accuracy=True, predictor_importance=True,  # #
+                               n_estimators=1000, class_weight='balanced',
+                               accuracy=True, predictor_importance=True,  # #
                                predictor_imp_keyword=prediction_raster_keyword, plot_pdp=True,  # #
-                               plot_confusion_matrix=True)
+                               plot_confusion_matrix=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
 create_prediction_raster\

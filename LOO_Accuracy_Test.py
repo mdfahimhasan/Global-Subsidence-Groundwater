@@ -11,7 +11,8 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report, \
+    precision_score, recall_score, f1_score
 from System_operations import makedirs
 from Raster_operations import shapefile_to_raster, mosaic_rasters, mosaic_two_rasters, read_raster_arr_object, \
     write_raster, clip_resample_raster_cutline
@@ -287,8 +288,8 @@ def create_train_test_data(predictor_csv, loo_test_area_name, exclude_columns, p
 
 
 def build_ml_classifier(predictor_csv, loo_test_area_name, exclude_columns=(), model='RF', load_model=False,
-                        random_state=0, n_estimators=500, bootstrap=True, oob_score=True, n_jobs=-1,
-                        max_features='auto',
+                        random_state=0, n_estimators=1000, bootstrap=True, oob_score=True, n_jobs=-1,
+                        max_features='auto', class_weight='balanced',
                         accuracy_dir=r'../Model Run/Accuracy_score_loo_test',
                         predictor_importance=True, modeldir='../Model Run/LOO_Test/Model_Loo_test'):
     """
@@ -308,7 +309,8 @@ def build_ml_classifier(predictor_csv, loo_test_area_name, exclude_columns=(), m
     bootstrap : Whether bootstrap samples are used when building trees. Defaults to True.
     oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
     n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
-    max_features : The number of features to consider when looking for the best split. Defaults to None.
+    max_features : The number of features to consider when looking for the best split. Defaults to 'auto'.
+    class_weight : To assign class weight. Default set to 'balanced'.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     predictor_importance : Default set to plot predictor importance.
     plot_confusion_matrix : Default set to True to plot confusion matrix as image.
@@ -328,7 +330,7 @@ def build_ml_classifier(predictor_csv, loo_test_area_name, exclude_columns=(), m
     if not load_model:
         if model == 'RF':
             classifier = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state,
-                                                bootstrap=bootstrap,
+                                                bootstrap=bootstrap, class_weight=class_weight,
                                                 n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
 
         classifier = classifier.fit(x_train, y_train)
@@ -373,6 +375,34 @@ def classification_accuracy(y_test, y_pred, classifier, x_train_csv, loo_test_ar
     cm_df.to_csv(csv, index=True)
 
     overall_accuracy = round(accuracy_score(y_test, y_pred), 2)
+
+    # generating classification report
+    if loo_test_area_name in ['California', 'China_Beijing', 'Iran_MarandPlain', 'Arizona', 'China_Wuhan', 'Quetta',
+                              'Mexico_MexicoCity', 'Indonesia_Semarang', 'Indonesia_Bandung',
+                              'Spain_Murcia', 'Taiwan_Yunlin']:
+        label_names = ['<1cm/yr', '1-5cm/yr', '>5cm/yr']
+
+    elif loo_test_area_name in ['Italy_PoDelta', 'China_Xian', 'China_Shanghai', 'Bangladesh_GBDelta',
+                                'Vietnam_HoChiMinh', 'Nigeria_Lagos', 'China_YellowRiverDelta', 'Egypt_NileDelta',]:
+        label_names = ['<1cm/yr', '1-5cm/yr']
+
+    else:
+        label_names = ['<1cm/yr']
+
+    classification_report_dict = classification_report(y_test, y_pred, target_names=label_names, output_dict=True)
+    del classification_report_dict['accuracy']
+    classification_report_df = pd.DataFrame(classification_report_dict)
+    classification_report_df.drop(labels='support', inplace=True)
+    micro_precision = round(precision_score(y_test, y_pred, average='micro'), 2)
+    micro_recall = round(recall_score(y_test, y_pred, average='micro'), 2)
+    micro_f1 = round(f1_score(y_test, y_pred, average='micro'), 2)
+
+    classification_report_df['micro avg'] = [micro_precision, micro_recall, micro_f1]
+    cols = classification_report_df.columns.tolist()
+    cols = cols[:3] + cols[-1:] + cols[3:5]  # rearranging columns
+    classification_report_df = classification_report_df[cols].round(2)
+    classification_report_csv_name = accuracy_dir + '/' + loo_test_area_name + '_classification report.csv'
+    classification_report_df.to_csv(classification_report_csv_name)
 
     print('Accuracy Score for {} : {}'.format(loo_test_area_name, overall_accuracy))
     txt_object = open(os.path.join(accuracy_dir, 'Accuracy_scores.txt'), 'a')
@@ -525,7 +555,7 @@ def difference_from_model_prediction(original_model_prediction_raster,
 
 
 # # LOO Test Run
-
+#
 # subsidence_raster, areaname_dict = \
 #     combine_georef_insar_subsidence_raster(already_prepared=True, skip_polygon_processing=True)
 #
@@ -543,13 +573,13 @@ def difference_from_model_prediction(original_model_prediction_raster,
 #                                  'Mexico_MexicoCity', 'Vietnam_HoChiMinh', 'Nigeria_Lagos', 'Indonesia_Semarang',
 #                                  'Indonesia_Bandung', 'Australia_Perth']
 #
-# skip_create_prediction_raster = True  # # Set to True to skip prediction raster creation
+# skip_create_prediction_raster = False  # # Set to True to skip prediction raster creation
 #
 # for area in subsidence_training_area_list:
 #
 #     trained_rf, loo_area = build_ml_classifier(predictor_csv, area, exclude_predictors, model='RF', load_model=False,
-#                                                random_state=0, n_estimators=500, bootstrap=True, oob_score=True,
-#                                                n_jobs=-1, max_features='auto',
+#                                                random_state=0, n_estimators=1000, bootstrap=True, oob_score=True,
+#                                                n_jobs=-1, max_features='auto', class_weight='balanced',
 #                                                accuracy_dir=r'../Model Run/LOO_Test/Accuracy_score',
 #                                                predictor_importance=True,
 #                                                modeldir='../Model Run/LOO_Test/Model_Loo_test')
@@ -564,6 +594,6 @@ def difference_from_model_prediction(original_model_prediction_raster,
 
 
 # # Perform Mismatch Test
-
-# difference_from_model_prediction('../Model Run/Prediction_rasters/RF56_prediction_2013_2019.tif',
+#
+# difference_from_model_prediction('../Model Run/Prediction_rasters/RF57_prediction_2013_2019.tif',
 #                                  loo_test_prediction_dir='../Model Run/LOO_Test/Prediction_rasters')

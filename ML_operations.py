@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score
+from imblearn.ensemble import BalancedRandomForestClassifier
 from xgboost import XGBClassifier
 # from sklearn.svm import SVC
 # from sklearn.pipeline import Pipeline
@@ -79,6 +80,8 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state,
                                                         shuffle=True, stratify=y)
+    # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state,
+    #                                                     shuffle=True)   # # Discuss with Ryan with RF 61 result
 
     if outdir:
         x_train_df = pd.DataFrame(x_train)
@@ -97,8 +100,9 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
 
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF', load_model=False,
-                        pred_attr='Subsidence', test_size=0.3, random_state=0, shuffle=True, output_dir=None,
+                        pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=None,
                         n_estimators=800, bootstrap=True, oob_score=True, n_jobs=-1, max_features='auto',
+                        class_weight='balanced',
                         accuracy=True, accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
                         plot_pdp=False, plot_confusion_matrix=True):
@@ -120,7 +124,8 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     bootstrap : Whether bootstrap samples are used when building trees. Defaults to True.
     oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
     n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
-    max_features : The number of features to consider when looking for the best split. Defaults to None.
+    max_features : The number of features to consider when looking for the best split. Defaults to 'auto'.
+    class_weight : To assign class weight. Default set to 'balanced'.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
@@ -145,8 +150,9 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     if not load_model:
         if model == 'RF':
             classifier = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state,
-                                                bootstrap=bootstrap,
+                                                bootstrap=bootstrap, class_weight=class_weight,
                                                 n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
+
         # if model == 'ETC':
         #     classifier = ExtraTreesClassifier(n_estimators=n_estimators, random_state=random_state,
         #                                       bootstrap=bootstrap,
