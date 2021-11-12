@@ -184,7 +184,7 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
     Parameters:
     input_raster : Input raster Directory with filename.
     output_dir : Output raster directory.
-    raster_name: Output raster name.
+    output_raster_name: Output raster name.
     reference_raster : Reference raster path with file name.
     resample : Set True to resample only. Set reproject and both to False when resample=True.
     reproject : Set True to reproject only. Set resample and both to False when reproject=True.
@@ -390,7 +390,7 @@ def extract_raster_array_by_shapefile(input_raster, ref_shape, output_dir=None, 
     invert : If False (default) pixels outside shapes will be masked.
              If True, pixels inside shape will be masked.
     crop : Whether to crop the raster to the extent of the shapes. Set to False if invert=True is used.
-    save_cropped_arr : Set to true if want to save cropped/masked raster array. If True, must provide raster_name and
+    save_cropped_arr : Set to true if want to save cropped/masked raster array. If True, must provide output_raster_name and
                        output_dir.
 
     Returns : Cropped raster.
@@ -427,7 +427,7 @@ def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referencera
     Parameters:
     input_raster : Input raster name with filepath.
     output_dir : Output raster directory.
-    raster_name : Output raster name.
+    output_raster_name : Output raster name.
     ref_raster : Global reference raster filepath. Defaults to referenceraster.
     resolution : Resolution of output raster. Defaults to 0.02 degree in GCS_WGS_1984.
     nodata : No data value. Defaults to No_Data_Value of -9999.
@@ -515,7 +515,7 @@ def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraste
     Parameters:
     input_dir : Input rasters directory.
     output_dir : Outpur raster directory.
-    raster_name : Outpur raster name.
+    output_raster_name : Outpur raster name.
     ref_raster : Reference raster with filepath.
     search_by : Input raster search criteria.
     no_data : No data value. Default -9999.
@@ -556,7 +556,7 @@ def mosaic_two_rasters(input_raster1, input_raster2, output_dir, raster_name, re
     input_raster1 : Input raster 1.
     input_raster2 : Input raster 2.
     output_dir : Outpur raster directory.
-    raster_name : Outpur raster name.
+    output_raster_name : Outpur raster name.
     ref_raster : Reference raster with filepath.
     no_data : No data value. Default -9999.
     resolution: Resolution of the output raster.
@@ -666,7 +666,7 @@ def array_multiply(input_raster1, input_raster2, outdir, raster_name):
     input_raster1 : Raster 1 file with file name.
     input_raster2 : Raster 1 file with file name.
     output_dir : Output Raster Directory.
-    raster_name : Output raster name.
+    output_raster_name : Output raster name.
 
     Returns:None.
     """
@@ -692,7 +692,7 @@ def shapefile_to_raster(input_shape, output_dir, raster_name, burn_attr=False, a
     Parameters:
     input_shape : Input shapefile filepath.
     output_raster : Output raster directory.
-    raster_name : Output raster name.
+    output_raster_name : Output raster name.
     burn_attr : Set to True if raster needs to be created using a specific attribute value. Defaults to False.
     attribute : Attribute name to use creating raster file. Defaults to "".
     ref_raster : Reference raster to get minx,miny,maxx,maxy. Defaults to referenceraster.
@@ -731,7 +731,7 @@ def create_slope_raster(input_raster, outdir, raster_name):
     Parameter:
     input_raster : Input raster with filepath.
     output_dir : Output raster directory.
-    raster_name : Output raster name.
+    output_raster_name : Output raster name.
 
     Returns: Slope raster.
     """
@@ -759,7 +759,7 @@ def create_nanfilled_raster(input_raster, outdir, raster_name, ref_raster=refere
     parameters:
     input_raster : Input raster.
     output_dir : Output raster directory.
-    raster_name : output raster name.
+    output_raster_name : output raster name.
     ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster.
 
     Returns:None.
@@ -787,7 +787,7 @@ def paste_val_on_ref_raster(input_raster, outdir, raster_name, value=0, ref_rast
     parameters:
     input_raster : Input raster.
     output_dir : Output raster directory.
-    raster_name : output raster name.
+    output_raster_name : output raster name.
     value : Value in reference raster used in comparison.
     ref_raster : Reference raster on which initial raster value is pasted. Defaults to referenceraster.
 
@@ -820,7 +820,7 @@ def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan
     Parameters:
     input_raster : Input Raster.
     output_dir : Output Raster Directory.
-    raster_name : Output raster name.
+    output_raster_name : Output raster name.
     sigma : Standard Deviation for gaussian kernel. Defaults to 3.
     ignore_nan :  Set true to ignore nan values during convolution.
     normalize : Set true to normalize the filtered raster at the end.
@@ -855,67 +855,6 @@ def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan
                  outfile_path=output_raster)
     return output_raster
 
-
-# =============================================================================
-# #Classify InSAR Data
-# =============================================================================
-def Classify_InSAR_raster(input_raster, outdir, raster_name, cnra_data=False, start_date=None, end_date=None,
-                          unit_change=False, unit_scale=1, resample_raster=True, resampled_raster_name='Resampled.tif',
-                          Res=0.02):
-    """
-    Classify InSAR subsidence raster to project classes.   
-
-    Parameters :
-    input_raster : Input Raster filepath.
-    output_dir : Output Directory path.
-    raster_name : Output raster name.
-    cnra_data : If the data is from 'California National Resources Agency', set True to convert values into cm/year.
-    start_date : If cnra data, start day of the data in string format. Format must be like "2015/12/31"
-                 ("Year/month/day"). Default Set to None.
-    end_date : If cnra data, end day of the data in string format. Format must be like "2015/12/31" ("Year/month/day")
-               Default Set to None.
-    unit_change : Set True if unit conversion (i.e. m to cm) is required. Defaults to False.
-    unit_scale : Unit value (i.e. unit_scale=100 for m to cm conversion) for conversion.  
-    resample_raster : Set True if classified raster needs resampling. Defaults to True.
-    resampled_raster_name : Resampled raster name. Default is 'Resampled.tif'.
-    Res : Pixel resoultion in degree. Default is 0.02 degree.
-
-    Returns : Classified (and resampled if modify raster=True) subsidence raster.
-    """
-    arr, file = read_raster_arr_object(input_raster)
-
-    if cnra_data:
-        start_day = datetime.strptime(start_date, "%Y/%m/%d")
-        end_day = datetime.strptime(end_date, "%Y/%m/%d")
-        months_between = round(int(str(end_day - start_day).split(" ")[0]) / 30)
-        arr = arr * 30.48 * 12 / months_between
-
-    if unit_change:
-        arr = arr * unit_scale
-    # New_classes
-    sub_less_1cm = 1
-    sub_1cm_to_5cm = 5
-    sub_greater_5cm = 10
-    other_values = np.nan
-
-    arr = np.where(arr >= 0, other_values, arr)
-    arr = np.where(arr >= -1, sub_less_1cm, arr)
-    arr = np.where((arr < -1) & (arr >= -5), sub_1cm_to_5cm, arr)
-    arr = np.where(arr < -5, sub_greater_5cm, arr)
-
-    makedirs([outdir])
-    output_raster = os.path.join(outdir, raster_name)
-
-    outfilepath = write_raster(raster_arr=arr, raster_file=file, transform=file.transform, outfile_path=output_raster)
-
-    if resample_raster:
-        resampled_raster = os.path.join(outdir, resampled_raster_name)
-
-        gdal.Warp(destNameOrDestDS=resampled_raster, srcDSOrSrcDSTab=outfilepath, dstSRS='EPSG:4326', xRes=Res,
-                  yRes=Res,
-                  outputType=gdal.GDT_Float32)
-
-    return resampled_raster
 
 
 

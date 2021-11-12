@@ -63,7 +63,7 @@ def txt_to_tif(input_file, outdir=None, raster_name=None, skiprows=0, separator=
     Params:
     input_file : Input .ascii/.dat file.
     output_dir : Output raster directory.
-    raster_name : Output raster name.
+    output_raster_name : Output raster name.
     skiprows : Number of starting rows to Skip. Defaults to 0.
     separator : Separator. Defaults to None.
     nrows : Number of rows to read. Defaults to 360.
@@ -107,7 +107,7 @@ def txt_to_tif(input_file, outdir=None, raster_name=None, skiprows=0, separator=
 # ascii_data=r'..\Data\Raw_Data\Global_Lithology\glim_wgs84_0point5deg.txt.asc'
 # output_dir=r'..\Data\Raw_Data\Global_Lithology'
 #
-# txt_to_tif(input_file = ascii_data, output_dir = None, raster_name = None,
+# txt_to_tif(input_file = ascii_data, output_dir = None, output_raster_name = None,
 #              skiprows=6, separator=None, nrows = 360, ncols = 720, datatype = "Float32",
 #                cellsize=0.5, first_x=-180, first_y=90, nodata=No_Data_Value)
 

@@ -758,7 +758,7 @@ def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Sec
                                                        ref_raster=referenceraster)
             # fao_cropmasked = array_multiply(input_raster1=nanfilled_raster, input_raster2=irrigation_cropmask,
             #                                   outdir=intermediate_dir,
-            #                                   raster_name='Global_FAOLC_cropmasked.tif')
+            #                                   output_raster_name='Global_FAOLC_cropmasked.tif')
             faolu_gw_raster = apply_gaussian_filter(input_raster=nanfilled_raster, outdir=output_dir,
                                                     raster_name='GW_Irrigation_Density_fao.tif', ignore_nan=True,
                                                     normalize=True)
@@ -866,7 +866,7 @@ def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sedime
     Parameters:
     input_raster : Input raster filepath with filename.
     output_dir : Output raster directory path.
-    raster_name : Output raster name.
+    output_raster_name : Output raster name.
     skip_processing : Set to True if want to skip processing.
 
     Returns : Resampled sedeiment thickness raster.
