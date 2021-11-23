@@ -110,7 +110,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     Build Machine Learning Classifier. Can run 'Random Forest', 'Extra Trees Classifier' and 'XGBClassifier'.
 
     Parameters:
-    predictor_csv : Predictor csv (with filepath) containing all the predictors.
+    predictor_dataframe_csv : Predictor csv (with filepath) containing all the predictors.
     modeldir : Model directory to store/load model.
     exclude_columns : Tuple of columns not included in training the model.
     model : Machine learning model to run. Choose from 'RF'/ETC'/'XGBC'. Default set to 'RF'.
@@ -256,9 +256,9 @@ def classification_accuracy(y_test, y_pred, classifier, x_train,
                           'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET',
                           'MODIS_PET': 'MODIS PET', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
                           'SRTM_Slope': 'Slope', 'Subsidence': 'Subsidence',
-                          'TRCLM_PET': 'PET', 'TRCLM_precp': 'Precipitation',
+                          'TRCLM_RET': 'TRCLM RET', 'TRCLM_precp': 'Precipitation',
                           'TRCLM_soil': 'Soil moisture', 'TRCLM_Tmax': 'Tmax',
-                          'TRCLM_Tmin': 'Tmin'}
+                          'TRCLM_Tmin': 'Tmin', 'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
         x_train_df = pd.DataFrame(x_train)
         x_train_df = x_train_df.rename(columns=predictor_dict)
         col_labels = np.array(x_train_df.columns)
@@ -323,7 +323,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
 
     Returns : PDP plots.
     """
-
+    # # # # # # # # # # #
     predictor_dict = {'Alexi_ET': 'Alexi ET (mm)', 'Aridity_Index': 'Aridity Index',
                       'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
                       'Global_Sediment_Thickness': 'Sediment Thickness (m)',
@@ -333,8 +333,10 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
                       'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET (mm)',
                       'MODIS_PET': 'MODIS PET (mm)', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
                       'SRTM_Slope': 'Slope (%)', 'Subsidence': 'Subsidence (cm/yr)',
-                      'TRCLM_PET': 'PET (mm)', 'TRCLM_precp': 'Precipitation (mm)',
-                      'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax': 'Tmax (deg C)', 'TRCLM_Tmin': 'Tmin (deg C)'}
+                      'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation (mm)',
+                      'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax': 'Tmax (deg C)', 'TRCLM_Tmin': 'Tmin (deg C)',
+                      'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
+    # # # # # # # # # # #
 
     x_train = x_train.rename(columns=predictor_dict)
     plot_names = x_train.columns.tolist()

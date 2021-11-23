@@ -5,6 +5,8 @@ import ee
 import pickle
 import shutil
 import zipfile
+
+import numpy as np
 import requests
 from Raster_operations import *
 from PCA import *
@@ -18,10 +20,10 @@ csv = '../Data/Reference_rasters_shapes/GEE_Download_coords_modified.csv'
 grid_for_gee = '../Data/Reference_rasters/world_grid_shapes_for_gee'
 os.chdir('../Codes_Global_GW')
 
-gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_pet', 'MODIS_ET', 'MODIS_EVI',
+gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
                  'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'ALOS_Landform', 'Aridity_Index', 'Grace',
                  'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
-                 'clay_content_100cm', 'clay_content_200cm']
+                 'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use']
 
 
 # # Extract Data
@@ -132,8 +134,8 @@ def download_gee_data(yearlist, start_month, end_month, output_dir, dataname, sh
                Set to None if want to use shapefile instead.
     gee_scale : Download Scale.
     dataname : Dataname to download from GEE. The code can download data from the following list-
-             ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_pet', 'TRCLM_soil,'MODIS_ET','MODIS_EVI',
-             ,'MODIS_PET', 'GPW_pop','SRTM_DEM','ALOS_Landform','Aridity_Index']
+             ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_RET', 'TRCLM_soil,'MODIS_ET','MODIS_EVI',
+             'MODIS_PET', 'GPW_pop','SRTM_DEM','ALOS_Landform','Aridity_Index', 'MODIS_Land_Use', 'TRCLM_ET']
     month_conversion : Convert n-day composite data (MOD16 ET) to monthly data.
     nodata : No Data value. Defaults to -9999.
 
@@ -145,17 +147,19 @@ def download_gee_data(yearlist, start_month, end_month, output_dir, dataname, sh
                  'TRCLM_tmmx': 'IDAHO_EPSCOR/TERRACLIMATE',  # monthly
                  'TRCLM_tmmn': 'IDAHO_EPSCOR/TERRACLIMATE',  # monthly
                  'TRCLM_soil': 'IDAHO_EPSCOR/TERRACLIMATE',  # monthly total
-                 'TRCLM_pet': 'IDAHO_EPSCOR/TERRACLIMATE',  # monthly
+                 'TRCLM_RET': 'IDAHO_EPSCOR/TERRACLIMATE',  # monthly
                  'MODIS_ET': 'MODIS/006/MOD16A2',  # 8-day composite(sum of 8-day within each composite period)
                  'MODIS_PET': 'MODIS/006/MOD16A2',  # 8-day composite(sum of 8-day within each composite period)
                  'MODIS_EVI': 'MODIS/006/MOD13Q1',  # 16-day composite(composites of best pixels from 16 days)
                  'GPW_pop': 'CIESIN/GPWv411/GPW_UNWPP-Adjusted_Population_Density',  # pop density for modeled years
                  'SRTM_DEM': 'USGS/SRTMGL1_003',
                  'ALOS_Landform': 'CSP/ERGo/1_0/Global/ALOS_landforms',
-                 'Aridity_Index': 'projects/sat-io/open-datasets/global_ai_et0'}
+                 'Aridity_Index': 'projects/sat-io/open-datasets/global_ai_et0',
+                 'MODIS_Land_Use': 'MODIS/006/MCD12Q1',
+                 'TRCLM_ET': 'IDAHO_EPSCOR/TERRACLIMATE'}
 
-    if dataname in ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_pet', 'TRCLM_soil', 'MODIS_ET', 'MODIS_EVI',
-                    'MODIS_PET', 'GPW_pop']:
+    if dataname in ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_RET', 'TRCLM_soil', 'MODIS_ET', 'MODIS_EVI',
+                    'MODIS_PET', 'GPW_pop', 'MODIS_Land_Use', 'TRCLM_ET']:
         data_collection = ee.ImageCollection(data_dict[dataname])
     else:
         data_collection = ee.Image(data_dict[dataname])
@@ -175,9 +179,8 @@ def download_gee_data(yearlist, start_month, end_month, output_dir, dataname, sh
         band = dataname.split('_')[1]
         data = data_collection.select(band).filterDate(start_date, end_date).median().multiply(0.1).toFloat()
 
-    elif dataname == 'TRCLM_pet':
-        band = dataname.split('_')[1]
-        data = data_collection.select(band).filterDate(start_date, end_date).mean().multiply(0.1).toFloat()
+    elif dataname == 'TRCLM_RET':
+        data = data_collection.select('pet').filterDate(start_date, end_date).mean().multiply(0.1).toFloat()
 
     elif dataname == 'TRCLM_soil':
         band = dataname.split('_')[1]
@@ -203,6 +206,12 @@ def download_gee_data(yearlist, start_month, end_month, output_dir, dataname, sh
 
     elif dataname == 'Aridity_Index':
         data = data_collection.select('b1').multiply(0.0001).toFloat()
+
+    elif dataname == 'MODIS_Land_Use':
+        data = data_collection.select('LC_Type5').filterDate('2018-01-01', '2018-12-31').first().toFloat()
+
+    elif dataname == 'TRCLM_ET':
+        data = data_collection.select('aet').filterDate(start_date, end_date).mean().multiply(0.1).toFloat()
 
     makedirs([output_dir])
     coords_df = pd.read_csv(shapecsv)
@@ -588,9 +597,10 @@ def download_from_url(out_dir, url_list):
 def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, gee_scale=2000, skip_download=True):
     """
     Download data from GEE. The code can download data from the following list.
-    ['TRCLM_precp','TRCLM_tmmx','TRCLM_tmmn','TRCLM_soil', 'TRCLM_pet', 'MODIS_ET','MODIS_EVI', 'MODIS_NDWI',
+    ['TRCLM_precp','TRCLM_tmmx','TRCLM_tmmn','TRCLM_soil', 'TRCLM_RET', 'MODIS_ET','MODIS_EVI', 'MODIS_NDWI',
     'MODIS_PET', 'GPW_pop', 'SRTM_DEM','ALOS_Landform','Aridity_Index','Grace', 'clay_content_0cm', 'clay_content_10cm',
-     'clay_content_30cm', 'clay_content_60cm', 'clay_content_100cm', 'clay_content_200cm']
+     'clay_content_30cm', 'clay_content_60cm', 'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use',
+     'TRCLM_ET']
 
     Parameters:
     data_list : List of data to download.
@@ -612,7 +622,7 @@ def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, ge
     downdir_TRCLM_soil = os.path.join(download_dir, 'Soil_moisture', 'Terraclimate', year_string)
     downdir_TRCLM_Tmin = os.path.join(download_dir, 'Tmin', 'Terraclimate', year_string)
     downdir_TRCLM_Tmax = os.path.join(download_dir, 'Tmax', 'Terraclimate', year_string)
-    downdir_TRCLM_PET = os.path.join(download_dir, 'PET_TRCLM', year_string)
+    downdir_TRCLM_RET = os.path.join(download_dir, 'TRCLM_RET', year_string)
     downdir_PopDensity_GPW = os.path.join(download_dir, 'Population_density', 'GPWv411', year_string)
     downdir_MODIS_ET = os.path.join(download_dir, 'MODIS_ET', year_string)
     downdir_MODIS_PET = os.path.join(download_dir, 'MODIS_PET', year_string)
@@ -620,10 +630,13 @@ def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, ge
     downdir_ALOS_Landform = os.path.join(download_dir, 'Alos_Landform')
     downdir_AI = os.path.join(download_dir, 'Aridity_Index')
     downdir_clay_content = os.path.join(download_dir, 'Clay_content_openlandmap')
+    downdir_MODIS_land_use = os.path.join(download_dir, 'MODIS_Land_Use')
+    downdir_TRCLM_ET = os.path.join(download_dir, 'TRCLM_ET', year_string)
 
     makedirs([download_dir, downdir_NDWI, downdir_EVI, downdir_Grace, downdir_TRCLM_precp, downdir_TRCLM_soil,
-              downdir_TRCLM_Tmin, downdir_TRCLM_Tmax, downdir_TRCLM_PET, downdir_PopDensity_GPW, downdir_MODIS_ET,
-              downdir_MODIS_PET, downdir_SRTM_DEM, downdir_ALOS_Landform, downdir_AI, downdir_clay_content])
+              downdir_TRCLM_Tmin, downdir_TRCLM_Tmax, downdir_TRCLM_RET, downdir_PopDensity_GPW, downdir_MODIS_ET,
+              downdir_MODIS_PET, downdir_SRTM_DEM, downdir_ALOS_Landform, downdir_AI, downdir_clay_content,
+              downdir_MODIS_land_use, downdir_TRCLM_ET])
 
     if not skip_download:
         for data in data_list:
@@ -650,8 +663,8 @@ def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, ge
             elif data == 'TRCLM_tmmx':
                 download_gee_data(yearlist, start_month, end_month, downdir_TRCLM_Tmax, 'TRCLM_tmmx', shape_csv,
                                   gee_scale=gee_scale)
-            elif data == 'TRCLM_pet':
-                download_gee_data(yearlist, start_month, end_month, downdir_TRCLM_PET, 'TRCLM_pet', shape_csv,
+            elif data == 'TRCLM_RET':
+                download_gee_data(yearlist, start_month, end_month, downdir_TRCLM_RET, 'TRCLM_RET', shape_csv,
                                   gee_scale=gee_scale)
             elif data == 'GPW_pop':
                 download_gee_data(yearlist, start_month, end_month, downdir_PopDensity_GPW, 'GPW_pop', shape_csv,
@@ -689,10 +702,17 @@ def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, ge
             elif data == 'clay_content_200cm':
                 download_clay_data(yearlist, output_dir=os.path.join(downdir_clay_content, 'claycontent_200cm'),
                                    dataname='clay_content_200cm', shapecsv=csv, gee_scale=2000)
+            elif data == 'MODIS_Land_Use':
+                download_gee_data(yearlist, start_month, end_month, downdir_MODIS_land_use, 'MODIS_Land_Use', shape_csv,
+                                  gee_scale=gee_scale)
+            elif data == 'TRCLM_ET':
+                download_gee_data(yearlist, start_month, end_month, downdir_TRCLM_ET, 'TRCLM_ET', shape_csv,
+                                  gee_scale=gee_scale)
 
     return download_dir, downdir_NDWI, downdir_EVI, downdir_Grace, downdir_TRCLM_precp, downdir_TRCLM_soil, \
-           downdir_TRCLM_Tmin, downdir_TRCLM_Tmax, downdir_TRCLM_PET, downdir_PopDensity_GPW, downdir_MODIS_ET, \
-           downdir_MODIS_PET, downdir_SRTM_DEM, downdir_ALOS_Landform, downdir_AI, downdir_clay_content
+           downdir_TRCLM_Tmin, downdir_TRCLM_Tmax, downdir_TRCLM_RET, downdir_PopDensity_GPW, downdir_MODIS_ET, \
+           downdir_MODIS_PET, downdir_SRTM_DEM, downdir_ALOS_Landform, downdir_AI, downdir_clay_content, \
+           downdir_MODIS_land_use, downdir_TRCLM_ET
 
 
 def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Security- GFSAD1KCM/GFSAD1KCM.tif',
@@ -907,15 +927,35 @@ def prepare_sediment_thickness_data_exxon(input_raster='../Data/Raw_Data/EXXON_S
     return sediment_thickness_exx_raster
 
 
-def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_dir,
-                               gfsad_cropextent, giam_gw, fao_gw, intermediate_dir, outdir_lu,
-                               sediment_thickness, outdir_sed_thickness,
-                               sediment_thickness_exx,
-                               outdir_pop, perform_pca=False,
-                               skip_download=True, skip_processing=True,
-                               geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000):
+def prepare_modis_landuse_data(output_raster,
+                               input_raster='../Data/Raw_Data/GEE_data/MODIS_Land_Use/merged_rasters'
+                                            '/MODIS_Land_Use_2013_2019.tif'):
+
+    lu_arr, lu_file = read_raster_arr_object(input_raster)
+
+    # Reclassifying classes
+    lu_arr = np.where((lu_arr == 2) | (lu_arr == 3) | (lu_arr == 4), 1, lu_arr)
+    lu_arr = np.where((lu_arr == 5) | (lu_arr == 6), 2, lu_arr)
+    lu_arr = np.where((lu_arr == 7) | (lu_arr == 8), 3, lu_arr)
+    lu_arr = np.where(lu_arr == 9, 4, lu_arr)
+    lu_arr = np.where(lu_arr == 10, 5, lu_arr)
+    lu_arr = np.where(lu_arr == 11, 6, lu_arr)
+    lu_arr = np.where(lu_arr == 0, 7, lu_arr)
+
+    write_raster(lu_arr, lu_file, lu_file.transform, output_raster, ref_file=referenceraster)
+
+    return output_raster
+
+
+def download_process_predictor_datasets(yearlist, start_month, end_month, resampled_gee_dir,
+                                        gfsad_cropextent, giam_gw, fao_gw, intermediate_dir, outdir_lu,
+                                        sediment_thickness, outdir_sed_thickness,
+                                        sediment_thickness_exx,
+                                        outdir_pop, perform_pca=False,
+                                        skip_download=True, skip_processing=True,
+                                        geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000):
     """
-    Download and prepare (resample) GEE data and other datasets (Land Use, Population, Lithology, Permeability,
+    Download and process (resample) GEE data and other datasets (Land Use, Population, Lithology, Permeability,
     Sediment thickness) .
 
     Parameters:
@@ -934,10 +974,10 @@ def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_d
     skip_download : Set to False if want to downlad data from GEE. Default set to True.
     skip_processing : Set to False if want to process datasets.
     geedatalist : Data list to download from GEE. Can download data from the following list-
-                  ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_pet', 'TRCLM_soil', 'MODIS_ET', 'MODIS_PET',
+                  ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_ret', 'TRCLM_soil', 'MODIS_ET', 'MODIS_PET',
                   'MODIS_EVI', 'MODIS_NDWI', 'SRTM_DEM', 'ALOS_Landform', 'Aridity_Index', 'Grace',
                   'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
-                  'clay_content_100cm', 'clay_content_200cm']
+                  'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use', 'TRCLM_ET']
     downloadcsv : Csv (with coordinates) filepath used in downloading data from GEE.
     gee_scale : scale to use in downloading data from GEE in meter. Default set to 2000m.
 
@@ -946,10 +986,10 @@ def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_d
     """
 
     download_dir, downdir_NDWI, downdir_EVI, downdir_Grace, downdir_TRCLM_precp, downdir_TRCLM_soil, \
-    downdir_TRCLM_Tmin, downdir_TRCLM_Tmax, downdir_TRCLM_PET, downdir_PopDensity_GPW, downdir_MODIS_ET, \
-    downdir_MODIS_PET, downdir_SRTM_DEM, downdir_ALOS_Landform, downdir_AI, downdir_Clay_content \
-        = download_data(geedatalist, yearlist, start_month, end_month, downloadcsv,
-                        gee_scale, skip_download)
+    downdir_TRCLM_Tmin, downdir_TRCLM_Tmax, downdir_TRCLM_RET, downdir_PopDensity_GPW, downdir_MODIS_ET, \
+    downdir_MODIS_PET, downdir_SRTM_DEM, downdir_ALOS_Landform, downdir_AI, downdir_Clay_content, \
+    downdir_MODIS_land_use, downdir_TRCLM_ET = download_data(geedatalist, yearlist, start_month, end_month, downloadcsv,
+                                                             gee_scale, skip_download)
 
     EVI = glob(os.path.join(downdir_EVI, 'merged_rasters', '*.tif'))[0]
     NDWI = glob(os.path.join(downdir_NDWI, 'merged_rasters', '*.tif'))[0]
@@ -958,7 +998,7 @@ def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_d
     TRCLM_soil = glob(os.path.join(downdir_TRCLM_soil, 'merged_rasters', '*.tif'))[0]
     TRCLM_Tmin = glob(os.path.join(downdir_TRCLM_Tmin, 'merged_rasters', '*.tif'))[0]
     TRCLM_Tmax = glob(os.path.join(downdir_TRCLM_Tmax, 'merged_rasters', '*.tif'))[0]
-    TRCLM_PET = glob(os.path.join(downdir_TRCLM_PET, 'merged_rasters', '*.tif'))[0]
+    TRCLM_RET = glob(os.path.join(downdir_TRCLM_RET, 'merged_rasters', '*.tif'))[0]
     PopDensity_GPW = glob(os.path.join(downdir_PopDensity_GPW, 'merged_rasters', '*.tif'))[0]
     MODIS_ET = glob(os.path.join(downdir_MODIS_ET, 'merged_rasters', '*monthly*.tif'))[0]
     MODIS_PET = glob(os.path.join(downdir_MODIS_PET, 'merged_rasters', '*monthly*.tif'))[0]
@@ -971,6 +1011,8 @@ def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_d
     Clay_60cm = os.path.join(downdir_Clay_content, 'claycontent_60cm/merged_rasters/clay_content_60cm_2013_2019.tif')
     Clay_100cm = os.path.join(downdir_Clay_content, 'claycontent_100cm/merged_rasters/clay_content_100cm_2013_2019.tif')
     Clay_200cm = os.path.join(downdir_Clay_content, 'claycontent_200cm/merged_rasters/clay_content_200cm_2013_2019.tif')
+    MODIS_LU = os.path.join(downdir_MODIS_land_use, 'merged_rasters/MODIS_Land_Use_2013_2019.tif')
+    TRCLM_ET = os.path.join(downdir_TRCLM_ET, 'merged_rasters/TRCLM_ET_2013_2019.tif')
 
     if yearlist[0] == 2013:
         Alexi_ET = glob(os.path.join(r'../Data/Raw_Data/Alexi_ET/mean_rasters', '*2013*.tif'))[0]
@@ -978,9 +1020,10 @@ def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_d
         Alexi_ET = glob(os.path.join(r'../Data/Raw_Data/Alexi_ET/mean_rasters', '*2018*.tif'))[0]
 
     Downloaded_list = {'EVI': EVI, 'NDWI': NDWI, 'Grace': Grace, 'TRCLM_precp': TRCLM_precp, 'TRCLM_soil': TRCLM_soil,
-                       'TRCLM_Tmin': TRCLM_Tmin, 'TRCLM_Tmax': TRCLM_Tmax, 'TRCLM_PET': TRCLM_PET, 'MODIS_ET': MODIS_ET,
+                       'TRCLM_Tmin': TRCLM_Tmin, 'TRCLM_Tmax': TRCLM_Tmax, 'TRCLM_RET': TRCLM_RET, 'MODIS_ET': MODIS_ET,
                        'MODIS_PET': MODIS_PET, 'SRTM_Slope': SRTM_DEM, 'ALOS_Landform': ALOS_Landform,
-                       'Aridity_Index': Aridity_Index, 'Alexi_ET': Alexi_ET, 'Clay_content_PCA': None}
+                       'Aridity_Index': Aridity_Index, 'Alexi_ET': Alexi_ET, 'Clay_content_PCA': None,
+                       'MODIS_Land_Use': MODIS_LU, 'TRCLM_ET': TRCLM_ET}
 
     if not skip_processing:
         resampled_gee_rasters = {}
@@ -1007,6 +1050,12 @@ def prepare_predictor_datasets(yearlist, start_month, end_month, resampled_gee_d
                     resampled_gee_rasters[data] = '../Data/Resampled_Data/PCA_Clay/continent_raster/' \
                                                   'pca_clay_content.tif'
                     print('PCA of clay content exists')
+
+            elif data == 'MODIS_Land_Use':
+                resampled_raster = prepare_modis_landuse_data(
+                    output_raster='../Data/Resampled_Data/GEE_data_2013_2019/MODIS_Land_Use.tif',
+                    input_raster=Downloaded_list[data])
+                resampled_gee_rasters[data] = resampled_raster
 
             else:
                 resampled_raster = rename_copy_raster(input_raster=Downloaded_list[data], output_dir=resampled_gee_dir,
@@ -1225,7 +1274,6 @@ def download_surfacewater_data(yearlist, output_dir, dataname='surfacewater', sh
                                                        no_data=nodata)
             return merged_raster
 
-
 # yearlist = [2013, 2019]
 # output_dir = '../Data/Raw_Data/GEE_data/SurfaceWater_transition'
 #
@@ -1270,6 +1318,3 @@ def download_surfacewater_data(yearlist, output_dir, dataname='surfacewater', sh
 # prox_arr = np.where(ref_arr == 0, prox_arr, ref_arr)
 #
 # write_raster(prox_arr, ref_file, ref_file.transform, '../scratch_files/surfacewater_distance_final.tif')
-
-
-

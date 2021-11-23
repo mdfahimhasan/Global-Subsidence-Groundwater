@@ -21,9 +21,6 @@ No_Data_Value = -9999
 referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
 
-# =============================================================================
-# #Reading raster array and raster reader object
-# =============================================================================
 def read_raster_arr_object(input_raster, band=1, raster_object=False, get_file=True, change_dtype=True):
     """
     read raster as raster object and array. If raster_object=True get only the raster array 
@@ -55,9 +52,6 @@ def read_raster_arr_object(input_raster, band=1, raster_object=False, get_file=T
     return raster_arr
 
 
-# =============================================================================
-# #Writing Raster to File
-# =============================================================================
 def write_raster(raster_arr, raster_file, transform, outfile_path, no_data_value=No_Data_Value,
                  ref_file=None):
     """
@@ -94,9 +88,6 @@ def write_raster(raster_arr, raster_file, transform, outfile_path, no_data_value
     return outfile_path
 
 
-# =============================================================================
-# #filter raster
-# =============================================================================
 def filter_lower_larger_value(input_raster, output_dir, band=1, lower=True, larger=False, filter_value=0,
                               new_value=np.nan, no_data_value=No_Data_Value):
     """
@@ -170,10 +161,6 @@ def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, 
     return output_raster
 
 
-# =============================================================================
-# #Resample or Reproject Raster
-# =============================================================================
-
 def resample_reproject(input_raster, output_dir, raster_name, reference_raster=referenceraster, resample=True,
                        reproject=False, change_crs_to="EPSG:4326", both=False, nodata=No_Data_Value):
     """
@@ -216,9 +203,7 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
 
     return output_raster
 
-# =============================================================================
-# #Reproject Coordinates
-# =============================================================================
+
 def reproject_coords(src_crs, dst_crs, coords):
     """
     Reproject coordinates. Copied from https://bit.ly/3mBtowB
@@ -237,9 +222,6 @@ def reproject_coords(src_crs, dst_crs, coords):
     return [[x, y] for x, y in zip(xs, ys)]
 
 
-# =============================================================================
-# #Rename/Copy Raster
-# =============================================================================
 def rename_copy_raster(input_raster, output_dir, rename=False, new_name=None, change_dtype=False):
     """
     renaming/copy a raster file and changing datatype if needed.
@@ -271,10 +253,6 @@ def rename_copy_raster(input_raster, output_dir, rename=False, new_name=None, ch
     return output_raster
 
 
-# =============================================================================
-# #Changing No Data Value
-# =============================================================================
-
 def change_nodata_value(input_raster_dir, new_nodata=No_Data_Value):
     """
     change no data value for single banded raster
@@ -302,10 +280,6 @@ def change_nodata_value(input_raster_dir, new_nodata=No_Data_Value):
     dataset = None
 
 
-# =============================================================================
-# #Changing a specific array value to no data
-# =============================================================================
-
 def change_band_value_to_nodata(input_raster, outfile_path, band_val_to_change=0, nodata=No_Data_Value):
     """
     changing a band value of a raster to no data value 
@@ -326,10 +300,6 @@ def change_band_value_to_nodata(input_raster, outfile_path, band_val_to_change=0
     # writing raster file
     write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=outfile_path)
 
-
-# =============================================================================
-# #Clipping Raster and saving
-# =============================================================================
 
 def crop_raster_by_extent(input_raster, ref_file, output_dir, raster_name, invert=False, crop=True):
     """
@@ -416,9 +386,6 @@ def extract_raster_array_by_shapefile(input_raster, ref_shape, output_dir=None, 
     return cropped_arr, cropped_transform
 
 
-# =============================================================================
-# #Mask and Resample Global Raster Data by Reference Raster
-# =============================================================================
 def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referenceraster, resolution=0.02,
                        nodata=No_Data_Value, paste_on_ref_raster=False, pasted_outdir=None, pasted_raster_name=None):
     """
@@ -456,10 +423,6 @@ def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referencera
         output_raster = pasted_raster
     return output_raster
 
-
-# =============================================================================
-# #Clipping Raster by Shapefile Cutline, Processing NoData, Pixel Size, CRS
-# =============================================================================
 
 def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, coordinate="EPSG:4326",
                                  xpixel=0.02, ypixel=0.02, NoData=No_Data_Value, naming_from_both=True):
@@ -504,9 +467,6 @@ def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, c
     return clipped_arr, clipped_file
 
 
-# =============================================================================
-# #Mosaic Multiple Rasters    
-# =============================================================================
 def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraster, search_by="*.tif",
                    resolution=0.02, no_data=No_Data_Value):
     """
@@ -544,9 +504,6 @@ def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraste
     return merged_arr, out_raster
 
 
-# =============================================================================
-# #Mosaic 2 Rasters
-# =============================================================================
 def mosaic_two_rasters(input_raster1, input_raster2, output_dir, raster_name, ref_raster=referenceraster,
                        resolution=0.02, no_data=No_Data_Value):
     """
@@ -584,10 +541,6 @@ def mosaic_two_rasters(input_raster1, input_raster2, output_dir, raster_name, re
     return merged_arr, out_raster
 
 
-# =============================================================================
-# #Mean rasters from a folder 
-# =============================================================================
-
 def mean_rasters(input_dir, outdir, raster_name, reference_raster=None, searchby="*.tif", no_data_value=No_Data_Value):
     """
     mean multiple rasters from a directory. 
@@ -624,9 +577,6 @@ def mean_rasters(input_dir, outdir, raster_name, reference_raster=None, searchby
                  outfile_path=output_raster, no_data_value=no_data_value, ref_file=reference_raster)
 
 
-# =============================================================================
-# # Mean 2 Rasters
-# =============================================================================
 def mean_2_rasters(input1, input2, outdir, raster_name, nodata=No_Data_Value):
     """
     mean 2 rasters . 
@@ -655,9 +605,6 @@ def mean_2_rasters(input1, input2, outdir, raster_name, nodata=No_Data_Value):
                  outfile_path=output_raster, no_data_value=nodata)
 
 
-# =============================================================================
-# #Multiply Raster Arrays
-# =============================================================================
 def array_multiply(input_raster1, input_raster2, outdir, raster_name):
     """
     Multiplies 2 rasters. the rasters should be of same shape (row, column size).
@@ -680,9 +627,6 @@ def array_multiply(input_raster1, input_raster2, outdir, raster_name):
     return output_raster
 
 
-# =============================================================================
-# #Convert Shapefile to Raster
-# =============================================================================
 def shapefile_to_raster(input_shape, output_dir, raster_name, burn_attr=False, attribute="",
                         ref_raster=referenceraster,
                         resolution=0.02, burnvalue=1, alltouched=False, nodatavalue=No_Data_Value):
@@ -721,9 +665,6 @@ def shapefile_to_raster(input_shape, output_dir, raster_name, burn_attr=False, a
     return output_raster
 
 
-# =============================================================================
-# #Creating Slope Raster from DEM Data
-# =============================================================================
 def create_slope_raster(input_raster, outdir, raster_name):
     """
     Create Slope raster in Percent from DEM raster.
@@ -748,9 +689,6 @@ def create_slope_raster(input_raster, outdir, raster_name):
     return output_raster
 
 
-# =============================================================================
-# #creating nanfilled raster from original raster
-# =============================================================================
 def create_nanfilled_raster(input_raster, outdir, raster_name, ref_raster=referenceraster):
     """
     Create a nan-filled raster with a reference raster. If there is nan value on raster that 
@@ -809,9 +747,6 @@ def paste_val_on_ref_raster(input_raster, outdir, raster_name, value=0, ref_rast
     return output_raster
 
 
-# =============================================================================
-# #Gaussian Filter
-# =============================================================================
 def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan=True, normalize=True,
                           nodata=No_Data_Value, ref_raster=referenceraster):
     """

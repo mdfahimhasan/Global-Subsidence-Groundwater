@@ -14,7 +14,7 @@ from Raster_operations import read_raster_arr_object, write_raster
 def classify_insar_raster(input_raster, output_raster_name, unit_scale, unit_change=False,
                           cnra_data=False, start_date=None, end_date=None,
                           resample_raster=True, resampled_raster_name='Resampled.tif',
-                          res=0.02, output_dir='../InSAR_Data/Resampled_subsidence_data/resampled_insar_data', ):
+                          res=0.02, output_dir='../InSAR_Data/Resampled_subsidence_data/resampled_insar_data'):
     """
     Classify InSAR subsidence raster to project classes (<1cm/yr, 1-5cm/yr and >5cm/yr).
 
@@ -22,7 +22,7 @@ def classify_insar_raster(input_raster, output_raster_name, unit_scale, unit_cha
     input_raster : Input Raster filepath.
     output_raster_name : Output raster name.
     unit_scale : Unit scale value (i.e. unit_scale=100 for m to cm conversion) for conversion.
-    cnra_data : If the data is from 'California National Resources Agency', set True to convert values into cm/year.
+    cnra_data : If the data is from 'California National Resources Agency', set True to convert values to cm/year.
     start_date : If cnra data, start day of the data in string format. Format must be like "2015/12/31"
                  ("Year/month/day"). Default Set to None.
     end_date : If cnra data, end day of the data in string format. Format must be like "2015/12/31" ("Year/month/day")
@@ -30,10 +30,13 @@ def classify_insar_raster(input_raster, output_raster_name, unit_scale, unit_cha
 
     resample_raster : Set True if classified raster needs resampling. Defaults to True.
     resampled_raster_name : Resampled raster name. Default is 'Resampled.tif'.
-    res : Pixel resoultion in degree. Default is 0.02 degree.
+    res : Pixel resolution in degree. Default is 0.02 degree.
     output_dir : Output Directory path. Default set to '../InSAR_Data/Resampled_subsidence_data/resampled_insar_data'
 
     Returns : Classified (and resampled if modify raster=True) subsidence raster.
+
+    **** For California cnra data processing unit_change: False, Unit_scale: 1
+
     """
     arr, file = read_raster_arr_object(input_raster)
 
@@ -41,7 +44,7 @@ def classify_insar_raster(input_raster, output_raster_name, unit_scale, unit_cha
         start_day = datetime.strptime(start_date, "%Y/%m/%d")
         end_day = datetime.strptime(end_date, "%Y/%m/%d")
         months_between = round(int(str(end_day - start_day).split(" ")[0]) / 30)
-        arr = arr * 30.48 * 12 / months_between
+        arr = arr * 30.48 * 12 / months_between   # 1 ft = 30.48 cm
 
     if unit_change:
         arr = arr * unit_scale
@@ -71,11 +74,17 @@ def classify_insar_raster(input_raster, output_raster_name, unit_scale, unit_cha
     return resampled_raster
 
 
-# # Iran Data Resampling
+# # Pakistan Quetta Processing (scale 100 used to convert value from m to cm)
+# input_quetta = '../InSAR_Data/Pakistan_Quetta/Quetta_final.tif'
+# classify_insar_raster(input_raster=input_quetta, output_raster_name= 'Pakistan_Quetta_reclass.tif',
+#                       unit_change=True, unit_scale=100, resample_raster=True,
+#                       resampled_raster_name='Pakistan_Quetta_reclass_resampled.tif', res=0.02,
+#                       output_dir='../InSAR_Data/Resampled_subsidence_data/resampled_insar_data')
 #
-# input_iran = '../InSAR_Data/Iran/Iran.tif'
 #
-# classify_insar_raster(input_raster=input_iran, output_raster_name= 'Iran_reclass.tif',
-#                       unit_change=True, unit_scale=.1, resample_raster=True,
-#                       resampled_raster_name='Iran_reclass_resampled.tif', res=0.02)
-
+# # Iran Data Processing (scale 0.1 used to convert value from mm to cm)
+# input_iran = '../InSAR_Data/Iran/Iran_Qazvin.tif'
+# classify_insar_raster(input_raster=input_iran, output_raster_name= 'Iran_Qazvin_reclass.tif',
+#                       unit_change=True, unit_scale=0.1, resample_raster=True,
+#                       resampled_raster_name='Iran_Qazvin_reclass_resampled.tif', res=0.02,
+#                       output_dir='../InSAR_Data/Resampled_subsidence_data/resampled_insar_data')
