@@ -5,21 +5,28 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pickle
+from pprint import pprint
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
-    precision_score, recall_score, f1_score
-from imblearn.ensemble import BalancedRandomForestClassifier
+    precision_score, recall_score, f1_score, roc_auc_score, make_scorer
+from sklearn.model_selection import RandomizedSearchCV, RepeatedStratifiedKFold
 from xgboost import XGBClassifier
 # from sklearn.svm import SVC
 # from sklearn.pipeline import Pipeline
 # from sklearn.preprocessing import StandardScaler
-# from sklearn.model_selection import GridSearchCV
 from sklearn.inspection import plot_partial_dependence
 from Raster_operations import *
 from System_operations import *
 
 referenceraster2 = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
+
+
+def reindex_df(df):
+    sorted_columns = sorted(df.columns)
+    df = df.reindex(sorted_columns, axis=1)
+
+    return df
 
 
 def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataframe_creation=False):
@@ -47,6 +54,7 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
 
         predictor_df = pd.DataFrame(predictor_dict)
         predictor_df = predictor_df.dropna(axis=0)
+        predictor_df = reindex_df(predictor_df)
         predictor_df.to_csv(output_csv, index=False)
 
         print('Predictors csv created')
@@ -80,8 +88,6 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state,
                                                         shuffle=True, stratify=y)
-    # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state,
-    #                                                     shuffle=True)   # # Discuss with Ryan with RF 61 result
 
     if outdir:
         x_train_df = pd.DataFrame(x_train)
@@ -101,9 +107,9 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF', load_model=False,
                         pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=None,
-                        n_estimators=800, bootstrap=True, oob_score=True, n_jobs=-1, max_features='auto',
-                        class_weight='balanced',
-                        accuracy=True, accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
+                        n_estimators=450, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
+                        bootstrap=True, oob_score=True, n_jobs=-1, class_weight='balanced',
+                        accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
                         plot_pdp=False, plot_confusion_matrix=True):
     """
@@ -120,11 +126,14 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     random_state : Seed value. Defaults to 0.
     shuffle : Whether or not to shuffle data before splitting. Defaults to True.
     output_dir : Set a output directory if training and test dataset need to be saved. Defaults to None.
-    n_estimators : The number of trees in the forest.. Defaults to 500.
+    n_estimators : Number of trees in the forest. Defaults to 450.
+    min_samples_leaf : Minimum number of samples required to be at a leaf node. Defaults to 1.
+    min_samples_split : Minimum number of samples required to split an internal node. Defaults to 2.
+    max_features : The number of features to consider when looking for the best split. Defaults to 'log2'.
+    max_depth : max_length of tree. Default set to 76.
     bootstrap : Whether bootstrap samples are used when building trees. Defaults to True.
     oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
     n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
-    max_features : The number of features to consider when looking for the best split. Defaults to 'auto'.
     class_weight : To assign class weight. Default set to 'balanced'.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
@@ -149,9 +158,11 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     # Machine Learning Models
     if not load_model:
         if model == 'RF':
-            classifier = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state,
-                                                bootstrap=bootstrap, class_weight=class_weight,
-                                                n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
+            classifier = RandomForestClassifier(n_estimators=n_estimators, max_features=max_features,
+                                                min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split,
+                                                max_depth=max_depth, random_state=random_state,
+                                                bootstrap=bootstrap, class_weight=class_weight, n_jobs=n_jobs,
+                                                oob_score=oob_score)
 
         # if model == 'ETC':
         #     classifier = ExtraTreesClassifier(n_estimators=n_estimators, random_state=random_state,
@@ -165,32 +176,32 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
         #                                colsample_bytree=1, colsample_bylevel=1, colsample_bynode=1)
 
         classifier = classifier.fit(x_train, y_train)
-        y_pred = classifier.predict(x_test)
+
         pickle.dump(classifier, open(model_file, mode='wb+'))
 
     else:
         classifier = pickle.load(open(model_file, mode='rb'))
 
-    if accuracy:
-        classification_accuracy(y_test, y_pred, classifier, x_train, accuracy_dir, cm_name,
-                                predictor_importance, predictor_imp_keyword, plot_confusion_matrix)
+    classification_accuracy(x_train, x_test, y_train, y_test, classifier, accuracy_dir, cm_name,
+                            predictor_importance, predictor_imp_keyword, plot_confusion_matrix)
     if plot_pdp:
         pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword)
 
     return classifier
 
 
-def classification_accuracy(y_test, y_pred, classifier, x_train,
+def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                             accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                             predictor_importance=False, predictor_imp_keyword='RF', plot_confusion_matrix=True):
     """
     Classification accuracy assessment.
 
     Parameters:
+    x_train : x_train from 'split_train_test_ratio' function.
+    x_test :  x_test from 'split_train_test_ratio' function.
+    y_train : y_train data from split_train_test_ratio() function.
     y_test : y_test data from split_train_test_ratio() function.
-    y_pred : y_pred data from build_ML_classifier() function.
     classifier : ML classifier from build_ML_classifier() function.
-    x_train : x train from 'split_train_test_ratio' function.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
@@ -199,26 +210,48 @@ def classification_accuracy(y_test, y_pred, classifier, x_train,
     Returns: Confusion matrix, score and predictor importance graph.
     """
     makedirs([accuracy_dir])
+    y_train_pred = classifier.predict(x_train)
+    y_pred = classifier.predict(x_test)
 
     # Plotting and saving confusion matrix
     column_labels = [np.array(['Predicted', 'Predicted', 'Predicted']),
-                     np.array(['<1cm/yr subsidence', '1-5cm/yr subsidence', '>5cm/yr subsidence'])]
+                     np.array(['<1cm/yr', '1-5cm/yr', '>5cm/yr'])]
     index_labels = [np.array(['Actual', 'Actual', 'Actual']),
-                    np.array(['<1cm/yr subsidence', '1-5cm/yr subsidence', '>5cm/yr subsidence'])]
-    cm = confusion_matrix(y_test, y_pred)
-    cm_df = pd.DataFrame(cm, columns=column_labels, index=index_labels)
-    cm_name = predictor_imp_keyword + '_' + cm_name
-    csv = os.path.join(accuracy_dir, cm_name)
-    cm_df.to_csv(csv, index=True)
+                    np.array(['<1cm/yr', '1-5cm/yr', '>5cm/yr'])]
+
+    cm_train = confusion_matrix(y_train, y_train_pred)
+    cm_df_train = pd.DataFrame(cm_train, columns=column_labels, index=index_labels)
+    cm_name_train = predictor_imp_keyword + '_train_' + cm_name
+    csv_train = os.path.join(accuracy_dir, cm_name_train)
+    cm_df_train.to_csv(csv_train)
+
+    column_labels = [np.array(['Predicted', 'Predicted', 'Predicted']),
+                     np.array(['<1cm/yr', '1-5cm/yr', '>5cm/yr'])]
+    cm_test = confusion_matrix(y_test, y_pred)
+    cm_df_test = pd.DataFrame(cm_test, columns=column_labels, index=index_labels)
+    cm_name_test = predictor_imp_keyword + '_test_' + cm_name
+    csv_test = os.path.join(accuracy_dir, cm_name_test)
+    cm_df_test.to_csv(csv_test, index=True)
+
     pd.options.display.width = 0
-    print(cm_df, '\n')
+    print(cm_df_train, '\n')
+    print(cm_df_test, '\n')
 
     if plot_confusion_matrix:
-        disp = ConfusionMatrixDisplay(cm, display_labels=np.array(['<1cm', '1-5 cm', '>5cm']))
-        disp.plot(cmap='YlGn')
-        plt.tight_layout()
-        plot_name = cm_name[:cm_name.rfind('.')] + '.png'
-        plt.savefig((accuracy_dir + '/' + plot_name), dpi=300)
+        font = 18
+        label = np.array(['<1cm', '1-5 cm', '>5cm'])
+        disp = ConfusionMatrixDisplay(cm_test, display_labels=label)
+        fig, ax = plt.subplots(figsize=(10, 8))
+        disp.plot(cmap='YlGn', ax=ax)
+        for labels in disp.text_.ravel():
+            labels.set_fontsize(font)
+        ax.set_xlabel('Predicted Class', fontsize=font)
+        ax.set_ylabel('True Class', fontsize=font)
+        ax.set_xticklabels(label, fontsize=font)
+        ax.set_yticklabels(label, fontsize=font)
+
+        plot_name = cm_name_test[:cm_name_test.rfind('.')] + '.png'
+        plt.savefig((accuracy_dir + '/' + plot_name), dpi=600)
 
     # print Overall accuracy
     overall_accuracy = round(accuracy_score(y_test, y_pred), 2)
@@ -226,23 +259,42 @@ def classification_accuracy(y_test, y_pred, classifier, x_train,
 
     # Saving model accuracy for individual classes
     accuracy_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_accuracy.csv'
-    save_model_accuracy(cm_df, overall_accuracy, accuracy_csv_name)
+    save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name)
 
     # generating classification report
     label_names = ['<1cm/yr', '1-5cm/yr', '>5cm/yr']
-    classification_report_dict = classification_report(y_test, y_pred, target_names=label_names, output_dict=True)
-    del classification_report_dict['accuracy']
-    classification_report_df = pd.DataFrame(classification_report_dict)
-    classification_report_df.drop(labels='support', inplace=True)
+    classification_report_dict_train = classification_report(y_train, y_train_pred, target_names=label_names,
+                                                             output_dict=True)
+    del classification_report_dict_train['accuracy']
+    classification_report_df_train = pd.DataFrame(classification_report_dict_train)
+    classification_report_df_train.drop(labels='support', inplace=True)
+    micro_precision = round(precision_score(y_train, y_train_pred, average='micro'), 2)
+    micro_recall = round(recall_score(y_train, y_train_pred, average='micro'), 2)
+    micro_f1 = round(f1_score(y_train, y_train_pred, average='micro'), 2)
+
+    classification_report_df_train['micro avg'] = [micro_precision, micro_recall, micro_f1]
+    cols = classification_report_df_train.columns.tolist()
+    cols = cols[:3] + cols[-1:] + cols[3:5]  # rearranging columns
+    classification_report_df_train = classification_report_df_train[cols].round(2)
+    print(classification_report_df_train)
+    classification_report_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_train classification report.csv'
+    classification_report_df_train.to_csv(classification_report_csv_name)
+
+    label_names = ['<1cm/yr', '1-5cm/yr', '>5cm/yr']
+    classification_report_dict_test = classification_report(y_test, y_pred, target_names=label_names, output_dict=True)
+    del classification_report_dict_test['accuracy']
+    classification_report_df_test = pd.DataFrame(classification_report_dict_test)
+    classification_report_df_test.drop(labels='support', inplace=True)
     micro_precision = round(precision_score(y_test, y_pred, average='micro'), 2)
     micro_recall = round(recall_score(y_test, y_pred, average='micro'), 2)
     micro_f1 = round(f1_score(y_test, y_pred, average='micro'), 2)
 
-    classification_report_df['micro avg'] = [micro_precision, micro_recall, micro_f1]
-    cols = classification_report_df.columns.tolist()
+    classification_report_df_test['micro avg'] = [micro_precision, micro_recall, micro_f1]
+    cols = classification_report_df_test.columns.tolist()
     cols = cols[:3] + cols[-1:] + cols[3:5]  # rearranging columns
-    classification_report_df = classification_report_df[cols].round(2)
-    classification_report_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_classification report.csv'
+    classification_report_df = classification_report_df_test[cols].round(2)
+    print(classification_report_df)
+    classification_report_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_test classification report.csv'
     classification_report_df.to_csv(classification_report_csv_name)
 
     # predictor importance plot
@@ -256,7 +308,7 @@ def classification_accuracy(y_test, y_pred, classifier, x_train,
                           'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET',
                           'MODIS_PET': 'MODIS PET', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
                           'SRTM_Slope': 'Slope', 'Subsidence': 'Subsidence',
-                          'TRCLM_RET': 'TRCLM RET', 'TRCLM_precp': 'Precipitation',
+                          'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation',
                           'TRCLM_soil': 'Soil moisture', 'TRCLM_Tmax': 'Tmax',
                           'TRCLM_Tmin': 'Tmin', 'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
         x_train_df = pd.DataFrame(x_train)
@@ -267,35 +319,35 @@ def classification_accuracy(y_test, y_pred, classifier, x_train,
         imp_df = pd.DataFrame(imp_dict)
         imp_df.sort_values(by=['feature_importance'], ascending=False, inplace=True)
         plt.figure(figsize=(10, 8))
-        plt.rcParams['font.size'] = 15
-        sns.barplot(x=imp_df['feature_importance'], y=imp_df['feature_names'])
+        plt.rcParams['font.size'] = 20
+        sns.barplot(x=imp_df['feature_importance'], y=imp_df['feature_names'], palette='rocket_r')
         plt.xlabel('Predictor Importance')
         plt.ylabel('Predictor Names')
         plt.tight_layout()
-        plt.savefig((accuracy_dir + '/' + predictor_imp_keyword + '_pred_importance.png'))
+        plt.savefig((accuracy_dir + '/' + predictor_imp_keyword + '_pred_importance.png'), dpi=600)
         print('Feature importance plot saved')
 
-    return cm_df, overall_accuracy
+    return cm_df_test, overall_accuracy
 
 
-def save_model_accuracy(cm_df, overall_accuracy, accuracy_csv_name):
+def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
     """
     Save model accuracy parameters as csv.
 
     Parameters:
-    cm_df : Confusion matrix dataframe (input from 'classification_accuracy' function).
+    cm_df_test : Confusion matrix dataframe (input from 'classification_accuracy' function).
     overall_accuracy : Overall accuracy value (input from 'classification_accuracy' function).
     accuracy_csv_name : Name of the csv file to save.
 
     Returns : Saved csv with model accuracy values.
     """
     from operator import truediv
-    act_pixel_less_1cm = sum(cm_df.loc[('Actual', '<1cm/yr subsidence')])
-    act_pixel_1cm_to_5cm = sum(cm_df.loc[('Actual', '1-5cm/yr subsidence')])
-    act_pixel_greater_5cm = sum(cm_df.loc[('Actual', '>5cm/yr subsidence')])
-    pred_pixel_less_1cm = cm_df.loc[('Actual', '<1cm/yr subsidence'), ('Predicted', '<1cm/yr subsidence')]
-    pred_pixel_1cm_to_5cm = cm_df.loc[('Actual', '1-5cm/yr subsidence'), ('Predicted', '1-5cm/yr subsidence')]
-    pred_pixel_greater_1cm = cm_df.loc[('Actual', '>5cm/yr subsidence'), ('Predicted', '>5cm/yr subsidence')]
+    act_pixel_less_1cm = sum(cm_df_test.loc[('Actual', '<1cm/yr')])
+    act_pixel_1cm_to_5cm = sum(cm_df_test.loc[('Actual', '1-5cm/yr')])
+    act_pixel_greater_5cm = sum(cm_df_test.loc[('Actual', '>5cm/yr')])
+    pred_pixel_less_1cm = cm_df_test.loc[('Actual', '<1cm/yr'), ('Predicted', '<1cm/yr')]
+    pred_pixel_1cm_to_5cm = cm_df_test.loc[('Actual', '1-5cm/yr'), ('Predicted', '1-5cm/yr')]
+    pred_pixel_greater_1cm = cm_df_test.loc[('Actual', '>5cm/yr'), ('Predicted', '>5cm/yr')]
 
     actual_no_pixels = [act_pixel_less_1cm, act_pixel_1cm_to_5cm, act_pixel_greater_5cm]
     accurately_pred_pixel = [pred_pixel_less_1cm, pred_pixel_1cm_to_5cm, pred_pixel_greater_1cm]
@@ -306,7 +358,7 @@ def save_model_accuracy(cm_df, overall_accuracy, accuracy_csv_name):
     accuracy_dataframe = pd.DataFrame({'Actual No. of Pixels': actual_no_pixels,
                                        'Accurately Predicted Pixels': accurately_pred_pixel, 'Accuracy': accuracy,
                                        'Overall Accuracy': total_accuracy},
-                                      index=['<1cm/yr subsidence', '1-5cm/yr subsidence', '>5cm/yr subsidence'])
+                                      index=['<1cm/yr', '1-5cm/yr', '>5cm/yr'])
     accuracy_dataframe.to_csv(accuracy_csv_name)
 
 
@@ -323,7 +375,6 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
 
     Returns : PDP plots.
     """
-    # # # # # # # # # # #
     predictor_dict = {'Alexi_ET': 'Alexi ET (mm)', 'Aridity_Index': 'Aridity Index',
                       'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
                       'Global_Sediment_Thickness': 'Sediment Thickness (m)',
@@ -336,7 +387,6 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
                       'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation (mm)',
                       'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax': 'Tmax (deg C)', 'TRCLM_Tmin': 'Tmin (deg C)',
                       'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
-    # # # # # # # # # # #
 
     x_train = x_train.rename(columns=predictor_dict)
     plot_names = x_train.columns.tolist()
@@ -386,7 +436,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
 
 
 def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], search_by='*.tif',
-                             continent_search_by='*continent.shp',
+                             continent_search_by='*continent.shp', predictor_csv_exists=False,
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
@@ -396,10 +446,12 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
 
     Parameters:
     predictors_dir : Predictor rasters' directory.
-    model : A fitted model obtained from randon_forest_classifier function.
+    model : A fitted model obtained from random_forest_classifier function.
     yearlist : List of years for the prediction.
     search_by : Predictor rasters search criteria. Defaults to '*.tif'.
     continent_search_by : Continent shapefile search criteria. Defaults to '*continent.tif'.
+    predictor_csv_exists : Set to True if predictor csv already exists. Defaults set to False. Should be False if
+                           list of drop columns changes.
     continent_shapes_dir : Directory path of continent shapefiles.
     prediction_raster_dir : Output directory of prediction raster.
     exclude_columns : Predictor rasters' name that will be excluded from the model. Defaults to ().
@@ -422,30 +474,47 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
 
     for continent in continent_shapes:
         continent_name = continent[continent.rfind(os.sep) + 1:continent.rfind('_')]
-        predictor_dict = {}
-        nan_position_dict = {}
-        raster_shape = None
-        for predictor in predictor_rasters:
-            variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind(".")]
-            if variable_name not in drop_columns:
-                clipped_predictor_dir = os.path.join('../Model Run/Predictors_2013_2019', continent_name +
-                                                     '_predictors_' + str(yearlist[0]) + '_' + str(yearlist[1]))
-                raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
-                                                                       naming_from_both=False)
-                raster_shape = raster_arr.shape
-                raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
-                nan_position_dict[variable_name] = np.isnan(raster_arr)
-                raster_arr[nan_position_dict[variable_name]] = 0
-                predictor_dict[variable_name] = raster_arr
-
-        predictor_df = pd.DataFrame(predictor_dict)
-        predictor_df = predictor_df.dropna(axis=0)
 
         predictor_csv_dir = '../Model Run/Predictors_csv/continent_csv'
         makedirs([predictor_csv_dir])
         predictor_csv_name = continent_name + '_predictors.csv'
         predictor_csv = os.path.join(predictor_csv_dir, predictor_csv_name)
-        predictor_df.to_csv(predictor_csv, index=False)
+
+        dict_name = predictor_csv_dir + '/nanpos_' + continent_name  # name to save nan_position_dict
+
+        clipped_predictor_dir = os.path.join('../Model Run/Predictors_2013_2019', continent_name +
+                                             '_predictors_' + str(yearlist[0]) + '_' + str(yearlist[1]))
+
+        if not predictor_csv_exists:
+            predictor_dict = {}
+            nan_position_dict = {}
+            raster_shape = None
+            for predictor in predictor_rasters:
+                variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind('.')]
+                if variable_name not in drop_columns:
+                    raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
+                                                                           naming_from_both=False)
+                    raster_shape = raster_arr.shape
+                    raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
+                    nan_position_dict[variable_name] = np.isnan(raster_arr)
+                    raster_arr[nan_position_dict[variable_name]] = 0
+                    predictor_dict[variable_name] = raster_arr
+
+            pickle.dump(nan_position_dict, open(dict_name, mode='wb+'))
+
+            predictor_df = pd.DataFrame(predictor_dict)
+            predictor_df = predictor_df.dropna(axis=0)
+            predictor_df = reindex_df(predictor_df)
+            predictor_df.to_csv(predictor_csv, index=False)
+
+        else:
+            predictor_df = pd.read_csv(predictor_csv)
+
+            nan_position_dict = pickle.load(open(dict_name, mode='rb'))
+
+            raster_arr, raster_file = clip_resample_raster_cutline(predictor_rasters[1], clipped_predictor_dir,
+                                                                   continent, naming_from_both=False)
+            raster_shape = raster_arr.shape
 
         x = predictor_df.values
         y_pred = model.predict(x)
@@ -505,3 +574,112 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
                        search_by='*proba*.tif')
         print('Global prediction probability raster created')
+
+
+def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_repeats=2, n_iter=50, exclude_columns=[]):
+    x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv, exclude_columns=exclude_columns,
+                                                              test_size=0.3, random_state=0)
+
+    n_estimators = [100, 150, 200, 250, 300, 350, 400, 450, 500]
+    max_features = [2, 4, 6, 8, 10, 12, 14]
+    max_depth = [int(j) for j in np.linspace(start=5, stop=20, num=10)]
+    # max_depth.append(None)
+    min_samples_split = [int(k) for k in np.linspace(start=2, stop=15, num=10)]
+    min_samples_leaf = [int(m) for m in np.linspace(start=2, stop=15, num=10)]
+
+    random_grid = {
+                   'n_estimators': n_estimators,
+                   'max_depth': max_depth,
+                   # 'max_features': max_features,
+                   # 'min_samples_split': min_samples_split,
+                   # 'min_samples_leaf': min_samples_leaf
+                    }
+
+    pprint(random_grid)
+
+    rf_classifier = RandomForestClassifier(random_state=0)
+
+    # creating scorer that gives score of precision and recall of 1-5 cm/year class
+    def confusion_matrix_scorer(clf, x_train, y_train):
+        y_pred_train = clf.predict(x_train)
+        class_report_dict = classification_report(y_train, y_pred_train, target_names=['<1cm/yr', '1-5cm/yr',
+                                                                                       '>5cm/yr'],
+                                                  output_dict=True)
+
+        class_report_df = pd.DataFrame(class_report_dict)
+        macro_f1_score = class_report_df.loc['f1-score']['macro avg']
+
+        return {'macro_f1_score': macro_f1_score}
+
+    stratified_cv = RepeatedStratifiedKFold(n_splits=folds, n_repeats=n_repeats, random_state=0)
+
+    rf_random_f1 = RandomizedSearchCV(estimator=rf_classifier, param_distributions=random_grid, n_iter=n_iter,
+                                      cv=stratified_cv, verbose=1, random_state=0, n_jobs=-1,
+                                      scoring=confusion_matrix_scorer, refit='macro_f1_score',
+                                      return_train_score=True)
+    rf_random_f1.fit(x_train, y_train)
+
+    print('\n')
+    print('best parameters for macro f1 value ', '\n')
+    pprint(rf_random_f1.best_params_)
+    print(rf_random_f1.best_score_)
+    print(rf_random_f1.best_estimator_)
+    print('\n')
+
+
+# exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
+#                       'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
+#                       'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
+# train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
+#
+# randomized_hyperparameter_optimization(train_test_csv, folds=5, n_repeats=3, n_iter=100,
+#                                        exclude_columns=exclude_predictors)
+
+
+def maxdepth_optimization(max_depth_list, predictor_csv, cm_dir='../Model Run/parameter_tuning/depth_cm_csv',
+                          exclude_columns=[], n_estimators=500, min_samples_leaf=1,
+                          min_samples_split=2, max_features='auto'):
+
+    x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv, exclude_columns=exclude_columns,
+                                                              test_size=0.3, random_state=0)
+    for depth in max_depth_list:
+        classifier = RandomForestClassifier(n_estimators=n_estimators, max_features=max_features,
+                                            min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split,
+                                            max_depth=depth, random_state=0, bootstrap=True,
+                                            class_weight='balanced', n_jobs=-1, oob_score=True)
+        classifier.fit(x_train, y_train)
+
+        y_train_pred = classifier.predict(x_train)
+        y_pred = classifier.predict(x_test)
+
+        column_labels = [np.array(['Predicted', 'Predicted', 'Predicted']),
+                         np.array(['<1cm/yr', '1-5cm/yr', '>5cm/yr'])]
+        index_labels = [np.array(['Actual', 'Actual', 'Actual']),
+                        np.array(['<1cm/yr', '1-5cm/yr', '>5cm/yr'])]
+
+        makedirs([cm_dir])
+
+        train_cm = confusion_matrix(y_train, y_train_pred)
+        train_cm_df = pd.DataFrame(train_cm, index=index_labels, columns=column_labels)
+        cm_name = cm_dir + '/' + str(depth) + '_train_cm' + '.csv'
+        train_cm_df.to_csv(cm_name)
+        print('For max depth', depth, '\n')
+        print('Train Confusion Matrix')
+        print(train_cm_df, '\n')
+
+        test_cm = confusion_matrix(y_test, y_pred)
+        test_cm_df = pd.DataFrame(test_cm, index=index_labels, columns=column_labels)
+        cm_name = cm_dir + '/' + str(depth) + '_test_cm' + '.csv'
+        test_cm_df.to_csv(cm_name)
+        print('Test Confusion Matrix')
+        print(test_cm_df, '\n')
+
+
+# exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
+#                       'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
+#                       'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
+# train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
+# maxdepth_list = [5, 7, 9, 11, 13, 15, 16, 17, 18, 19, 20, 21]
+# dir = '../Model Run/parameter_tuning/depth_cm_csv/300_tree'
+#
+# maxdepth_optimization(maxdepth_list, train_test_csv, dir, exclude_columns=exclude_predictors, n_estimators=300)

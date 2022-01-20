@@ -733,8 +733,8 @@ def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Sec
     fao_gw : fao gw Raw dataset path.
             (Data downloaded from http://www.fao.org/aquastat/en/geospatial-information/global-maps-irrigated-areas/
             latest-version/)
-    intermediate_dir : FIlepath of intermediate directory for processing data.
-    output_dir : FIlepath of final resampled data directory.
+    intermediate_dir : File path of intermediate directory for processing data.
+    output_dir : File path of final resampled data directory.
     skip_processing : Set False to process the rasters. Defaults to True (Raster filepath taken from existing rasters)
 
     Returns : Processed (resampled and gaussian filtered) GFSAD1KCM and GIAM_GW land use data.
@@ -748,7 +748,7 @@ def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Sec
                                                raster_name='Global_GFSAD1KCM_raw.tif', ref_raster=referenceraster,
                                                resolution=0.02)
             filtered_raster = filter_specific_values(input_raster=masked_raster, outdir=intermediate_dir,
-                                                     raster_name='GFSAD_irrig_only.tif', filter_value=[1, 2],
+                                                     raster_name='GFSAD_irrig_only.tif', filter_value=[1],
                                                      new_value=True, value_new=1, paste_on_ref_raster=True,
                                                      ref_raster=referenceraster)
             gfsad_raster = apply_gaussian_filter(input_raster=filtered_raster, outdir=output_dir,
@@ -930,7 +930,24 @@ def prepare_sediment_thickness_data_exxon(input_raster='../Data/Raw_Data/EXXON_S
 def prepare_modis_landuse_data(output_raster,
                                input_raster='../Data/Raw_Data/GEE_data/MODIS_Land_Use/merged_rasters'
                                             '/MODIS_Land_Use_2013_2019.tif'):
+    """
+    Reclassifying and processing MODIS Land Use Data.
 
+    Reclassified Classes:
+    1 - Forest
+    2 - Vegetation
+    3 - Cropland
+    4 - Urban and built-Up
+    5 - Snow and Ice
+    6 - Barren land
+    7 - Water body
+
+    Parameters:
+    output_raster: Output raster filepath.
+    input_raster: Input raster filepath.
+
+    Returns: Reclassified MODIS Land Use raster.
+    """
     lu_arr, lu_file = read_raster_arr_object(input_raster)
 
     # Reclassifying classes

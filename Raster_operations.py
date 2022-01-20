@@ -253,20 +253,18 @@ def rename_copy_raster(input_raster, output_dir, rename=False, new_name=None, ch
     return output_raster
 
 
-def change_nodata_value(input_raster_dir, new_nodata=No_Data_Value):
+def change_nodata_value(input_raster, new_nodata=No_Data_Value):
     """
     change no data value for single banded raster
 
-    Parameters
-    ----------
-    input_raster_dir : input raster directory
+    Parameters :
+    input_raster : input raster filepath
     new_nodata : new no data value. Can be -9999 or np.nan. The default is -9999
     """
 
     # seeing the existing No Data value
-    dataset = gdal.Open(input_raster_dir, 1)  # 1 for update mode
+    dataset = gdal.Open(input_raster, 1)  # 1 for update mode
     no_data_value = dataset.GetRasterBand(1).GetNoDataValue()
-    print(no_data_value)
 
     # changing no data value in band
     band1 = dataset.GetRasterBand(1).ReadAsArray()
@@ -791,5 +789,35 @@ def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan
     return output_raster
 
 
+def subsidence_point_to_geotiff(inputshp, output_raster, res=0.02):
+    """
+    Convert point shapefile (*) to geotiff.
+    * point geometry must have subsidence (z) value. Typically such point shapefile is converted
+    from kml file (using QGIS) processed from InSAR.
 
+    Parameters :
+    inputshp : Input point shapefile path.
+    res : Default set to 0.02 degree.
+    output_raster : Output raster filepath.
+
+    Returns : Raster in Geotiff format.
+    """
+    point_shp = gpd.read_file(inputshp)
+
+    def getXYZ(pt):
+        return pt.x, pt.y, pt.z
+
+    lon, lat, z = [list(t) for t in zip(*map(getXYZ, point_shp['geometry']))]
+
+    minx, maxx = min(lon), max(lon)
+    miny, maxy = min(lat), max(lat)
+    point_shp['value'] = z
+    bounds = [minx, miny, maxx, maxy]
+
+    point_shp.to_file(inputshp)
+
+    cont_raster = gdal.Rasterize(output_raster, inputshp, format='GTiff', outputBounds=bounds,outputSRS = 'EPSG:4326',
+                                 outputType=gdal.GDT_Float32, xRes=res, yRes=res, noData=-9999, attribute='value',
+                                 allTouched=True)
+    del cont_raster
 
