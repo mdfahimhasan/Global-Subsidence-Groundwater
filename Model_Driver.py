@@ -26,14 +26,14 @@ outdir_pop = '../Data/Resampled_Data/Pop_Density'
 # skip_download = False if new data needs to be downloaded from google earth engine
 # skip_processing = False if processing of already downloaded data (secondary processing) is required
 gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster, sediment_thickness_raster, \
-    sediment_thickness_raster_exxon, \
-    popdensity_raster = download_process_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
-                                                            gfsad_lu, giam_lu, fao_lu, intermediate_dir, outdir_lu,
-                                                            sediment_thickness, outdir_sed_thickness,
-                                                            sediment_thickness_exx,
-                                                            outdir_pop, perform_pca=False,
-                                                            skip_download=True, skip_processing=True,  # #
-                                                            geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
+sediment_thickness_raster_exxon, \
+popdensity_raster = download_process_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
+                                                        gfsad_lu, giam_lu, fao_lu, intermediate_dir, outdir_lu,
+                                                        sediment_thickness, outdir_sed_thickness,
+                                                        sediment_thickness_exx,
+                                                        outdir_pop, perform_pca=False,
+                                                        skip_download=True, skip_processing=True,  # #
+                                                        geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
 
 input_polygons_dir = '../InSAR_Data/Georeferenced_subsidence_data'
 joined_subsidence_polygon = '../InSAR_Data/Resampled_subsidence_data/interim_working_dir/georef_subsidence_polygons.shp'
@@ -74,17 +74,17 @@ model = 'RF'
 exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
                    'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
                    'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
-prediction_raster_keyword = 'RF77'
+prediction_raster_keyword = 'RF76'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
 # plot_confusion_matrix = False if confusion matrix plot (as image) is not required
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                               n_estimators=350, min_samples_leaf=1, min_samples_split=2, max_depth=17,
+                               n_estimators=500, min_samples_leaf=1, min_samples_split=2, max_depth=15,
                                max_features='auto', class_weight='balanced',  # #
                                predictor_importance=True,  # #
-                               predictor_imp_keyword=prediction_raster_keyword, plot_pdp=True,  # #
+                               predictor_imp_keyword=prediction_raster_keyword, plot_pdp=False,  # #
                                plot_confusion_matrix=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
@@ -97,4 +97,4 @@ create_prediction_raster \
      predictor_csv_exists=True,  # #
      continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
      prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns, pred_attr='Subsidence',
-     prediction_raster_keyword=prediction_raster_keyword, predict_probability_greater_1cm=True)
+     prediction_raster_keyword=prediction_raster_keyword, predict_probability_greater_1cm=False)  # #

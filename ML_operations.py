@@ -106,7 +106,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
 
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF', load_model=False,
-                        pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=None,
+                        pred_attr='Subsidence', test_size=0., random_state=0, output_dir=None,
                         n_estimators=450, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
                         bootstrap=True, oob_score=True, n_jobs=-1, class_weight='balanced',
                         accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
@@ -544,19 +544,6 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                          outfile_path=probability_raster)
             print('Prediction probability for >1cm created for', continent_name)
 
-        else:
-            y_pred_proba = model.predict_proba(x)
-            y_pred_proba = np.amax(y_pred_proba, axis=1)
-
-            for nan_pos in nan_position_dict.values():
-                y_pred_proba[nan_pos] = raster_file.nodata
-            y_pred_proba_arr = y_pred_proba.reshape(raster_shape)
-
-            probability_raster_name = continent_name + '_proba_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
-            probability_raster = os.path.join(continent_prediction_raster_dir, probability_raster_name)
-            write_raster(raster_arr=y_pred_proba_arr, raster_file=raster_file, transform=raster_file.transform,
-                         outfile_path=probability_raster)
-            print('Prediction probability raster created for', continent_name)
 
     raster_name = prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
     mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name, search_by='*prediction*.tif')
@@ -580,9 +567,9 @@ def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_repeats=2, 
     x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv, exclude_columns=exclude_columns,
                                                               test_size=0.3, random_state=0)
 
-    n_estimators = [100, 150, 200, 250, 300, 350, 400, 450, 500]
+    n_estimators = [500]
     max_features = [2, 4, 6, 8, 10, 12, 14]
-    max_depth = [int(j) for j in np.linspace(start=5, stop=20, num=10)]
+    max_depth = [int(j) for j in np.linspace(start=5, stop=15, num=11)]
     # max_depth.append(None)
     min_samples_split = [int(k) for k in np.linspace(start=2, stop=15, num=10)]
     min_samples_leaf = [int(m) for m in np.linspace(start=2, stop=15, num=10)]
@@ -590,7 +577,7 @@ def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_repeats=2, 
     random_grid = {
                    'n_estimators': n_estimators,
                    'max_depth': max_depth,
-                   # 'max_features': max_features,
+                   'max_features': max_features,
                    # 'min_samples_split': min_samples_split,
                    # 'min_samples_leaf': min_samples_leaf
                     }
@@ -623,14 +610,13 @@ def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_repeats=2, 
     print('best parameters for macro f1 value ', '\n')
     pprint(rf_random_f1.best_params_)
     print(rf_random_f1.best_score_)
-    print(rf_random_f1.best_estimator_)
     print('\n')
 
 
-# exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
-#                       'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
-#                       'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
-# train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
+exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
+                      'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
+                      'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
+train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 #
 # randomized_hyperparameter_optimization(train_test_csv, folds=5, n_repeats=3, n_iter=100,
 #                                        exclude_columns=exclude_predictors)
