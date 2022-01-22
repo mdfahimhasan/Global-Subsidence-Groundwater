@@ -544,7 +544,6 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                          outfile_path=probability_raster)
             print('Prediction probability for >1cm created for', continent_name)
 
-
     raster_name = prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
     mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name, search_by='*prediction*.tif')
     print('Global prediction raster created')
@@ -554,12 +553,6 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                             str(yearlist[1]) + '.tif'
         mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
                        search_by='*proba_greater_1cm*.tif')
-        print('Global prediction probability raster created')
-
-    else:
-        proba_raster_name = prediction_raster_keyword + '_proba_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
-        mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
-                       search_by='*proba*.tif')
         print('Global prediction probability raster created')
 
 
