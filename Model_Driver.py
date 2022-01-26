@@ -74,14 +74,14 @@ model = 'RF'
 exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
                    'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
                    'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
-prediction_raster_keyword = 'RF76'
+prediction_raster_keyword = 'RF79'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
 # plot_confusion_matrix = False if confusion matrix plot (as image) is not required
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                               n_estimators=500, min_samples_leaf=1, min_samples_split=2, max_depth=15,
+                               n_estimators=400, min_samples_leaf=1, min_samples_split=2, max_depth=19,
                                max_features='auto', class_weight='balanced',  # #
                                predictor_importance=True,  # #
                                predictor_imp_keyword=prediction_raster_keyword, plot_pdp=False,  # #

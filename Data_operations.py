@@ -370,7 +370,7 @@ def download_grace_gradient(yearlist, start_month, end_month, output_dir, shapec
     else:
         end_date = ee.Date.fromYMD(yearlist[1], end_month + 1, 1)
 
-    # a function to add timestamp on the image
+    # a function to sum timestamp on the image
     def addTime(image):
         """
         Scale milliseconds by a large constant to avoid very small slopes in the linear regression output.
@@ -1171,7 +1171,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
             subsidene_polygons = joined_subsidence_polygon
 
         subsidence_raster = shapefile_to_raster(subsidene_polygons, interim_dir,
-                                                raster_name='interim_subsidence_raster.tif', burn_attr=True,
+                                                raster_name='interim_subsidence_raster.tif', use_attr=True,
                                                 attribute=subsidence_column, ref_raster=refraster, alltouched=False)
         print('Processed Subsidence Polygons')
 

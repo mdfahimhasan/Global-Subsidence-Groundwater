@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pickle
 from pprint import pprint
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score, roc_auc_score, make_scorer
-from sklearn.model_selection import RandomizedSearchCV, RepeatedStratifiedKFold
+from sklearn.model_selection import RandomizedSearchCV, RepeatedStratifiedKFold, StratifiedKFold
 from xgboost import XGBClassifier
 # from sklearn.svm import SVC
 # from sklearn.pipeline import Pipeline
@@ -139,7 +139,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
     predictor_imp_keyword : Keyword to save predictor important plot.
-    plot_save_keyword : Keyword to add before saved PDP plots.
+    plot_save_keyword : Keyword to sum before saved PDP plots.
     plot_pdp : Set to True if want to plot PDP.
     plot_confusion_matrix : Set to True if want to plot confusion matrix.
 
@@ -371,7 +371,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
     classifier :ML model classifier.
     x_train : X train array.
     output_dir : Output directory path to save the plots.
-    plot_save_keyword : Keyword to add before saved PDP plots.
+    plot_save_keyword : Keyword to sum before saved PDP plots.
 
     Returns : PDP plots.
     """
@@ -556,21 +556,21 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         print('Global prediction probability raster created')
 
 
-def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_repeats=2, n_iter=50, exclude_columns=[]):
+def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_iter=50, test_ratio=0.2,
+                                           exclude_columns=[]):
     x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv, exclude_columns=exclude_columns,
-                                                              test_size=0.3, random_state=0)
+                                                              test_size=test_ratio, random_state=0)
 
-    n_estimators = [500]
+    n_estimators = [100, 200, 300, 350, 400, 450, 500]
+    max_depth = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     max_features = [2, 4, 6, 8, 10, 12, 14]
-    max_depth = [int(j) for j in np.linspace(start=5, stop=15, num=11)]
-    # max_depth.append(None)
     min_samples_split = [int(k) for k in np.linspace(start=2, stop=15, num=10)]
     min_samples_leaf = [int(m) for m in np.linspace(start=2, stop=15, num=10)]
 
     random_grid = {
                    'n_estimators': n_estimators,
                    'max_depth': max_depth,
-                   'max_features': max_features,
+                   # 'max_features': max_features,
                    # 'min_samples_split': min_samples_split,
                    # 'min_samples_leaf': min_samples_leaf
                     }
@@ -579,86 +579,51 @@ def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_repeats=2, 
 
     rf_classifier = RandomForestClassifier(random_state=0)
 
-    # creating scorer that gives score of precision and recall of 1-5 cm/year class
-    def confusion_matrix_scorer(clf, x_train, y_train):
-        y_pred_train = clf.predict(x_train)
-        class_report_dict = classification_report(y_train, y_pred_train, target_names=['<1cm/yr', '1-5cm/yr',
-                                                                                       '>5cm/yr'],
-                                                  output_dict=True)
+    # creating scorer that gives score of precision and recall of 1-5 cm/year class (works, storing as reference)
 
-        class_report_df = pd.DataFrame(class_report_dict)
-        macro_f1_score = class_report_df.loc['f1-score']['macro avg']
+    # def confusion_matrix_scorer(clf, x_train, y_train):
+    #
+    #     x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=validation_ratio,
+    #                                                       random_state=0, shuffle=True, stratify=y_train)
+    #     y_val_pred = clf.predict(x_val)
+    #     class_report_dict = classification_report(y_val, y_val_pred, target_names=['<1cm/yr', '1-5cm/yr',
+    #                                                                                '>5cm/yr'],
+    #                                               output_dict=True)
+    #
+    #     class_report_df = pd.DataFrame(class_report_dict)
+    #     macro_f1_score = class_report_df.loc['f1-score']['macro avg']
+    #
+    #     y_train_pred = clf.predict(x_train)
+    #     cf = confusion_matrix(y_train, y_train_pred)
+    #     fn_1cm = [cf[0][1], cf[0][2]]
+    #     fn_1_5cm = [cf[1][0], cf[1][2]]
+    #     fn_5cm = [cf[2][0], cf[2][1]]
+    #     if all(fn_1cm) > 0 and all(fn_1_5cm) > 0 and any(fn_5cm):
+    #         return {'macro_f1_score': macro_f1_score}
+    #     else:
+    #         return {'macro_f1_score': 0}
 
-        return {'macro_f1_score': macro_f1_score}
-
-    stratified_cv = RepeatedStratifiedKFold(n_splits=folds, n_repeats=n_repeats, random_state=0)
-
-    rf_random_f1 = RandomizedSearchCV(estimator=rf_classifier, param_distributions=random_grid, n_iter=n_iter,
-                                      cv=stratified_cv, verbose=1, random_state=0, n_jobs=-1,
-                                      scoring=confusion_matrix_scorer, refit='macro_f1_score',
-                                      return_train_score=True)
-    rf_random_f1.fit(x_train, y_train)
+    kfold = StratifiedKFold(n_splits=folds, shuffle=True, random_state=0)
+    random_searchCV = RandomizedSearchCV(estimator=rf_classifier, param_distributions=random_grid, n_iter=n_iter,
+                                         cv=kfold, verbose=1, random_state=0, n_jobs=-1,
+                                         scoring='f1_macro', refit=True,
+                                         return_train_score=True)
+    random_searchCV.fit(x_train, y_train)
 
     print('\n')
     print('best parameters for macro f1 value ', '\n')
-    pprint(rf_random_f1.best_params_)
-    print(rf_random_f1.best_score_)
+    pprint(random_searchCV.best_params_)
+    print('best macro f1 score', random_searchCV.best_score_)
     print('\n')
+    print('mean_test_macro_f1_score', random_searchCV.cv_results_['mean_test_score'][random_searchCV.best_index_])
+    print('mean_train_macro_f1_score', random_searchCV.cv_results_['mean_train_score'][random_searchCV.best_index_])
 
 
 exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
                       'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
                       'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
 train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
-#
-# randomized_hyperparameter_optimization(train_test_csv, folds=5, n_repeats=3, n_iter=100,
+
+# randomized_hyperparameter_optimization(train_test_csv, folds=5, n_iter=100, test_ratio=0.3,
 #                                        exclude_columns=exclude_predictors)
 
-
-def maxdepth_optimization(max_depth_list, predictor_csv, cm_dir='../Model Run/parameter_tuning/depth_cm_csv',
-                          exclude_columns=[], n_estimators=500, min_samples_leaf=1,
-                          min_samples_split=2, max_features='auto'):
-
-    x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv, exclude_columns=exclude_columns,
-                                                              test_size=0.3, random_state=0)
-    for depth in max_depth_list:
-        classifier = RandomForestClassifier(n_estimators=n_estimators, max_features=max_features,
-                                            min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split,
-                                            max_depth=depth, random_state=0, bootstrap=True,
-                                            class_weight='balanced', n_jobs=-1, oob_score=True)
-        classifier.fit(x_train, y_train)
-
-        y_train_pred = classifier.predict(x_train)
-        y_pred = classifier.predict(x_test)
-
-        column_labels = [np.array(['Predicted', 'Predicted', 'Predicted']),
-                         np.array(['<1cm/yr', '1-5cm/yr', '>5cm/yr'])]
-        index_labels = [np.array(['Actual', 'Actual', 'Actual']),
-                        np.array(['<1cm/yr', '1-5cm/yr', '>5cm/yr'])]
-
-        makedirs([cm_dir])
-
-        train_cm = confusion_matrix(y_train, y_train_pred)
-        train_cm_df = pd.DataFrame(train_cm, index=index_labels, columns=column_labels)
-        cm_name = cm_dir + '/' + str(depth) + '_train_cm' + '.csv'
-        train_cm_df.to_csv(cm_name)
-        print('For max depth', depth, '\n')
-        print('Train Confusion Matrix')
-        print(train_cm_df, '\n')
-
-        test_cm = confusion_matrix(y_test, y_pred)
-        test_cm_df = pd.DataFrame(test_cm, index=index_labels, columns=column_labels)
-        cm_name = cm_dir + '/' + str(depth) + '_test_cm' + '.csv'
-        test_cm_df.to_csv(cm_name)
-        print('Test Confusion Matrix')
-        print(test_cm_df, '\n')
-
-
-# exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
-#                       'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
-#                       'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
-# train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
-# maxdepth_list = [5, 7, 9, 11, 13, 15, 16, 17, 18, 19, 20, 21]
-# dir = '../Model Run/parameter_tuning/depth_cm_csv/300_tree'
-#
-# maxdepth_optimization(maxdepth_list, train_test_csv, dir, exclude_columns=exclude_predictors, n_estimators=300)

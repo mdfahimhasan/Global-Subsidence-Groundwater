@@ -143,7 +143,7 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
         print('Processed area coded subsidence polygons')
         subsidence_raster_area_coded = shapefile_to_raster(subsidence_polygons, interim_dir,
                                                            raster_name='interim_georef_subsidence_raster_areacode.tif',
-                                                           burn_attr=True, attribute=area_code_column,
+                                                           use_attr=True, attribute=area_code_column,
                                                            ref_raster=refraster, alltouched=False)
 
         print('Processing area coded InSAR data...')
