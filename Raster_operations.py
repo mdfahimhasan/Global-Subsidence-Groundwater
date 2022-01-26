@@ -829,7 +829,7 @@ def subsidence_point_to_geotiff(inputshp, output_raster, res=0.02):
     del cont_raster
 
 
-def rasterize_coastal_subsidence(input_csv, filtered_shp, outpur_raster=None):
+def rasterize_coastal_subsidence(input_csv, filtered_shp, output_dir):
     coastal_df = pd.read_csv(input_csv)
     coastal_df = coastal_df.astype('Float32')
     coastal_df = coastal_df[(coastal_df['first_epoch'] >= 2006) & (coastal_df['VLM_mm_yr'] < 0)]
@@ -839,8 +839,9 @@ def rasterize_coastal_subsidence(input_csv, filtered_shp, outpur_raster=None):
                                    crs='EPSG:4326')
     coastal_shp.to_file(filtered_shp)
 
-    shapefile_to_raster(filtered_shp, r'E:\NGA_Project_Data\scratch_files', 'coastal_subsidence.tif',
+    shapefile_to_raster(filtered_shp, output_dir, 'coastal_subsidence.tif',
                         use_attr=True, attribute='VLM_cm_yr', add=True)
 
-rasterize_coastal_subsidence(r'E:\NGA_Project_Data\scratch_files\Fig3_data.csv',
-                             r'E:\NGA_Project_Data\scratch_files\filtered_point.shp')
+# rasterize_coastal_subsidence(r'E:\NGA_Project_Data\scratch_files\Fig3_data.csv',
+#                              r'E:\NGA_Project_Data\scratch_files\filtered_point.shp',
+#                              r'E:\NGA_Project_Data\scratch_files', )

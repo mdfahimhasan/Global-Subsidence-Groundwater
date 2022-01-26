@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score, roc_auc_score, make_scorer
-from sklearn.model_selection import RandomizedSearchCV, RepeatedStratifiedKFold, StratifiedKFold
+from sklearn.model_selection import RandomizedSearchCV,GridSearchCV, StratifiedKFold
 from xgboost import XGBClassifier
 # from sklearn.svm import SVC
 # from sklearn.pipeline import Pipeline
@@ -556,9 +556,22 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         print('Global prediction probability raster created')
 
 
-def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_iter=50, test_ratio=0.2,
-                                           exclude_columns=[]):
-    x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv, exclude_columns=exclude_columns,
+def hyperparameter_optimization(traintest_csv, folds=5, n_iter=50, test_ratio=0.2, exclude_columns=[],
+                                random_search=True):
+    """
+    Hyperparameter optimization using RandomizedSearchCV/GridSearchCV.
+
+    Parameters:
+    traintest_csv : Filepath of csv containing training and testing data.
+    folds : Number of folds in K Fold CV. Default set to 5.
+    n_iter : Number of parameter combinations to be tested in RandomizedSearchCV>
+    test_ratio : Ratio of test percentage in training-testing split. Default set to 0.3.
+    exclude_columns : List of columns to exclude from training-testing data.
+    random_search : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
+
+    Returns : Optimized Hyperparameters.
+    """
+    x_train, x_test, y_train, y_test = split_train_test_ratio(traintest_csv, exclude_columns=exclude_columns,
                                                               test_size=test_ratio, random_state=0)
 
     n_estimators = [100, 200, 300, 350, 400, 450, 500]
@@ -567,7 +580,7 @@ def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_iter=50, te
     min_samples_split = [int(k) for k in np.linspace(start=2, stop=15, num=10)]
     min_samples_leaf = [int(m) for m in np.linspace(start=2, stop=15, num=10)]
 
-    random_grid = {
+    param_dict = {
                    'n_estimators': n_estimators,
                    'max_depth': max_depth,
                    # 'max_features': max_features,
@@ -575,7 +588,7 @@ def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_iter=50, te
                    # 'min_samples_leaf': min_samples_leaf
                     }
 
-    pprint(random_grid)
+    pprint(param_dict)
 
     rf_classifier = RandomForestClassifier(random_state=0)
 
@@ -604,19 +617,23 @@ def randomized_hyperparameter_optimization(predictor_csv, folds=5, n_iter=50, te
     #         return {'macro_f1_score': 0}
 
     kfold = StratifiedKFold(n_splits=folds, shuffle=True, random_state=0)
-    random_searchCV = RandomizedSearchCV(estimator=rf_classifier, param_distributions=random_grid, n_iter=n_iter,
-                                         cv=kfold, verbose=1, random_state=0, n_jobs=-1,
-                                         scoring='f1_macro', refit=True,
-                                         return_train_score=True)
-    random_searchCV.fit(x_train, y_train)
+    if random_search:
+        CV = RandomizedSearchCV(estimator=rf_classifier, param_distributions=param_dict, n_iter=n_iter,
+                                cv=kfold, verbose=1, random_state=0, n_jobs=-1,
+                                scoring='f1_macro', refit=True, return_train_score=True)
+    else:
+        CV = GridSearchCV(estimator=rf_classifier, param_grid=param_dict,
+                          cv=kfold, verbose=1, n_jobs=-1,
+                          scoring='f1_macro', refit=True, return_train_score=True)
+    CV.fit(x_train, y_train)
 
     print('\n')
     print('best parameters for macro f1 value ', '\n')
-    pprint(random_searchCV.best_params_)
-    print('best macro f1 score', random_searchCV.best_score_)
+    pprint(CV.best_params_)
+    print('best macro f1 score', CV.best_score_)
     print('\n')
-    print('mean_test_macro_f1_score', random_searchCV.cv_results_['mean_test_score'][random_searchCV.best_index_])
-    print('mean_train_macro_f1_score', random_searchCV.cv_results_['mean_train_score'][random_searchCV.best_index_])
+    print('mean_test_macro_f1_score', CV.cv_results_['mean_test_score'][CV.best_index_])
+    print('mean_train_macro_f1_score', CV.cv_results_['mean_train_score'][CV.best_index_])
 
 
 exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
@@ -624,6 +641,6 @@ exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fa
                       'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
 train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 
-# randomized_hyperparameter_optimization(train_test_csv, folds=5, n_iter=100, test_ratio=0.3,
-#                                        exclude_columns=exclude_predictors)
+# hyperparameter_optimization(train_test_csv, folds=10, n_iter=100, test_ratio=0.3,
+#                          exclude_columns=exclude_predictors, random_search=False)
 
