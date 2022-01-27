@@ -50,11 +50,12 @@ subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subside
                                               final_subsidence_raster='Subsidence_training.tif',
                                               polygon_search_criteria='*Subsidence*.shp',
                                               insar_search_criteria='*reclass_resampled*.tif',
-                                              already_prepared=True)  # #
+                                              already_prepared=True,  # #
+                                              merge_coastal_subsidence_data=True)
 
 predictor_dir = '../Model Run/Predictors_2013_2019'
 
-# skip_compiling_predictor_subsidence_data = False if any change in predictors are made
+# skip_compiling_predictor_subsidence_data = False if any change in predictors or subsidence data are made
 predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster,
                                                    sediment_thickness_raster, popdensity_raster, subsidence_raster,
                                                    predictor_dir, skip_compiling_predictor_subsidence_data=True)  # #
@@ -63,7 +64,7 @@ csv_dir = '../Model Run/Predictors_csv'
 makedirs([csv_dir])
 train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 
-# skip_dataframe_creation = False if new predictors have to be compiled in predictor dataframe
+# skip_dataframe_creation = False if any change occur in predictors or subsidence data
 predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif',
                                 skip_dataframe_creation=True)  # #
 
@@ -73,19 +74,20 @@ model = 'RF'
 # change for model run
 exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
                    'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
-                   'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
-prediction_raster_keyword = 'RF79'
+                   'Global_Sed_Thickness_Exx']
+prediction_raster_keyword = 'RF80'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
 # plot_confusion_matrix = False if confusion matrix plot (as image) is not required
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                               n_estimators=400, min_samples_leaf=1, min_samples_split=2, max_depth=19,
+                               n_estimators=100, min_samples_leaf=1, min_samples_split=2, max_depth=19,
                                max_features='auto', class_weight='balanced',  # #
                                predictor_importance=True,  # #
                                predictor_imp_keyword=prediction_raster_keyword, plot_pdp=False,  # #
-                               plot_confusion_matrix=True)  # #
+                               plot_confusion_matrix=True,  # #
+                               tune_hyperparameter=True, K_fold=5, n_iter=70, random_searchCV=True)
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
 

@@ -19,10 +19,18 @@ from sklearn.inspection import plot_partial_dependence
 from Raster_operations import *
 from System_operations import *
 
-referenceraster2 = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
+referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
 
 def reindex_df(df):
+    """
+    Reindex dataframe based on column names.
+
+    Parameters:
+    df : Pandas dataframe.
+
+    Returns: Reindexed dataframe.
+    """
     sorted_columns = sorted(df.columns)
     df = df.reindex(sorted_columns, axis=1)
 
@@ -105,13 +113,94 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     return x_train, x_test, y_train, y_test
 
 
+def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_search=True):
+    """
+    Hyperparameter optimization using RandomizedSearchCV/GridSearchCV.
+
+    Parameters:
+    x_train, y_train : x_train (predictor) and y_train (target) arrays from split_train_test_ratio function.
+    folds : Number of folds in K Fold CV. Default set to 5.
+    n_iter : Number of parameter combinations to be tested in RandomizedSearchCV.
+    random_search : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
+
+    Returns : Optimized Hyperparameters (currently n_estimator and max_depth).
+    """
+
+    n_estimators = [100, 200, 300, 350, 400, 450, 500]
+    max_depth = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    max_features = [2, 4, 6, 8, 10, 12, 14]
+    min_samples_split = [int(k) for k in np.linspace(start=2, stop=15, num=10)]
+    min_samples_leaf = [int(m) for m in np.linspace(start=2, stop=15, num=10)]
+
+    param_dict = {
+                   'n_estimators': n_estimators,
+                   'max_depth': max_depth,
+                   # 'max_features': max_features,
+                   # 'min_samples_split': min_samples_split,
+                   # 'min_samples_leaf': min_samples_leaf
+                    }
+
+    pprint(param_dict)
+
+    rf_classifier = RandomForestClassifier(random_state=0)
+
+    # creating scorer that gives score of precision and recall of 1-5 cm/year class (works, storing as a reference
+    # function to create own score)
+
+    # def confusion_matrix_scorer(clf, x_train, y_train):
+    #
+    #     x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=validation_ratio,
+    #                                                       random_state=0, shuffle=True, stratify=y_train)
+    #     y_val_pred = clf.predict(x_val)
+    #     class_report_dict = classification_report(y_val, y_val_pred, target_names=['<1cm/yr', '1-5cm/yr',
+    #                                                                                '>5cm/yr'],
+    #                                               output_dict=True)
+    #
+    #     class_report_df = pd.DataFrame(class_report_dict)
+    #     macro_f1_score = class_report_df.loc['f1-score']['macro avg']
+    #
+    #     y_train_pred = clf.predict(x_train)
+    #     cf = confusion_matrix(y_train, y_train_pred)
+    #     fn_1cm = [cf[0][1], cf[0][2]]
+    #     fn_1_5cm = [cf[1][0], cf[1][2]]
+    #     fn_5cm = [cf[2][0], cf[2][1]]
+    #     if all(fn_1cm) > 0 and all(fn_1_5cm) > 0 and any(fn_5cm):
+    #         return {'macro_f1_score': macro_f1_score}
+    #     else:
+    #         return {'macro_f1_score': 0}
+
+    kfold = StratifiedKFold(n_splits=folds, shuffle=True, random_state=0)
+    if random_search:
+        CV = RandomizedSearchCV(estimator=rf_classifier, param_distributions=param_dict, n_iter=n_iter,
+                                cv=kfold, verbose=1, random_state=0, n_jobs=-1,
+                                scoring='f1_macro', refit=True, return_train_score=True)
+    else:
+        CV = GridSearchCV(estimator=rf_classifier, param_grid=param_dict, cv=kfold, verbose=1, n_jobs=-1,
+                          scoring='f1_macro', refit=True, return_train_score=True)
+    CV.fit(x_train, y_train)
+
+    print('\n')
+    print('best parameters for macro f1 value ', '\n')
+    pprint(CV.best_params_)
+    print('best macro f1 score', CV.best_score_)
+    print('\n')
+    print('mean_test_macro_f1_score', CV.cv_results_['mean_test_score'][CV.best_index_])
+    print('mean_train_macro_f1_score', CV.cv_results_['mean_train_score'][CV.best_index_])
+
+    optimized_estimators = CV.best_params_['n_estimators']
+    optimized_depth = CV.best_params_['max_depth']
+
+    return optimized_estimators, optimized_depth
+
+
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF', load_model=False,
                         pred_attr='Subsidence', test_size=0., random_state=0, output_dir=None,
                         n_estimators=450, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
                         bootstrap=True, oob_score=True, n_jobs=-1, class_weight='balanced',
                         accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
-                        plot_pdp=False, plot_confusion_matrix=True):
+                        plot_pdp=False, plot_confusion_matrix=True,
+                        tune_hyperparameter=False, K_fold=5, n_iter=70, random_searchCV=True):
     """
     Build Machine Learning Classifier. Can run 'Random Forest', 'Extra Trees Classifier' and 'XGBClassifier'.
 
@@ -142,6 +231,10 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     plot_save_keyword : Keyword to sum before saved PDP plots.
     plot_pdp : Set to True if want to plot PDP.
     plot_confusion_matrix : Set to True if want to plot confusion matrix.
+    tune_hyperparameter : Set to True to tune hyperparameter. Default set to False.
+    K_fold : number of folds in K-fold CV. Default set to 5.
+    n_iter : Number of parameter combinations to be tested in RandomizedSearchCV. Default set to 70.
+    random_searchCV : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
 
     Returns: rf_classifier (A fitted random forest model)
     """
@@ -154,6 +247,10 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     # Making directory for model
     makedirs([modeldir])
     model_file = os.path.join(modeldir, model)
+
+    if tune_hyperparameter:
+        n_estimators, max_depth = hyperparameter_optimization(x_train, y_train, folds=K_fold, n_iter=n_iter,
+                                                              random_search=random_searchCV)
 
     # Machine Learning Models
     if not load_model:
@@ -554,93 +651,4 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
                        search_by='*proba_greater_1cm*.tif')
         print('Global prediction probability raster created')
-
-
-def hyperparameter_optimization(traintest_csv, folds=5, n_iter=50, test_ratio=0.2, exclude_columns=[],
-                                random_search=True):
-    """
-    Hyperparameter optimization using RandomizedSearchCV/GridSearchCV.
-
-    Parameters:
-    traintest_csv : Filepath of csv containing training and testing data.
-    folds : Number of folds in K Fold CV. Default set to 5.
-    n_iter : Number of parameter combinations to be tested in RandomizedSearchCV>
-    test_ratio : Ratio of test percentage in training-testing split. Default set to 0.3.
-    exclude_columns : List of columns to exclude from training-testing data.
-    random_search : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
-
-    Returns : Optimized Hyperparameters.
-    """
-    x_train, x_test, y_train, y_test = split_train_test_ratio(traintest_csv, exclude_columns=exclude_columns,
-                                                              test_size=test_ratio, random_state=0)
-
-    n_estimators = [100, 200, 300, 350, 400, 450, 500]
-    max_depth = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-    max_features = [2, 4, 6, 8, 10, 12, 14]
-    min_samples_split = [int(k) for k in np.linspace(start=2, stop=15, num=10)]
-    min_samples_leaf = [int(m) for m in np.linspace(start=2, stop=15, num=10)]
-
-    param_dict = {
-                   'n_estimators': n_estimators,
-                   'max_depth': max_depth,
-                   # 'max_features': max_features,
-                   # 'min_samples_split': min_samples_split,
-                   # 'min_samples_leaf': min_samples_leaf
-                    }
-
-    pprint(param_dict)
-
-    rf_classifier = RandomForestClassifier(random_state=0)
-
-    # creating scorer that gives score of precision and recall of 1-5 cm/year class (works, storing as reference)
-
-    # def confusion_matrix_scorer(clf, x_train, y_train):
-    #
-    #     x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=validation_ratio,
-    #                                                       random_state=0, shuffle=True, stratify=y_train)
-    #     y_val_pred = clf.predict(x_val)
-    #     class_report_dict = classification_report(y_val, y_val_pred, target_names=['<1cm/yr', '1-5cm/yr',
-    #                                                                                '>5cm/yr'],
-    #                                               output_dict=True)
-    #
-    #     class_report_df = pd.DataFrame(class_report_dict)
-    #     macro_f1_score = class_report_df.loc['f1-score']['macro avg']
-    #
-    #     y_train_pred = clf.predict(x_train)
-    #     cf = confusion_matrix(y_train, y_train_pred)
-    #     fn_1cm = [cf[0][1], cf[0][2]]
-    #     fn_1_5cm = [cf[1][0], cf[1][2]]
-    #     fn_5cm = [cf[2][0], cf[2][1]]
-    #     if all(fn_1cm) > 0 and all(fn_1_5cm) > 0 and any(fn_5cm):
-    #         return {'macro_f1_score': macro_f1_score}
-    #     else:
-    #         return {'macro_f1_score': 0}
-
-    kfold = StratifiedKFold(n_splits=folds, shuffle=True, random_state=0)
-    if random_search:
-        CV = RandomizedSearchCV(estimator=rf_classifier, param_distributions=param_dict, n_iter=n_iter,
-                                cv=kfold, verbose=1, random_state=0, n_jobs=-1,
-                                scoring='f1_macro', refit=True, return_train_score=True)
-    else:
-        CV = GridSearchCV(estimator=rf_classifier, param_grid=param_dict,
-                          cv=kfold, verbose=1, n_jobs=-1,
-                          scoring='f1_macro', refit=True, return_train_score=True)
-    CV.fit(x_train, y_train)
-
-    print('\n')
-    print('best parameters for macro f1 value ', '\n')
-    pprint(CV.best_params_)
-    print('best macro f1 score', CV.best_score_)
-    print('\n')
-    print('mean_test_macro_f1_score', CV.cv_results_['mean_test_score'][CV.best_index_])
-    print('mean_train_macro_f1_score', CV.cv_results_['mean_train_score'][CV.best_index_])
-
-
-exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
-                      'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
-                      'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
-train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
-
-# hyperparameter_optimization(train_test_csv, folds=10, n_iter=100, test_ratio=0.3,
-#                          exclude_columns=exclude_predictors, random_search=False)
 

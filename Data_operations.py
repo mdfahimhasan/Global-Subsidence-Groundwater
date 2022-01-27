@@ -1140,7 +1140,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
                               final_subsidence_raster='Subsidence_training.tif',
                               polygon_search_criteria='*Subsidence*.shp',
                               insar_search_criteria='*reclass_resampled*.tif', already_prepared=False,
-                              refraster=referenceraster):
+                              refraster=referenceraster, merge_coastal_subsidence_data=False):
     """
     Prepare subsidence raster for training data by joining georeferenced polygons and insar data.
 
@@ -1183,6 +1183,28 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
                                                                    final_subsidence_raster, resolution=0.02)
         print('Created Final Subsidence Raster')
 
+        if merge_coastal_subsidence_data:
+            coastal_arr = read_raster_arr_object('../scratch_files/coastal_subsidence.tif', get_file=False)
+            ref_arr, ref_file = read_raster_arr_object(refraster)
+
+            # New_classes
+            sub_less_1cm = 1
+            sub_1cm_to_5cm = 5
+            sub_greater_5cm = 10
+            other_values = np.nan
+
+            coastal_arr = np.where(coastal_arr >= 0, other_values, coastal_arr)
+            coastal_arr = np.where(coastal_arr >= -1, sub_less_1cm, coastal_arr)
+            coastal_arr = np.where((coastal_arr < -1) & (coastal_arr >= -5), sub_1cm_to_5cm, coastal_arr)
+            coastal_arr = np.where(coastal_arr < -5, sub_greater_5cm, coastal_arr)
+            coastal_arr = coastal_arr.flatten()
+
+            final_subsidence_arr = final_subsidence_arr.flatten()
+            final_subsidence_arr = np.where(final_subsidence_arr > 0, final_subsidence_arr, coastal_arr)
+            final_subsidence_arr = final_subsidence_arr.reshape(ref_file.shape[0], ref_file.shape[1])
+
+            write_raster(final_subsidence_arr, ref_file, ref_file.transform, subsidence_data, ref_file=refraster)
+
         return subsidence_data
 
     else:
@@ -1223,8 +1245,6 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_cropextent_data, gia
         rename_copy_raster(subsidence_data, output_dir, rename=True, new_name='Subsidence.tif')
         rename_copy_raster('../Data/Resampled_Data/EXXON_Sediment_Thickness/Global_Sed_Thickness_Exx.tif', output_dir,
                            rename=False)
-        rename_copy_raster('../scratch_files/Surfacewater_proximity_final.tif', output_dir, rename=True,
-                           new_name='Surfacewater_proximity.tif')
 
     return output_dir
 
