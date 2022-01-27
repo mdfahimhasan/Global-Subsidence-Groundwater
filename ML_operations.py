@@ -200,7 +200,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
                         accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
                         plot_pdp=False, plot_confusion_matrix=True,
-                        tune_hyperparameter=False, K_fold=5, n_iter=70, random_searchCV=True):
+                        tune_hyperparameter=False, k_fold=5, n_iter=70, random_searchCV=True):
     """
     Build Machine Learning Classifier. Can run 'Random Forest', 'Extra Trees Classifier' and 'XGBClassifier'.
 
@@ -232,7 +232,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     plot_pdp : Set to True if want to plot PDP.
     plot_confusion_matrix : Set to True if want to plot confusion matrix.
     tune_hyperparameter : Set to True to tune hyperparameter. Default set to False.
-    K_fold : number of folds in K-fold CV. Default set to 5.
+    k_fold : number of folds in K-fold CV. Default set to 5.
     n_iter : Number of parameter combinations to be tested in RandomizedSearchCV. Default set to 70.
     random_searchCV : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
 
@@ -249,7 +249,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     model_file = os.path.join(modeldir, model)
 
     if tune_hyperparameter:
-        n_estimators, max_depth = hyperparameter_optimization(x_train, y_train, folds=K_fold, n_iter=n_iter,
+        n_estimators, max_depth = hyperparameter_optimization(x_train, y_train, folds=k_fold, n_iter=n_iter,
                                                               random_search=random_searchCV)
 
     # Machine Learning Models

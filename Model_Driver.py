@@ -87,7 +87,7 @@ ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model,
                                predictor_importance=True,  # #
                                predictor_imp_keyword=prediction_raster_keyword, plot_pdp=False,  # #
                                plot_confusion_matrix=True,  # #
-                               tune_hyperparameter=True, K_fold=5, n_iter=70, random_searchCV=True)
+                               tune_hyperparameter=True, k_fold=5, n_iter=70, random_searchCV=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
 
