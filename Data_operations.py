@@ -1184,7 +1184,11 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
         print('Created Final Subsidence Raster')
 
         if merge_coastal_subsidence_data:
-            coastal_arr = read_raster_arr_object('../scratch_files/coastal_subsidence.tif', get_file=False)
+            coastal_raster = rasterize_coastal_subsidence(filtered_shp='../InSAR_Data/Coastal_Subsidence'
+                                                                       '/filtered_point.shp',
+                                                          output_dir='../InSAR_Data/Coastal_Subsidence',
+                                                          input_csv='../InSAR_Data/Coastal_Subsidence/Fig3_data.csv')
+            coastal_arr = read_raster_arr_object(coastal_raster, get_file=False)
             ref_arr, ref_file = read_raster_arr_object(refraster)
 
             # New_classes

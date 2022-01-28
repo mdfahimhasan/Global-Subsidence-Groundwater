@@ -16,6 +16,7 @@ import astropy.convolution as apc
 from scipy.ndimage import gaussian_filter
 from System_operations import *
 from datetime import datetime
+import subprocess
 
 No_Data_Value = -9999
 
@@ -626,7 +627,7 @@ def array_multiply(input_raster1, input_raster2, outdir, raster_name):
     return output_raster
 
 
-def shapefile_to_raster(input_shape, output_dir, raster_name, use_attr=False, attribute="", add=False,
+def shapefile_to_raster(input_shape, output_dir, raster_name, use_attr=True, attribute="", add=None,
                         ref_raster=referenceraster, resolution=0.02, burnvalue=1, alltouched=False,
                         nodatavalue=No_Data_Value):
     """
@@ -638,14 +639,15 @@ def shapefile_to_raster(input_shape, output_dir, raster_name, use_attr=False, at
     output_raster_name : Output raster name.
     use_attr : Set to True if raster needs to be created using a specific attribute value. Defaults to False.
     attribute : Attribute name to use creating raster file. Defaults to "".
-    add : Set to True if all values inside the raster grid should be summed. Default set to False.
+    add : Set to True if all values inside the raster grid should be summed. Default set to None to perform rasterizing
+          with an attribute without summing.
     ref_raster : Reference raster to get minx,miny,maxx,maxy. Defaults to referenceraster.
     resolution : Resolution of the raster. Defaults to 0.05.
     burnvalue : Value for burning into raster. Only needed when use_attr is False. Defaults to 1.
     alltouched : If True all pixels touched by lines or polygons will be updated.
     nodatavalue : No_Data_Value.
 
-    Returns:None.
+    Returns: Created raster filepath.
     """
 
     ref_arr, ref_file = read_raster_arr_object(ref_raster)
@@ -655,16 +657,26 @@ def shapefile_to_raster(input_shape, output_dir, raster_name, use_attr=False, at
     output_raster = os.path.join(output_dir, raster_name)
 
     if use_attr:
-        raster_options = gdal.RasterizeOptions(format='Gtiff', outputBounds=list(total_bounds),
-                                               outputType=gdal.GDT_Float32, xRes=resolution, yRes=resolution,
-                                               noData=nodatavalue, attribute=attribute, allTouched=alltouched)
-        gdal.Rasterize(destNameOrDestDS=output_raster, srcDS=input_shape, options=raster_options, resolution=0.02,
-                       add=add)
+        if add is not None:
+            minx, miny, maxx, maxy = total_bounds
+            layer_name = input_shape[input_shape.rfind('/') + 1: input_shape.rfind('.')]
+            args = ['-l', layer_name, '-a', attribute, '-tr', str(resolution), str(resolution), '-te', str(minx),
+                    str(miny), str(maxx), str(maxy), '-init', str(0.0), '-add', '-ot', 'Float32', '-of', 'GTiff',
+                    '-a_nodata', str(nodatavalue), input_shape, output_raster]
+            sys_call = make_gdal_sys_call(gdal_command='gdal_rasterize', args=args)
+            subprocess.call(sys_call)
+
+        else:
+            raster_options = gdal.RasterizeOptions(format='Gtiff', outputBounds=list(total_bounds),
+                                                   outputType=gdal.GDT_Float32, xRes=resolution, yRes=resolution,
+                                                   noData=nodatavalue, attribute=attribute, allTouched=alltouched)
+            gdal.Rasterize(destNameOrDestDS=output_raster, srcDS=input_shape, options=raster_options, resolution=0.02)
 
     else:
         raster_options = gdal.RasterizeOptions(format='Gtiff', outputBounds=list(total_bounds),
                                                outputType=gdal.GDT_Float32, xRes=resolution, yRes=resolution,
-                                               noData=nodatavalue, burnValues=burnvalue, allTouched=alltouched)
+                                               noData=nodatavalue, burnValues=burnvalue,
+                                               allTouched=alltouched)
         gdal.Rasterize(destNameOrDestDS=output_raster, srcDS=input_shape, options=raster_options, resolution=0.02)
 
     return output_raster
@@ -829,7 +841,17 @@ def subsidence_point_to_geotiff(inputshp, output_raster, res=0.02):
     del cont_raster
 
 
-def rasterize_coastal_subsidence(input_csv, filtered_shp, output_dir):
+def rasterize_coastal_subsidence(filtered_shp, output_dir, input_csv='../InSAR_Data/Coastal_Subsidence/Fig3_data.csv'):
+    """
+    Rasterize coastal subsidence data from Shirzaei_et_al 2020.
+
+    Parameters:
+    filtered_shp : Filepath to save filtered points from input_csv as point shapefile.
+    output_dir : Output directory filepath to save converted Geotiff file.
+    input_csv : Input csv filepath. Set to path '../InSAR_Data/Coastal_Subsidence/Fig3_data.csv'.
+
+    Return : A Geotiff file of 0.02 degree containing coastal subsidence data.
+    """
     coastal_df = pd.read_csv(input_csv)
     coastal_df = coastal_df.astype('Float32')
     coastal_df = coastal_df[(coastal_df['first_epoch'] >= 2006) & (coastal_df['VLM_mm_yr'] < 0)]
@@ -839,9 +861,8 @@ def rasterize_coastal_subsidence(input_csv, filtered_shp, output_dir):
                                    crs='EPSG:4326')
     coastal_shp.to_file(filtered_shp)
 
-    shapefile_to_raster(filtered_shp, output_dir, 'coastal_subsidence.tif',
-                        use_attr=True, attribute='VLM_cm_yr', add=True)
+    coastal_raster = shapefile_to_raster(filtered_shp, output_dir, 'coastal_subsidence.tif',
+                                         use_attr=True, attribute='VLM_cm_yr',
+                                         add=True, burnvalue=0, alltouched=True)
 
-# rasterize_coastal_subsidence(r'E:\NGA_Project_Data\scratch_files\Fig3_data.csv',
-#                              r'E:\NGA_Project_Data\scratch_files\filtered_point.shp',
-#                              r'E:\NGA_Project_Data\scratch_files', )
+    return coastal_raster

@@ -53,3 +53,25 @@ def make_folderpath(maindir, path1, path2='', path3='', path4='', path5=''):
     """
     filepath = os.path.join(maindir, path1, path2, path3, path4, path5)
     return filepath
+
+
+def make_gdal_sys_call(gdal_command, args, verbose=True):
+    """
+    Make GDAL system call string. (followed by code from Sayantan Majumdar.
+
+    Parameters:
+    gdal_command : GDAL command string formatted as 'gdal_rasterize'.
+    args : List of GDAL command.
+    verbose : Set True to print system call info
+
+    Returns: GDAL system call string.
+    """
+    if os.name == 'nt':
+        gdal_path = 'C:/Program Files/QGIS 3.16.10/OSGeo4W.bat'
+        sys_call = [gdal_path] + [gdal_command] + args
+        if verbose:
+            print(sys_call)
+        return sys_call
+
+    else:
+        print('not optimized for linux yet')
