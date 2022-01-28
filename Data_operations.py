@@ -896,8 +896,10 @@ def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sedime
         print('Processing Sediment Thickness Dataset...')
         resampled_raster_path = resample_reproject(input_raster, output_dir, raster_name,
                                                    reference_raster=referenceraster, resample=True)
+        print(1)
         raster_arr, raster_file = read_raster_arr_object(resampled_raster_path)
         raster_arr[raster_arr > 50] = raster_file.nodata
+        print(2)
         sediment_raster = write_raster(raster_arr, raster_file, raster_file.transform,
                                        resampled_raster_path)
         print('Processed Sediment Thickness Dataset')
@@ -1181,11 +1183,10 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
 
         final_subsidence_arr, subsidence_data = mosaic_two_rasters(merged_insar, subsidence_raster, output_dir,
                                                                    final_subsidence_raster, resolution=0.02)
-        print('Created Final Subsidence Raster')
 
         if merge_coastal_subsidence_data:
-            coastal_raster = rasterize_coastal_subsidence(filtered_shp='../InSAR_Data/Coastal_Subsidence'
-                                                                       '/filtered_point.shp',
+            coastal_raster = rasterize_coastal_subsidence(mean_output_points='../InSAR_Data/Coastal_Subsidence'
+                                                                             '/filtered_mean_point.shp',
                                                           output_dir='../InSAR_Data/Coastal_Subsidence',
                                                           input_csv='../InSAR_Data/Coastal_Subsidence/Fig3_data.csv')
             coastal_arr = read_raster_arr_object(coastal_raster, get_file=False)
@@ -1209,6 +1210,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
 
             write_raster(final_subsidence_arr, ref_file, ref_file.transform, subsidence_data, ref_file=refraster)
 
+        print('Created Final Subsidence Raster')
         return subsidence_data
 
     else:

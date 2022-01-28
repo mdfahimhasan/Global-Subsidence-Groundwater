@@ -190,18 +190,18 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
         resampled_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, format='GTiff',
                                      width=ref_arr.shape[1], height=ref_arr.shape[0], outputType=gdal.GDT_Float32,
                                      dstNodata=nodata)
-        del resampled_raster
+        resampled_raster = None
     if reproject:
         reprojected_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,
                                        dstSRS=change_crs_to, format='GTiff', outputType=gdal.GDT_Float32,
                                        dstNodata=nodata)
-        del reprojected_raster
+        reprojected_raster = None
 
     if both:
         processed_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,
                                      width=ref_arr.shape[1], height=ref_arr.shape[0], format='GTiff',
                                      dstSRS=change_crs_to, outputType=gdal.GDT_Float32, dstNodata=nodata)
-        del processed_raster
+        processed_raster = None
 
     return output_raster
 
@@ -841,12 +841,13 @@ def subsidence_point_to_geotiff(inputshp, output_raster, res=0.02):
     del cont_raster
 
 
-def rasterize_coastal_subsidence(filtered_shp, output_dir, input_csv='../InSAR_Data/Coastal_Subsidence/Fig3_data.csv'):
+def rasterize_coastal_subsidence(mean_output_points, output_dir,
+                                 input_csv='../InSAR_Data/Coastal_Subsidence/Fig3_data.csv'):
     """
     Rasterize coastal subsidence data from Shirzaei_et_al 2020.
 
     Parameters:
-    filtered_shp : Filepath to save filtered points from input_csv as point shapefile.
+    mean_output_points : Filepath to save filtered points (with mean subsidence values) from input_csv as point shapefile.
     output_dir : Output directory filepath to save converted Geotiff file.
     input_csv : Input csv filepath. Set to path '../InSAR_Data/Coastal_Subsidence/Fig3_data.csv'.
 
@@ -859,10 +860,24 @@ def rasterize_coastal_subsidence(filtered_shp, output_dir, input_csv='../InSAR_D
     coastal_shp = gpd.GeoDataFrame(coastal_df, geometry=gpd.points_from_xy(coastal_df['Longitude_deg'],
                                                                            coastal_df['Latitude_deg']),
                                    crs='EPSG:4326')
-    coastal_shp.to_file(filtered_shp)
+    intermediate_shp = '../InSAR_Data/Coastal_Subsidence/filtered_point.shp'
+    coastal_shp.to_file(intermediate_shp)
 
-    coastal_raster = shapefile_to_raster(filtered_shp, output_dir, 'coastal_subsidence.tif',
-                                         use_attr=True, attribute='VLM_cm_yr',
-                                         add=True, burnvalue=0, alltouched=True)
+    # blank_raster will only be used to pixel locations (indices)
+    blank_raster = shapefile_to_raster(intermediate_shp, output_dir, 'blank_raster.tif',
+                                       use_attr=False, attribute='VLM_cm_yr',
+                                       add=False, burnvalue=0, alltouched=True)
+    blank_arr, blank_file = read_raster_arr_object(blank_raster)
+    index_list = list()
+    for lon, lat in zip(coastal_shp['Longitude_deg'], coastal_shp['Latitude_deg']):
+        row, col = blank_file.index(lon, lat)
+        index_list.append(str(row + col))
+    coastal_shp['pixel_index'] = index_list
+    mean_subsidence = coastal_shp.groupby('pixel_index', as_index=True)['VLM_cm_yr'].transform('mean')
+    coastal_shp['mean_cm_yr'] = mean_subsidence
+    coastal_shp.to_file(mean_output_points)
 
-    return coastal_raster
+    coastal_subsidence_raster = shapefile_to_raster(mean_output_points, output_dir, 'coastal_subsidence.tif',
+                                                    use_attr=True, attribute='mean_cm_yr',
+                                                    add=None, burnvalue=0, alltouched=True)
+    return coastal_subsidence_raster
