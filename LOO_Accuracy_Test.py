@@ -80,8 +80,8 @@ def combine_georeferenced_subsidence_polygons(input_polygons_dir, joined_subside
 
 def substitute_area_code_on_raster(input_raster, value_to_substitute, output_raster):
     """
-    Substitute raster values with area code for InSAR produced subsidence rasters (California, Arizona, Quetta, Qazvin
-    etc.)
+    Substitute raster values with area code for InSAR produced subsidence rasters (California, Arizona, Quetta, Qazvin,
+    China_Hebei etc.)
 
     Parameters:
     input_raster : Input subsidence raster filepath.
@@ -148,17 +148,19 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
 
         print('Processing area coded InSAR data...')
         georef_subsidence_gdf = gpd.read_file(joined_subsidence_polygon)
-        num_of_georef_subsidence = len(georef_subsidence_gdf)
+        num_of_georef_subsidence = len(georef_subsidence_gdf['Area_code'].unique())
 
         california_area_code = num_of_georef_subsidence + 1
         arizona_area_code = california_area_code + 1
         quetta_area_code = arizona_area_code + 1
         qazvin_area_code = quetta_area_code + 1
-        print(qazvin_area_code)
+        hebei_area_code = qazvin_area_code + 1
+
         subsidence_areaname_dict['California'] = california_area_code
         subsidence_areaname_dict['Arizona'] = arizona_area_code
         subsidence_areaname_dict['Quetta'] = quetta_area_code
         subsidence_areaname_dict['Iran_Qazvin'] = qazvin_area_code
+        subsidence_areaname_dict['China_Hebei'] = hebei_area_code
 
         california_subsidence = '../InSAR_Data/Resampled_subsidence_data/resampled_insar_data' \
                                 '/California_reclass_resampled.tif '
@@ -166,9 +168,10 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
                              'Arizona_reclass_resampled.tif '
         quetta_subsidence = '../InSAR_Data/Resampled_subsidence_data/resampled_insar_data' \
                             '/Pakistan_Quetta_reclass_resampled.tif '
-
         qazvin_subsidence = '../InSAR_Data/Resampled_subsidence_data/resampled_insar_data/' \
                             'Iran_Qazvin_reclass_resampled.tif '
+        hebei_subsidence = '../InSAR_Data/Resampled_subsidence_data/resampled_insar_data/' \
+                           'China_Hebei_reclass_resampled.tif '
 
         substitute_area_code_on_raster(california_subsidence, california_area_code,
                                        '../InSAR_Data/Resampled_subsidence_data/LOO_test_dir/'
@@ -182,10 +185,13 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
         substitute_area_code_on_raster(qazvin_subsidence, qazvin_area_code,
                                        '../InSAR_Data/Resampled_subsidence_data/LOO_test_dir/'
                                        'interim_working_dir/Iran_Qazvin_area_raster.tif')
+        substitute_area_code_on_raster(hebei_subsidence, hebei_area_code,
+                                       '../InSAR_Data/Resampled_subsidence_data/LOO_test_dir/'
+                                       'interim_working_dir/China_Hebei_area_raster.tif')
 
         insar_arr, merged_insar = mosaic_rasters(insar_data_dir, output_dir=insar_data_dir,
                                                  raster_name='joined_insar_Area_data.tif',
-                                                 ref_raster=refraster, search_by='*area*.tif', resolution=0.02)
+                                                 ref_raster=refraster, search_by='*area_raster.tif', resolution=0.02)
 
         final_subsidence_arr, subsidence_data = mosaic_two_rasters(merged_insar, subsidence_raster_area_coded,
                                                                    output_dir, final_subsidence_raster, resolution=0.02)
@@ -202,9 +208,9 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
         return subsidence_data, subsidence_areaname_dict
 
 
-def create_dataframe_for_loo_accuracy(input_raster_dir, subsidence_areacode_dict,
-                                      output_dir='../Model Run/LOO_Test/Predictors_csv',
-                                      search_by='*.tif', skip_dataframe_creation=False):
+def create_traintest_df_loo_accuracy(input_raster_dir, subsidence_areacode_dict,
+                                     output_dir='../Model Run/LOO_Test/Predictors_csv',
+                                     search_by='*.tif', skip_dataframe_creation=False):
     """
     create dataframe from predictor rasters along with area code.
 
@@ -261,10 +267,9 @@ def create_dataframe_for_loo_accuracy(input_raster_dir, subsidence_areacode_dict
         return predictor_df, output_csv
 
 
-def create_train_test_data(predictor_csv, loo_test_area_name, exclude_columns, pred_attr='Subsidence',
-                           outdir='../Model Run/LOO_Test/Predictors_csv'):
+def train_test_split_loo_accuracy(predictor_csv, loo_test_area_name, exclude_columns, pred_attr='Subsidence',
+                                  outdir='../Model Run/LOO_Test/Predictors_csv'):
     """
-
     Create x_train, y_train, x_test, y_test arrays for machine learning model.
 
     Parameters:
@@ -301,7 +306,7 @@ def create_train_test_data(predictor_csv, loo_test_area_name, exclude_columns, p
 
 
 def build_ml_classifier(predictor_csv, loo_test_area_name, exclude_columns=(), model='RF', load_model=False,
-                        random_state=0, n_estimators=1000, bootstrap=True, oob_score=True, n_jobs=-1,
+                        random_state=0, n_estimators=300, max_depth=20, bootstrap=True, oob_score=True, n_jobs=-1,
                         max_features='auto', class_weight='balanced',
                         accuracy_dir=r'../Model Run/Accuracy_score_loo_test',
                         predictor_importance=True, modeldir='../Model Run/LOO_Test/Model_Loo_test'):
@@ -311,14 +316,15 @@ def build_ml_classifier(predictor_csv, loo_test_area_name, exclude_columns=(), m
     Parameters:
     predictor_dataframe_csv : Predictor csv (with filepath) containing all the predictors.
     exclude_columns : Tuple of columns not included in training the model.
-    model : Machine learning model to run. Choose from 'RF'/ETC'/'XGBC'. Default set to 'RF'.
+    model : Machine learning model to run.Can only run random forest 'RF' model.
     load_model : Set True to load existing model. Default set to False for new model creation.
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     test_size : The percentage of test dataset. Defaults to 0.3.
     random_state : Seed value. Defaults to 0.
     shuffle : Whether or not to shuffle data before splitting. Defaults to True.
     output_dir : Set a output directory if training and test dataset need to be saved. Defaults to None.
-    n_estimators : The number of trees in the forest.. Defaults to 500.
+    n_estimators : The number of trees in the forest. Defaults to 500.
+    max_depth : Depth of each tree. Default set to 20.
     bootstrap : Whether bootstrap samples are used when building trees. Defaults to True.
     oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
     n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
@@ -332,18 +338,19 @@ def build_ml_classifier(predictor_csv, loo_test_area_name, exclude_columns=(), m
     Returns: rf_classifier (A fitted random forest model)
     """
 
-    x_train_csv, x_train, y_train, x_test, y_test = create_train_test_data(predictor_csv, loo_test_area_name,
-                                                                           exclude_columns, pred_attr='Subsidence',
-                                                                           outdir='../Model Run/LOO_test/'
-                                                                                  'Predictors_csv')
+    x_train_csv, x_train, y_train, x_test, y_test = train_test_split_loo_accuracy(predictor_csv, loo_test_area_name,
+                                                                                  exclude_columns,
+                                                                                  pred_attr='Subsidence',
+                                                                                  outdir='../Model Run/LOO_test/'
+                                                                                         'Predictors_csv')
 
     makedirs([modeldir])
     model_file = os.path.join(modeldir, model)
 
     if not load_model:
         if model == 'RF':
-            classifier = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state,
-                                                bootstrap=bootstrap, class_weight=class_weight,
+            classifier = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth,
+                                                random_state=random_state, bootstrap=bootstrap, class_weight=class_weight,
                                                 n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
 
         classifier = classifier.fit(x_train, y_train)
@@ -368,10 +375,10 @@ def classification_accuracy(y_test, y_pred, classifier, x_train_csv, loo_test_ar
     Classification accuracy assessment.
 
     Parameters:
-    y_test : y_test array from create_train_test_data() function.
+    y_test : y_test array from train_test_split_loo_accuracy() function.
     y_pred : y_pred data from build_ML_classifier() function.
     classifier : ML classifier from build_ML_classifier() function.
-    x_train_csv : path of x train csv from 'create_train_test_data' function.
+    x_train_csv : path of x train csv from 'train_test_split_loo_accuracy' function.
     loo_test_area_name : test area name for which to create confusion matrix.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     predictor_importance : Default set to True to plot predictor importance plot.
@@ -419,18 +426,19 @@ def classification_accuracy(y_test, y_pred, classifier, x_train_csv, loo_test_ar
     txt_object.close()
 
     if predictor_importance:
-        predictor_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
+        predictor_dict = {'Alexi_ET': 'Alexi ET (mm)', 'Aridity_Index': 'Aridity Index',
                           'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
-                          'Global_Sediment_Thickness': 'Sediment Thickness',
-                          'Global_Sed_Thickness_Exx': 'Sediment Thickness Exxon',
+                          'Global_Sediment_Thickness': 'Sediment Thickness (m)',
+                          'Global_Sed_Thickness_Exx': 'Sediment Thickness Exxon (km)',
                           'GW_Irrigation_Density_fao': 'GW Irrigation Density fao',
                           'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                          'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET',
-                          'MODIS_PET': 'MODIS PET', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
-                          'SRTM_Slope': 'Slope', 'Subsidence': 'Subsidence',
-                          'TRCLM_RET': 'TRCLM RET', 'TRCLM_precp': 'Precipitation',
-                          'TRCLM_soil': 'Soil moisture', 'TRCLM_Tmax': 'Tmax',
-                          'TRCLM_Tmin': 'Tmin'}
+                          'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET (mm)',
+                          'MODIS_PET': 'MODIS PET (mm)', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
+                          'SRTM_Slope': 'Slope (%)', 'Subsidence': 'Subsidence (cm/yr)',
+                          'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation (mm)',
+                          'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax': 'Tmax (deg C)',
+                          'TRCLM_Tmin': 'Tmin (deg C)',
+                          'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
         x_train_df = pd.read_csv(x_train_csv)
         x_train_df = x_train_df.rename(columns=predictor_dict)
         col_labels = np.array(x_train_df.columns)
@@ -454,7 +462,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/LOO_Test/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
-                             prediction_raster_keyword='RF'):
+                             prediction_raster_keyword='RF', predictor_csv_exists=False):
     """
     Create predicted raster from random forest model.
 
@@ -469,8 +477,8 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
     exclude_columns : Predictor rasters' name that will be excluded from the model. Defaults to ().
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     prediction_raster_keyword : Keyword added to final prediction raster name.
-    predict_probability_greater_1cm : Set to False if probability of prediction of each classes (<1cm, 1-5cm, >5cm)
-                                      is required. Default set to True to predict probability of prediction for >1cm.
+    predictor_csv_exists : Set to True if predictor csv for each continent exists. Default set to False to create
+                           create new predcitor csv (also needed if predictor combinations are changed).
 
     Returns: Subsidence prediction raster and
              Subsidence prediction probability raster (if prediction_probability=True).
@@ -486,30 +494,48 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
 
     for continent in continent_shapes:
         continent_name = continent[continent.rfind(os.sep) + 1:continent.rfind('_')]
-        predictor_dict = {}
-        nan_position_dict = {}
-        raster_shape = None
-        for predictor in predictor_rasters:
-            variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind(".")]
-            if variable_name not in drop_columns:
-                clipped_predictor_dir = os.path.join('../Model Run/Predictors_2013_2019', continent_name +
-                                                     '_predictors_' + str(yearlist[0]) + '_' + str(yearlist[1]))
-                raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
-                                                                       naming_from_both=False)
-                raster_shape = raster_arr.shape
-                raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
-                nan_position_dict[variable_name] = np.isnan(raster_arr)
-                raster_arr[nan_position_dict[variable_name]] = 0
-                predictor_dict[variable_name] = raster_arr
-
-        predictor_df = pd.DataFrame(predictor_dict)
-        predictor_df = predictor_df.dropna(axis=0)
 
         predictor_csv_dir = '../Model Run/LOO_Test/Predictors_csv/continent_csv'
         makedirs([predictor_csv_dir])
         predictor_csv_name = continent_name + '_predictors.csv'
         predictor_csv = os.path.join(predictor_csv_dir, predictor_csv_name)
-        predictor_df.to_csv(predictor_csv, index=False)
+
+        nan_pos_dict_name = predictor_csv_dir + '/nanpos_' + continent_name  # name to save nan_position_dict
+
+        clipped_dir = '../Model Run/LOO_Test/Predictors_csv/Predictors_2013_2019'
+        makedirs([clipped_dir])
+        clipped_predictor_dir = os.path.join(clipped_dir, continent_name + '_predictors_' + str(yearlist[0]) +
+                                             '_' + str(yearlist[1]))
+        if not predictor_csv_exists:
+            predictor_dict = {}
+            nan_position_dict = {}
+            raster_shape = None
+
+            for predictor in predictor_rasters:
+                variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind('.')]
+                if variable_name not in drop_columns:
+                    raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
+                                                                           naming_from_both=False)
+                    raster_shape = raster_arr.shape
+                    raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
+                    nan_position_dict[variable_name] = np.isnan(raster_arr)
+                    raster_arr[nan_position_dict[variable_name]] = 0
+                    predictor_dict[variable_name] = raster_arr
+
+            pickle.dump(nan_position_dict, open(nan_pos_dict_name, mode='wb+'))
+
+            predictor_df = pd.DataFrame(predictor_dict)
+            predictor_df = predictor_df.dropna(axis=0)
+            predictor_df.to_csv(predictor_csv, index=False)
+
+        else:
+            predictor_df = pd.read_csv(predictor_csv)
+
+            nan_position_dict = pickle.load(open(nan_pos_dict_name, mode='rb'))
+
+            raster_arr, raster_file = clip_resample_raster_cutline(predictor_rasters[1], clipped_predictor_dir,
+                                                                   continent, naming_from_both=False)
+            raster_shape = raster_arr.shape
 
         x = predictor_df.values
         y_pred = model.predict(x)
@@ -529,35 +555,42 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
     print('Global prediction raster created')
 
 
-def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list,
+def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_estimators=300, max_depth=20,
                           predictor_raster_directory='../Model Run/Predictors_2013_2019',
-                          skip_create_prediction_raster=False):
+                          skip_create_prediction_raster=False, predictor_csv_exists=False):
     """
     Driver code for running Loo Accuracy Test.
 
     Parameters:
     predictor_dataframe_csv : filepath of predictor csv.
     exclude_predictors_list : List of predictors to exclude for training the model.
+    n_estimators : The number of trees in the forest. Defaults to 500.
+    max_depth : Depth of each tree. Default set to 20.
     predictor_raster_directory : Original predictor raster directory. Default set to
                                  '../Model Run/Predictors_2013_2019'.
     skip_create_prediction_raster : Set to True if want to skip prediction raster creation.
+    predictor_csv_exists : Set to True if predictor csv for each continent exists. Default set to False to create
+                           create new predcitor csv (also needed if predictor combinations are changed).
 
     Returns : Classification reports and confusion matrix for individual model training, Overall accuracy result for
               each model as a single text file,
               prediction rasters for each model (if skip_create_prediction_raster=False)
     """
     subsidence_training_area_list = ['England_London', 'Italy_VeniceLagoon', 'Italy_PoDelta', 'California',
-                                     'China_Beijing', 'Iran_MarandPlain', 'Spain_Murcia', 'China_YellowRiverDelta',
+                                     'China_Beijing', 'Iran_MarandPlain', 'Iran_Tehran', 'Spain_Murcia',
+                                     'China_YellowRiverDelta', 'China_Tianjin', 'Turkey_Bursa',
                                      'Iraq_TigrisEuphratesBasin', 'China_Xian', 'Arizona', 'Egypt_NileDelta',
                                      'China_Shanghai', 'China_Wuhan', 'Quetta', 'Bangladesh_GBDelta', 'Taiwan_Yunlin',
                                      'Mexico_MexicoCity', 'Vietnam_HoChiMinh', 'Nigeria_Lagos', 'Indonesia_Semarang',
-                                     'Indonesia_Bandung', 'Australia_Perth', 'Iran_Qazvin']
+                                     'Indonesia_Bandung', 'Australia_Perth', 'Iran_Qazvin', 'China_Hebei']
+    subsidence_training_area_list = sorted(subsidence_training_area_list)
 
     for area in subsidence_training_area_list:
 
         trained_rf, loo_area = build_ml_classifier(predictor_dataframe_csv, area, exclude_predictors_list, model='RF',
-                                                   load_model=False, random_state=0, n_estimators=1000, bootstrap=True,
-                                                   oob_score=True, n_jobs=-1, max_features='auto',
+                                                   load_model=False, random_state=0,
+                                                   n_estimators=n_estimators, max_depth=max_depth,
+                                                   bootstrap=True, oob_score=True, n_jobs=-1, max_features='auto',
                                                    class_weight='balanced',
                                                    accuracy_dir=r'../Model Run/LOO_Test/Accuracy_score',
                                                    predictor_importance=True,
@@ -569,7 +602,8 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list,
                                      continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                                      prediction_raster_dir='../Model Run/LOO_Test/Prediction_rasters',
                                      exclude_columns=exclude_predictors_list, pred_attr='Subsidence',
-                                     prediction_raster_keyword='Trained_without_' + area)
+                                     prediction_raster_keyword='Trained_without_' + area,
+                                     predictor_csv_exists=predictor_csv_exists)
 
 
 def difference_from_model_prediction(original_model_prediction_raster,
@@ -638,22 +672,21 @@ run_loo_test = True
 
 if run_loo_test:
     subsidence_raster, areaname_dict = \
-        combine_georef_insar_subsidence_raster(already_prepared=True, skip_polygon_processing=True)  # #
+        combine_georef_insar_subsidence_raster(already_prepared=False, skip_polygon_processing=False)  # #
 
     predictor_raster_dir = '../Model Run/Predictors_2013_2019'
-    df, predictor_csv = create_dataframe_for_loo_accuracy(predictor_raster_dir, areaname_dict,
-                                                          skip_dataframe_creation=True)  # #
+    df, predictor_csv = create_traintest_df_loo_accuracy(predictor_raster_dir, areaname_dict,
+                                                         skip_dataframe_creation=False)  # #
 
     exclude_predictors = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
-                          'ALOS_Landform', 'Global_Sediment_Thickness', 'MODIS_PET',
-                          'Global_Sed_Thickness_Exx', 'Surfacewater_proximity']
+                          'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx']
 
     run_loo_accuracy_test(predictor_dataframe_csv=predictor_csv, exclude_predictors_list=exclude_predictors,
+                          n_estimators=300, max_depth=20,
                           predictor_raster_directory='../Model Run/Predictors_2013_2019',
                           skip_create_prediction_raster=False)  # #
 
     concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/Accuracy_score')
-
 
 # Perform Mismatch estimation
 
@@ -662,7 +695,7 @@ if run_loo_test:
 
 mismatch_estimation = True
 
-original_model_prediction = '../Model Run/Prediction_rasters/RF63_prediction_2013_2019.tif'
+original_model_prediction = '../Model Run/Prediction_rasters/RF83_prediction_2013_2019.tif'
 
 if mismatch_estimation:
     difference_from_model_prediction(original_model_prediction,

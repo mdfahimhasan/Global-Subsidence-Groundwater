@@ -484,7 +484,6 @@ def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraste
     Returns: Mosaiced Raster.
     """
     input_rasters = glob(os.path.join(input_dir, search_by))
-
     raster_list = []
     for raster in input_rasters:
         arr, file = read_raster_arr_object(raster)

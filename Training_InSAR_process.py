@@ -75,8 +75,8 @@ def classify_insar_raster(input_raster, output_raster_name, unit_scale,
 
 
 # # Pakistan Quetta Processing (scale 100 used to convert value from m to cm)
-# input_quetta = '../InSAR_Data/Pakistan_Quetta/Quetta_final.tif'
-# classify_insar_raster(input_raster=input_quetta, output_raster_name= 'Pakistan_Quetta_reclass.tif',
+# input_quetta = '../InSAR_Data/Pakistan_Quetta/Quetta_2017_2021.tif'
+# classify_insar_raster(input_raster=input_quetta, output_raster_name='Pakistan_Quetta_reclass.tif',
 #                       unit_scale=100, resample_raster=True,
 #                       resampled_raster_name='Pakistan_Quetta_reclass_resampled.tif', res=0.02,
 #                       output_dir='../InSAR_Data/Resampled_subsidence_data/resampled_insar_data')
