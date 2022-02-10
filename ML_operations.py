@@ -126,18 +126,18 @@ def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_sea
     Returns : Optimized Hyperparameters (currently n_estimator and max_depth).
     """
 
-    n_estimators = [100, 200, 300, 350, 400, 450, 500]
-    max_depth = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-    max_features = [2, 4, 6, 8, 10, 12, 14]
-    min_samples_split = [int(k) for k in np.linspace(start=2, stop=15, num=10)]
-    min_samples_leaf = [int(m) for m in np.linspace(start=2, stop=15, num=10)]
+    n_estimators = [200]
+    max_depth = [5, 11, 13, 15, 17, 19, 20, 25]
+    max_features = [4, 5, 6, 7, 8, 10, 12, 15]
+    min_samples_split = [0.9, 0.8, 0.7, 2]
+    min_samples_leaf = [5e-4, 1e-5, 2, 6, 12, 20, 25, 30, 50]
 
     param_dict = {
                    'n_estimators': n_estimators,
                    'max_depth': max_depth,
-                   # 'max_features': max_features,
-                   # 'min_samples_split': min_samples_split,
-                   # 'min_samples_leaf': min_samples_leaf
+                   'max_features': max_features,
+                   'min_samples_leaf': min_samples_leaf,
+                   # 'min_samples_split': min_samples_split
                     }
 
     pprint(param_dict)
@@ -189,13 +189,16 @@ def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_sea
 
     optimized_estimators = CV.best_params_['n_estimators']
     optimized_depth = CV.best_params_['max_depth']
+    optimized_max_features = CV.best_params_['max_features']
+    optimized_samples_leaf = CV.best_params_['min_samples_leaf']
+    # optimized_samples_split = CV.best_params_['min_samples_split']
 
-    return optimized_estimators, optimized_depth
+    return optimized_estimators, optimized_depth, optimized_max_features, optimized_samples_leaf
 
 
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF', load_model=False,
                         pred_attr='Subsidence', test_size=0., random_state=0, output_dir=None,
-                        n_estimators=450, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
+                        n_estimators=300, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
                         bootstrap=True, oob_score=True, n_jobs=-1, class_weight='balanced',
                         accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
@@ -249,8 +252,8 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     model_file = os.path.join(modeldir, model)
 
     if tune_hyperparameter:
-        n_estimators, max_depth = hyperparameter_optimization(x_train, y_train, folds=k_fold, n_iter=n_iter,
-                                                              random_search=random_searchCV)
+        n_estimators, max_depth, max_features, min_samples_leaf = \
+            hyperparameter_optimization(x_train, y_train, folds=k_fold, n_iter=n_iter, random_search=random_searchCV)
 
     # Machine Learning Models
     if not load_model:

@@ -1133,11 +1133,11 @@ def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence
 
 
 def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_subsidence_data',
-                              joined_subsidence_polygon='../InSAR_Data/Resampled_subsidence_data'
+                              joined_subsidence_polygon='../InSAR_Data/Merged_subsidence_data'
                                                         '/interim_working_dir/georef_subsidence_polygons.shp',
-                              insar_data_dir='../InSAR_Data/Resampled_subsidence_data',
-                              interim_dir='../InSAR_Data/Resampled_subsidence_data/interim_working_dir',
-                              output_dir='../InSAR_Data/Resampled_subsidence_data/final_subsidence_raster',
+                              insar_data_dir='../InSAR_Data/Merged_subsidence_data',
+                              interim_dir='../InSAR_Data/Merged_subsidence_data/interim_working_dir',
+                              output_dir='../InSAR_Data/Merged_subsidence_data/final_subsidence_raster',
                               skip_polygon_merge=False, subsidence_column='Class_name',
                               final_subsidence_raster='Subsidence_training.tif',
                               polygon_search_criteria='*Subsidence*.shp',
@@ -1206,8 +1206,16 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
 
             final_subsidence_arr = final_subsidence_arr.flatten()
             final_subsidence_arr = np.where(final_subsidence_arr > 0, final_subsidence_arr, coastal_arr)
-            final_subsidence_arr = final_subsidence_arr.reshape(ref_file.shape[0], ref_file.shape[1])
 
+            # filtering pixels of coastal subsidence that has been added to final subsidence raster
+            coastal_arr_used = np.where(np.logical_and(coastal_arr > 0, coastal_arr == final_subsidence_arr),
+                                        coastal_arr, np.nan)
+            coastal_arr_used = coastal_arr_used.reshape(ref_file.shape[0], ref_file.shape[1])
+            coastal_subsidence_raster = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data' \
+                                        '/Coastal_subsidence.tif'
+            write_raster(coastal_arr_used, ref_file, ref_file.transform, coastal_subsidence_raster, ref_file=refraster)
+
+            final_subsidence_arr = final_subsidence_arr.reshape(ref_file.shape[0], ref_file.shape[1])
             write_raster(final_subsidence_arr, ref_file, ref_file.transform, subsidence_data, ref_file=refraster)
 
         print('Created Final Subsidence Raster')

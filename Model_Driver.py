@@ -3,6 +3,9 @@
 
 from Data_operations import *
 from ML_operations import *
+import timeit
+
+start = timeit.default_timer()
 
 gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
                  'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'ALOS_Landform', 'Aridity_Index', 'Grace',
@@ -36,10 +39,10 @@ popdensity_raster = download_process_predictor_datasets(yearlist, start_month, e
                                                         geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
 
 input_polygons_dir = '../InSAR_Data/Georeferenced_subsidence_data'
-joined_subsidence_polygon = '../InSAR_Data/Resampled_subsidence_data/interim_working_dir/georef_subsidence_polygons.shp'
-insar_data_dir = '../InSAR_Data/Resampled_subsidence_data/resampled_insar_data'
-interim_dir = '../InSAR_Data/Resampled_subsidence_data/interim_working_dir'
-training_insar_dir = '../InSAR_Data/Resampled_subsidence_data/final_subsidence_raster'
+joined_subsidence_polygon = '../InSAR_Data/Merged_subsidence_data/interim_working_dir/georef_subsidence_polygons.shp'
+insar_data_dir = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data'
+interim_dir = '../InSAR_Data/Merged_subsidence_data/interim_working_dir'
+training_insar_dir = '../InSAR_Data/Merged_subsidence_data/final_subsidence_raster'
 
 # skip_polygon_merge = False if new georeferenced subsidence polygons needs to be added
 # already prepared = False if new georeferenced subsidence polygons needs to be added or new InSAR processed subsidence
@@ -50,9 +53,9 @@ subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subside
                                               final_subsidence_raster='Subsidence_training.tif',
                                               polygon_search_criteria='*Subsidence*.shp',
                                               insar_search_criteria='*reclass_resampled*.tif',
-                                              skip_polygon_merge=False,  # #
-                                              already_prepared=False,  # #
-                                              merge_coastal_subsidence_data=True)  # #
+                                              skip_polygon_merge=True,  # #
+                                              already_prepared=True,  # #
+                                              merge_coastal_subsidence_data=True)
 
 predictor_dir = '../Model Run/Predictors_2013_2019'
 
@@ -60,7 +63,7 @@ predictor_dir = '../Model Run/Predictors_2013_2019'
 predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster,
                                                    sediment_thickness_raster, popdensity_raster, subsidence_raster,
                                                    predictor_dir,
-                                                   skip_compiling_predictor_subsidence_data=False)  # #
+                                                   skip_compiling_predictor_subsidence_data=True)  # #
 
 csv_dir = '../Model Run/Predictors_csv'
 makedirs([csv_dir])
@@ -68,31 +71,30 @@ train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 
 # skip_dataframe_creation = False if any change occur in predictors or subsidence data
 predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif',
-                                skip_dataframe_creation=False)  # #
+                                skip_dataframe_creation=True)  # #
 
 modeldir = '../Model Run/Model'
 model = 'RF'
 
 # change for model run
 exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
-                   'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx',
-                   # 'Global_Sediment_Thickness','SRTM_Slope', 'Clay_content_PCA'
-                   ]
-prediction_raster_keyword = 'RF84'
+                   'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx']
+
+prediction_raster_keyword = 'RF86'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
 # plot_confusion_matrix = False if confusion matrix plot (as image) is not required
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                               n_estimators=300, min_samples_leaf=1, min_samples_split=2, max_depth=20,
-                               max_features='auto', class_weight='balanced',
+                               n_estimators=200, min_samples_leaf=1e-05, min_samples_split=2, max_depth=20,
+                               max_features=10, class_weight='balanced',
                                predictor_imp_keyword=prediction_raster_keyword,
                                predictor_importance=True,  # #
                                plot_pdp=True,  # #
                                plot_confusion_matrix=True,  # #
-                               tune_hyperparameter=True,  # #
-                               k_fold=5, n_iter=70,
+                               tune_hyperparameter=False,  # #
+                               k_fold=5, n_iter=80,
                                random_searchCV=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
@@ -107,3 +109,9 @@ create_prediction_raster \
      prediction_raster_keyword=prediction_raster_keyword,
      predictor_csv_exists=True,  # #
      predict_probability_greater_1cm=False)  # #
+
+
+model_runtime = True
+if model_runtime:
+    stop = timeit.default_timer()
+    print('Model Run Time :', round((stop-start)/60, 2), 'min')
