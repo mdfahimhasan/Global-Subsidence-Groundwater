@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import numpy as np
 from Raster_operations import read_raster_arr_object
