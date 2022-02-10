@@ -80,7 +80,7 @@ model = 'RF'
 exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
                    'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx']
 
-prediction_raster_keyword = 'RF86'
+prediction_raster_keyword = 'RF87'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required

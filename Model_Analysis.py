@@ -2,11 +2,12 @@ import os
 import pandas as pd
 import numpy as np
 from Raster_operations import read_raster_arr_object, write_raster
+from System_operations import makedirs
 
 
 def create_training_stats(train_test_csv, exclude_columns=['ALOS_Landform', 'Grace', 'Surfacewater_proximity'],
                           pred_attr='Subsidence',
-                          outdir ='../Model Run/Model'):
+                          outdir='../Model Run/Model'):
     """
     create a csv with stats of predictor datasets for training regions.
 
@@ -28,10 +29,10 @@ def create_training_stats(train_test_csv, exclude_columns=['ALOS_Landform', 'Gra
                       'GW_Irrigation_Density_fao': 'GW Irrigation Density fao',
                       'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
                       'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET (mm)',
-                      'MODIS_PET': 'MODIS PET (mm)', 'NDWI' : 'NDWI', 'Population_Density': 'Population Density',
+                      'MODIS_PET': 'MODIS PET (mm)', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
                       'SRTM_Slope': 'Slope (%)', 'Subsidence': 'Subsidence (cm/yr)',
                       'TRCLM_PET': 'PET (mm)', 'TRCLM_precp': 'Precipitation (mm)',
-                      'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax' : 'Tmax (deg C)', 'TRCLM_Tmin' : 'Tmin (deg C)'}
+                      'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax': 'Tmax (deg C)', 'TRCLM_Tmin': 'Tmin (deg C)'}
 
     Name = []
     Min = []
@@ -75,33 +76,83 @@ def create_training_stats(train_test_csv, exclude_columns=['ALOS_Landform', 'Gra
 csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 
 
-# create_training_stats(csv)
-def stat_clay_data(clay_0cm, clay_10cm, clay_30cm, clay_60cm, clay_100cm, clay_200cm,
-                   subsidence_training_data='../InSAR_Data/Resampled_subsidence_data/final_subsidence_raster/'
-                                            'Subsidence_training.tif'):
-    clay_list = [clay_0cm, clay_10cm, clay_30cm, clay_60cm, clay_100cm, clay_200cm]
-    Name = ['Clay_0cm', 'Clay_10cm', 'Clay_30cm', 'Clay_60cm', 'Clay_100cm', 'Clay_200cm']
+def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif',
+                            subsidence_raster='../Model Run/Predictors_2013_2019/Subsidence.tif'):
+    """
+    Calculates percentage of subsidence prediction on different land use types.
 
-    subsidence_arr = read_raster_arr_object(subsidence_training_data, get_file=False)
-    subsidence_arr = np.isnan(subsidence_arr)
+    Land Use Classes in MODIS Data:
+    1 - Forest
+    2 - Vegetation
+    3 - Cropland
+    4 - Urban and built-Up
+    5 - Snow and Ice
+    6 - Barren land
+    7 - Water body
 
-    Min = []
-    Max = []
-    Median = []
-    Quartile = []
-    for layer in clay_list:
-        clay_arr = read_raster_arr_object(layer, get_file=False)
-        clay_arr[subsidence_arr] = np.nan
-        min = np.nanmin(clay_arr)
-        max = np.nanmax(clay_arr)
-        median = np.nanmedian(clay_arr)
-        first_quantile = np.nanquantile(clay_arr, 0.25)
-        Min.append(min)
-        Max.append(max)
-        Median.append(median)
-        Quartile.append(first_quantile)
+    Parameters:
+    model_prediction : filepath of subsidence prediction raster.
+    land_use : filepath of MODIS land use raster.
+    subsidence_raster : filepath of training subsidence raster.
 
-    clay_stat_df = pd.DataFrame(list(zip(Name, Min, Median, Max, Quartile)),
-                                columns=['Dataname', 'min value', 'median value', 'max value', 'Quartile_value'])
-    print(clay_stat_df)
+    Returns : A csv with '% prediction on differnet land use' stat.
+    """
+    subsidence_prediction = read_raster_arr_object(model_prediction, get_file=False)
+    land_use = read_raster_arr_object(land_use, get_file=False)
+    subsidence = read_raster_arr_object(subsidence_raster, get_file=False)
 
+    cropland = np.count_nonzero(np.where(land_use == 3, True, False))
+    urban = np.count_nonzero(np.where(land_use == 4, True, False))
+    vegetation = np.count_nonzero(np.where(land_use == 2, True, False))
+    others = np.count_nonzero(np.where((land_use != 2) | (land_use != 3) | (land_use != 4) & (land_use != np.nan),
+                                       True, False))
+
+    training_data_on_cropland = np.count_nonzero(np.where((subsidence == 5) | (subsidence == 10)
+                                                          & (land_use == 3), True, False))
+    prediction_on_cropland = np.count_nonzero(np.where((subsidence_prediction == 5) | (subsidence_prediction == 10)
+                                                       & (land_use == 3), True, False))
+    perc_training_subsidence_on_cropland = round(training_data_on_cropland * 100 / cropland, 2)
+    perc_subsidence_on_cropland = round(prediction_on_cropland * 100 / cropland, 2)
+
+    training_data_on_urban = np.count_nonzero(np.where((subsidence == 5) | (subsidence == 10)
+                                                       & (land_use == 4), True, False))
+    prediction_on_urban = np.count_nonzero(np.where((subsidence_prediction == 5) | (subsidence_prediction == 10)
+                                                    & (land_use == 4), True, False))
+    perc_training_subsidence_on_urban = round(training_data_on_urban * 100 / urban, 2)
+    perc_subsidence_on_urban = round(prediction_on_urban * 100 / urban, 2)
+
+    training_data_on_vegetation = np.count_nonzero(np.where((subsidence == 5) | (subsidence == 10)
+                                                            & (land_use == 2), True, False))
+    prediction_on_vegetation = np.count_nonzero(np.where((subsidence_prediction == 5) | (subsidence_prediction == 10)
+                                                         & (land_use == 2), True, False))
+    perc_training_subsidence_on_vegetation = round(training_data_on_vegetation * 100 / vegetation, 2)
+    perc_subsidence_on_vegetation = round(prediction_on_vegetation * 100 / vegetation, 2)
+
+    training_data_on_others = np.count_nonzero(np.where(((subsidence == 5) | (subsidence == 10))
+                                                        & ((land_use != 2) | (land_use != 3) | (land_use != 4) &
+                                                        (land_use != np.nan)), True, False))
+    prediction_on_others = np.count_nonzero(np.where(((subsidence_prediction == 5) | (subsidence_prediction == 10))
+                                                     & ((land_use != 2) | (land_use != 3) | (land_use != 4) &
+                                                     (land_use != np.nan)), True, False))
+    perc_training_subsidence_on_others = round(training_data_on_others * 100 / others, 2)
+    perc_subsidence_on_others = round(prediction_on_others * 100 / others, 2)
+
+    stat_dict = {'% Training data on Cropland': [perc_training_subsidence_on_cropland],
+                 '% Subsidence on Cropland': [perc_subsidence_on_cropland],
+                 '% Training data on Urban': [perc_training_subsidence_on_urban],
+                 '% Subsidence on Urban': [perc_subsidence_on_urban],
+                 '% Training data on Vegetation': [perc_training_subsidence_on_vegetation],
+                 '% Subsidence on Vegetation': [perc_subsidence_on_vegetation],
+                 '% Training data on Others': [perc_training_subsidence_on_others],
+                 '% Subsidence on Others': [perc_subsidence_on_others]}
+    stat_df = pd.DataFrame(stat_dict, index=None)
+    print(stat_df)
+
+    outdir = '../Model Run/Stats'
+    makedirs([outdir])
+    outcsv = outdir + '/' + 'Subsidence_on_LandUse.xlsx'
+    stat_df.to_excel(outcsv, index=False)
+
+
+# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF86_prediction_2013_2019.tif',
+#                         land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif')
