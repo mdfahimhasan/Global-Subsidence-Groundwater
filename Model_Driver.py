@@ -80,7 +80,7 @@ model = 'RF'
 exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
                    'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx']
 
-prediction_raster_keyword = 'RF87'
+prediction_raster_keyword = 'RF86'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
@@ -108,7 +108,7 @@ create_prediction_raster \
      prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns, pred_attr='Subsidence',
      prediction_raster_keyword=prediction_raster_keyword,
      predictor_csv_exists=True,  # #
-     predict_probability_greater_1cm=False)  # #
+     predict_probability_greater_1cm=True)  # #
 
 
 model_runtime = True

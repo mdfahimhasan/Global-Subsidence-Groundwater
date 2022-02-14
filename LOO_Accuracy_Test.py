@@ -612,7 +612,7 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_es
                                  '../Model Run/Predictors_2013_2019'.
     skip_create_prediction_raster : Set to True if want to skip prediction raster creation.
     predictor_csv_exists : Set to True if predictor csv for each continent exists. Default set to False to create
-                           create new predcitor csv (also needed if predictor combinations are changed).
+                           create new predictor csv (also needed if predictor combinations are changed).
 
     Returns : Classification reports and confusion matrix for individual model training, Overall accuracy result for
               each model as a single text file,
@@ -733,7 +733,8 @@ if run_loo_test:
                           n_estimators=200, max_depth=20, max_features=10, min_samples_leaf=1e-05,
                           class_weight='balanced',
                           predictor_raster_directory='../Model Run/Predictors_2013_2019',
-                          skip_create_prediction_raster=True)  # #
+                          skip_create_prediction_raster=False, # #
+                          predictor_csv_exists=True)  # #
 
     concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/Accuracy_score')
 

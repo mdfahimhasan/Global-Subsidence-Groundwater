@@ -264,16 +264,6 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
                                                 bootstrap=bootstrap, class_weight=class_weight, n_jobs=n_jobs,
                                                 oob_score=oob_score)
 
-        # if model == 'ETC':
-        #     classifier = ExtraTreesClassifier(n_estimators=n_estimators, random_state=random_state,
-        #                                       bootstrap=bootstrap,
-        #                                       n_jobs=n_jobs, oob_score=oob_score, max_features=max_features)
-
-        # if model == 'XGBC':
-        #     classifier = XGBClassifier(n_estimators=n_estimators, random_state=random_state, learning_rate=0.0098,
-        #                                grow_policy='lossguide', booster='gbtree', objective='multi:softmax',
-        #                                subsample=0.75, n_jobs=n_jobs,
-        #                                colsample_bytree=1, colsample_bylevel=1, colsample_bynode=1)
 
         classifier = classifier.fit(x_train, y_train)
 
