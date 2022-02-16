@@ -718,21 +718,20 @@ def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, ge
 def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Security- GFSAD1KCM/GFSAD1KCM.tif',
                     giam_gw='../Data/Raw_Data/Land_Use_Data/Raw/gmlulca_10classes_global/'
                             'gmlulca_10classes_global.tif',
-                    fao_gw='../Data/Raw_Data/Land_Use_Data/Raw/FAO_LC/RasterFile/aeigw_pct_aei.tif',
+                    irrigated_meier='../Data/Raw_Data/Land_Use_Data/Raw/global_irrigated_areas/'
+                                    'global_irrigated_areas.tif',
                     intermediate_dir='../Data/Intermediate_working_dir',
-                    output_dir='../Data/Resampled_Data/Land_Use', skip_processing=True,
-                    prepare_irrigated_cropmask=True):
+                    output_dir='../Data/Resampled_Data/Land_Use', skip_processing=True):
     """
-    Preparing Land Use Datasets. Works on GFSAD, FAO_GW and GIAM_GW datasets.
+    Preparing Land Use Datasets. Works on GFSAD, Irrigated_Meier and GIAM_GW datasets.
 
     Parameters:
     gfsad_cropextent : GFSAD1KCM Raw dataset path.
               (Data downloaded from https://lpdaac.usgs.gov/products/gfsad1kcmv001/)
     giam_gw : giam_gw Raw dataset path.
               (Data downloaded fromhttp://waterdata.iwmi.org/Applications/GIAM2000/)
-    fao_gw : fao gw Raw dataset path.
-            (Data downloaded from http://www.fao.org/aquastat/en/geospatial-information/global-maps-irrigated-areas/
-            latest-version/)
+    irrigated_meier : Irrigated area dataset path from Meier et al. 2018.
+            (Data downloaded from https://doi.pangaea.de/10.1594/PANGAEA.884744)
     intermediate_dir : File path of intermediate directory for processing data.
     output_dir : File path of final resampled data directory.
     skip_processing : Set False to process the rasters. Defaults to True (Raster filepath taken from existing rasters)
@@ -756,33 +755,18 @@ def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Sec
                                                  normalize=True)
             print('Processed GFSAD1KCM Dataset...')
 
-        if prepare_irrigated_cropmask:
-            print('Creating Irrigation_cropmask from GFSAD Dataset')
-            irrigation_cropmask = filter_specific_values(input_raster=masked_raster, outdir=intermediate_dir,
-                                                         raster_name='Global_irrigated_cropmask.tif',
-                                                         filter_value=[1, 2],
-                                                         new_value=True, value_new=1, paste_on_ref_raster=True,
-                                                         ref_raster=referenceraster)
-
-            print('Created Irrigation_cropmask Dataset')
-
-        else:
-            irrigation_cropmask = '../Data/Intermediate_working_dir/Global_irrigated_cropmask.tif'
-
-        if fao_gw:
-            print('Processing FAO GW Dataset...')
-            masked_raster = mask_by_ref_raster(input_raster=fao_gw, outdir=intermediate_dir,
-                                               raster_name='Global_FAOLC.tif')
-            nanfilled_raster = create_nanfilled_raster(input_raster=masked_raster, outdir=intermediate_dir,
-                                                       raster_name='Global_FAOLC_nanfilled.tif',
-                                                       ref_raster=referenceraster)
-            # fao_cropmasked = array_multiply(input_raster1=nanfilled_raster, input_raster2=irrigation_cropmask,
-            #                                   outdir=intermediate_dir,
-            #                                   output_raster_name='Global_FAOLC_cropmasked.tif')
-            faolu_gw_raster = apply_gaussian_filter(input_raster=nanfilled_raster, outdir=output_dir,
-                                                    raster_name='GW_Irrigation_Density_fao.tif', ignore_nan=True,
-                                                    normalize=True)
-            print('Processed FAO GW Dataset')
+        if irrigated_meier:
+            print('Processing Irrigated Area Meier Dataset...')
+            masked_raster = mask_by_ref_raster(input_raster=irrigated_meier, outdir=intermediate_dir,
+                                               raster_name='Global_Irrigated_Meier.tif')
+            filtered_raster = filter_specific_values(input_raster=masked_raster, outdir=intermediate_dir,
+                                                     raster_name='irrigation_meirer.tif', filter_value=[1, 2, 3, 4],
+                                                     new_value=True, value_new=1, paste_on_ref_raster=True,
+                                                     ref_raster=referenceraster)
+            irrigated_meier_raster = apply_gaussian_filter(input_raster=filtered_raster, outdir=output_dir,
+                                                           raster_name='Irrigated_Area_Density_meier.tif',
+                                                           ignore_nan=True, normalize=True)
+            print('Processed Irrigated Area Meier Dataset')
 
         if giam_gw:
             print('Processing GIAM_GW Dataset...')
@@ -801,10 +785,10 @@ def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Sec
 
     else:
         gfsad_raster = '../Data/Resampled_Data/Land_Use/Irrigated_Area_Density.tif'
+        irrigated_meier_raster = '../Data/Resampled_Data/Land_Use/Irrigated_Area_Density_meier.tif'
         giam_gw_raster = '../Data/Resampled_Data/Land_Use/GW_Irrigation_Density_giam.tif'
-        faolu_gw_raster = '../Data/Resampled_Data/Land_Use/GW_Irrigation_Density_fao.tif'
 
-    return gfsad_raster, giam_gw_raster, faolu_gw_raster
+    return gfsad_raster, irrigated_meier_raster, giam_gw_raster
 
 
 def prepare_popdensity_data(
@@ -837,45 +821,6 @@ def prepare_popdensity_data(
     return popdensity_raster
 
 
-def prepare_glhymps_lithology_data(lithology='../Data/Raw_Data/Global_Lithology/glim_wgs84_0point5deg.tif',
-                                   glhymps='../Data/Raw_Data/Global_Hydrogeology/GLHYMPS_permeability.tif',
-                                   interdir='../Data/Intermediate_working_dir',
-                                   output_dir='../Data/Resampled_Data/Lithology_Permeability', skip_processing=True):
-    """
-    Processing Global Lithology and Global Permeability datasets.
-
-    Parameters:
-    lithology : Filepath of Global Lithology raw raster dataset. Set to None if want to skip processing.
-    glhymps : Filepath of Global Permeability raw raster dataset. Set to None if want to skip processing.
-    intermediate_dir : Interim directory filepath used in storing intermediate files.
-    output_dir : Output directory path.
-    skip_processing : Set False to process the raster. Defaults to True (Raster filepath taken from existing raster)
-
-    Returns : Resampled Global Lithology and Permeability dataset.
-    """
-    if not skip_processing:
-        makedirs([interdir, output_dir])
-        if lithology:
-            print('Processing Global Lithology Dataset...')
-            lithology_raster = mask_by_ref_raster(input_raster=lithology, outdir=output_dir,
-                                                  raster_name='Global_Lithology.tif', ref_raster=referenceraster,
-                                                  resolution=0.02)
-            print('Processed Global Lithology Dataset')
-        if glhymps:
-            print('Processing Global Permeability Dataset...')
-            permeability_raster = mask_by_ref_raster(input_raster=glhymps, outdir=interdir,
-                                                     raster_name='Global_Permeability.tif', paste_on_ref_raster=True,
-                                                     pasted_outdir=output_dir,
-                                                     pasted_raster_name='Global_Permeability.tif',
-                                                     ref_raster=referenceraster, resolution=0.02)
-            print('Processed Global Permeability Dataset')
-    else:
-        lithology_raster = '../Data/Resampled_Data/Lithology_Permeability/Global_Lithology.tif'
-        permeability_raster = '../Data/Resampled_Data/Lithology_Permeability/Global_Permeability.tif'
-
-    return lithology_raster, permeability_raster
-
-
 def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sediment_Thickness'
                                                  '/average_soil_and_sedimentary-deposit_thickness.tif',
                                     output_dir='../Data/Resampled_Data/Sediment_Thickness',
@@ -896,10 +841,8 @@ def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sedime
         print('Processing Sediment Thickness Dataset...')
         resampled_raster_path = resample_reproject(input_raster, output_dir, raster_name,
                                                    reference_raster=referenceraster, resample=True)
-        print(1)
         raster_arr, raster_file = read_raster_arr_object(resampled_raster_path)
         raster_arr[raster_arr > 50] = raster_file.nodata
-        print(2)
         sediment_raster = write_raster(raster_arr, raster_file, raster_file.transform,
                                        resampled_raster_path)
         print('Processed Sediment Thickness Dataset')
@@ -967,15 +910,14 @@ def prepare_modis_landuse_data(output_raster,
 
 
 def download_process_predictor_datasets(yearlist, start_month, end_month, resampled_gee_dir,
-                                        gfsad_cropextent, giam_gw, fao_gw, intermediate_dir, outdir_lu,
+                                        gfsad_cropextent, giam_gw, irrigated_meier, intermediate_dir, outdir_lu,
                                         sediment_thickness, outdir_sed_thickness,
                                         sediment_thickness_exx,
                                         outdir_pop, perform_pca=False,
                                         skip_download=True, skip_processing=True,
                                         geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000):
     """
-    Download and process (resample) GEE data and other datasets (Land Use, Population, Lithology, Permeability,
-    Sediment thickness) .
+    Download and process (resample) GEE data and other datasets (Land Use, Population, Sediment thickness).
 
     Parameters:
     yearlist : Year list to use for downloading GEE data.
@@ -984,6 +926,7 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     resampled_gee_dir : Resampled directory for GEE data.
     gfsad_cropextent : Raw GFSAD1KCM crop extent data.
     giam_gw : Unsampled/Raw GIAM land use data.
+    irrigated_meier : Irrigated area data from meier et al. 2018.
     intermediate_dir : Intermediate file directory to save intermediate files
     outdir_lu : Output directory for saving processed land use rasters.
     sediment thickness : Unsampled/Raw sediment thickness data.
@@ -1000,8 +943,7 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     downloadcsv : Csv (with coordinates) filepath used in downloading data from GEE.
     gee_scale : scale to use in downloading data from GEE in meter. Default set to 2000m.
 
-    Returns : Filepath of processed gee datasets along with land use, population density, lithology and permeability
-              rasters.
+    Returns : Filepath of processed gee datasets along with land use, population density rasters.
     """
 
     download_dir, downdir_NDWI, downdir_EVI, downdir_Grace, downdir_TRCLM_precp, downdir_TRCLM_soil, \
@@ -1086,9 +1028,8 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     else:
         resampled_gee_rasters = pickle.load(open(os.path.join(resampled_gee_dir, 'gee_path_dict.pkl'), mode='rb'))
 
-    gfsad_raster, giam_gw_raster, faolu_gw_raster = prepare_lu_data(gfsad_cropextent, giam_gw, fao_gw, intermediate_dir,
-                                                                    outdir_lu, skip_processing,
-                                                                    prepare_irrigated_cropmask=True)
+    gfsad_raster, irrigated_meier_raster, giam_gw_raster = prepare_lu_data(gfsad_cropextent, giam_gw, irrigated_meier,
+                                                                           intermediate_dir, outdir_lu, skip_processing)
 
     sediment_thickness_raster = prepare_sediment_thickness_data(sediment_thickness, outdir_sed_thickness,
                                                                 'Global_Sediment_Thickness.tif', skip_processing)
@@ -1098,7 +1039,7 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
 
     popdensity_raster = prepare_popdensity_data(PopDensity_GPW, outdir_pop, skip_processing)
 
-    return resampled_gee_rasters, gfsad_raster, giam_gw_raster, faolu_gw_raster, sediment_thickness_raster, \
+    return resampled_gee_rasters, gfsad_raster, irrigated_meier_raster, giam_gw_raster, sediment_thickness_raster, \
            sediment_thickness_raster_exxon, popdensity_raster
 
 
@@ -1226,20 +1167,20 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
         return subsidence_data
 
 
-def compile_predictors_subsidence_data(gee_data_dict, gfsad_cropextent_data, giam_gw_data, fao_gw_data,
+def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam_gw_data, irrigated_meier_data,
                                        sediment_thickness_data, popdensity_data, subsidence_data,
                                        output_dir, skip_compiling_predictor_subsidence_data=False):
     """
     Compile predictor datasets and subsidence data in a single folder (to be used for creating predictor database)
 
     Parameters:
-    gee_data_dict : GEE data dictionary consisting resampled gee datapath.
-    gfsad_cropextent_data : Resampled GFSAD crop extent datapath.
-    giam_gw : Resampled GIAM GW Irrigation datapath.
-    faolu_gw_data: Resampled FAO GW Irrigation datapath.
-    sediment_thickness_data : Resampled sediment thickness datapath.
-    popdensity_data : Resampled population density datapath.
-    subsidence_data : Resampled subsidence datapath.
+    gee_data_dict : GEE data dictionary consisting resampled gee filepath.
+    gfsad_irrigated_area : Resampled GFSAD irrigated area raster filepath.
+    giam_gw : Resampled GIAM GW Irrigation filepath.
+    irrigated_meier_data: Resampled Irrigated area by meier filepath.
+    sediment_thickness_data : Resampled sediment thickness filepath.
+    popdensity_data : Resampled population density filepath.
+    subsidence_data : Resampled subsidence filepath.
     output_dir : Output directory filepath.
     skip_predictor_subsidence_compilation : Set to True if want to skip compiling all the data again.
 
@@ -1251,9 +1192,9 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_cropextent_data, gia
         for key in gee_data_dict.keys():
             rename_copy_raster(gee_data_dict[key], output_dir, rename=True, new_name=(key + '.tif'))
 
-        rename_copy_raster(gfsad_cropextent_data, output_dir, rename=False)
+        rename_copy_raster(gfsad_irrigated_area, output_dir, rename=False)
         rename_copy_raster(giam_gw_data, output_dir, rename=False)
-        rename_copy_raster(fao_gw_data, output_dir, rename=False)
+        rename_copy_raster(irrigated_meier_data, output_dir, rename=True, new_name='Irrigated_Area_Density2.tif')
         rename_copy_raster(sediment_thickness_data, output_dir, rename=False)
         rename_copy_raster(popdensity_data, output_dir, rename=True, new_name='Population_Density.tif')
         rename_copy_raster(subsidence_data, output_dir, rename=True, new_name='Subsidence.tif')
@@ -1261,111 +1202,3 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_cropextent_data, gia
                            rename=False)
 
     return output_dir
-
-
-def download_surfacewater_data(yearlist, output_dir, dataname='surfacewater', shapecsv=csv, gee_scale=2000,
-                               nodata=No_Data_Value):
-    """
-    Download Imagecollection/Image data from Google Earth Engine by range years' mean/median.
-
-    Parameters:
-    yearlist : List of years for which data will be downloaded, i.e., [2013,2019].
-    start_month : Start month of data.
-    end_month : End month of data.
-    ***For ee.Image data time parameters should be included just for the code to run properly.
-    The data will be the same for whole time period.
-
-    output_dir : File directory path to downloaded data.
-    shapecsv : Csv of coordinates for download extent. Defaults to csv (filepath of worldgrid coordinates' csv).
-               Set to None if want to use shapefile instead.
-    gee_scale : Download Scale.
-    dataname : Dataname to download from GEE.
-    nodata : No Data value. Defaults to -9999.
-
-    Returns : Downloaded data from GEE.
-    """
-    # Initialize
-    ee.Initialize()
-    data_dict = {'surfacewater': 'JRC/GSW1_3/GlobalSurfaceWater'}
-
-    data_collection = ee.Image(data_dict[dataname])
-
-    if dataname == 'surfacewater':
-        data = data_collection.select('transition').toFloat()
-
-    makedirs([output_dir])
-    coords_df = pd.read_csv(shapecsv)
-    for index, row in coords_df.iterrows():
-        # Define Extent
-        minx = row['minx']
-        miny = row['miny']
-        maxx = row['maxx']
-        maxy = row['maxy']
-        gee_extent = ee.Geometry.Rectangle((minx, miny, maxx, maxy))
-
-        # Download URL
-        data_url = data.getDownloadURL({'name': dataname,
-                                        'crs': "EPSG:4326",
-                                        'scale': gee_scale,
-                                        'region': gee_extent})
-        # dowloading the data
-        key_word = row['shape']
-        local_file_name = os.path.join(output_dir, key_word + str(yearlist[0]) + '_' + str(yearlist[1]) + '.zip')
-        print('Downloading', local_file_name, '.....')
-        r = requests.get(data_url, allow_redirects=True)
-        open(local_file_name, 'wb').write(r.content)
-
-        if index == coords_df.index[-1]:
-            extract_data(zip_dir=output_dir, out_dir=output_dir, rename_file=True)
-            mosaic_dir = makedirs([os.path.join(output_dir, 'merged_rasters')])
-            mosaic_name = dataname + '_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
-            merged_arr, merged_raster = mosaic_rasters(input_dir=output_dir, output_dir=mosaic_dir,
-                                                       raster_name=mosaic_name,
-                                                       ref_raster=referenceraster, search_by='*.tif', resolution=0.02,
-                                                       no_data=nodata)
-            return merged_raster
-
-# yearlist = [2013, 2019]
-# output_dir = '../Data/Raw_Data/GEE_data/SurfaceWater_transition'
-#
-# download_surfacewater_data(yearlist, output_dir, gee_scale=2000)
-
-# surf_raster = '../Data/Raw_Data/GEE_data/SurfaceWater_seasionality/merged_rasters/surfacewater_2013_2019.tif'
-# raster_arr, raster_file = read_raster_arr_object(surf_raster)
-# raster_arr[(raster_arr <= 8) | (raster_arr == 12)] = np.nan
-# raster_arr[np.isnan(raster_arr)] = No_Data_Value
-# output_raster = write_raster(raster_arr, raster_file, raster_file.transform, '../scratch_files/surfwater_filtered.tif')
-#
-#
-# from osgeo import gdal
-#
-# src_ds = gdal.Open(output_raster)
-# src_band = src_ds.GetRasterBand(1)
-#
-# dst_filename = '../scratch_files/surfacewater_distance.tif'
-# drv = gdal.GetDriverByName('GTiff')
-# dst_ds = drv.Create(dst_filename,
-#                     src_ds.RasterXSize, src_ds.RasterYSize, 1,
-#                     gdal.GetDataTypeByName('Float32'))
-#
-# dst_ds.SetGeoTransform(src_ds.GetGeoTransform())
-# dst_ds.SetProjection(src_ds.GetProjectionRef())
-#
-# dst_band = dst_ds.GetRasterBand(1)
-# dst_arr = dst_band.ReadAsArray()
-#
-# gdal.ComputeProximity(src_band, dst_band, ["VALUES='9,10,11'", "DISTUNITS=GEO"])
-#
-# nodata = src_band.GetNoDataValue()
-# # dst_arr[ref_arr == nodata] = nodata
-# dst_band.SetNoDataValue(nodata)
-# # dst_band.WriteArray(dst_arr)
-#
-# del src_band, dst_band, src_ds, dst_ds, dst_arr
-#
-# prox_arr, prox_file = read_raster_arr_object(dst_filename)
-# ref_arr, ref_file = read_raster_arr_object(referenceraster)
-#
-# prox_arr = np.where(ref_arr == 0, prox_arr, ref_arr)
-#
-# write_raster(prox_arr, ref_file, ref_file.transform, '../scratch_files/surfacewater_distance_final.tif')

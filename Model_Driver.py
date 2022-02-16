@@ -18,7 +18,7 @@ end_month = 12
 resampled_dir = '../Data/Resampled_Data/GEE_data_2013_2019'
 gfsad_lu = '../Data/Raw_Data/Land_Use_Data/Raw/Global Food Security- GFSAD1KCM/GFSAD1KCM.tif'
 giam_lu = '../Data/Raw_Data/Land_Use_Data/Raw/gmlulca_10classes_global/gmlulca_10classes_global.tif'
-fao_lu = '../Data/Raw_Data/Land_Use_Data/Raw/FAO_LC/RasterFile/aeigw_pct_aei.tif'
+irrigated_meier = '../Data/Raw_Data/Land_Use_Data/Raw/global_irrigated_areas/global_irrigated_areas.tif'
 outdir_lu = '../Data/Resampled_Data/Land_Use'
 intermediate_dir = '../Data/Intermediate_working_dir'
 sediment_thickness = '../Data/Raw_Data/Global_Sediment_Thickness/average_soil_and_sedimentary-deposit_thickness.tif'
@@ -28,10 +28,10 @@ outdir_pop = '../Data/Resampled_Data/Pop_Density'
 
 # skip_download = False if new data needs to be downloaded from google earth engine
 # skip_processing = False if processing of already downloaded data (secondary processing) is required
-gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster, sediment_thickness_raster, \
+gee_raster_dict, gfsad_raster, irrigated_meier_raster, giam_gw_raster,  sediment_thickness_raster, \
 sediment_thickness_raster_exxon, \
 popdensity_raster = download_process_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
-                                                        gfsad_lu, giam_lu, fao_lu, intermediate_dir, outdir_lu,
+                                                        gfsad_lu, giam_lu, irrigated_meier, intermediate_dir, outdir_lu,
                                                         sediment_thickness, outdir_sed_thickness,
                                                         sediment_thickness_exx,
                                                         outdir_pop, perform_pca=False,
@@ -60,8 +60,9 @@ subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subside
 predictor_dir = '../Model Run/Predictors_2013_2019'
 
 # skip_compiling_predictor_subsidence_data = False if any change in predictors or subsidence data are made
-predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster, giam_gw_raster, fao_gw_raster,
-                                                   sediment_thickness_raster, popdensity_raster, subsidence_raster,
+predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster, giam_gw_raster,
+                                                   irrigated_meier_raster, sediment_thickness_raster, popdensity_raster,
+                                                   subsidence_raster,
                                                    predictor_dir,
                                                    skip_compiling_predictor_subsidence_data=True)  # #
 
@@ -77,10 +78,11 @@ modeldir = '../Model Run/Model'
 model = 'RF'
 
 # change for model run
-exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'GW_Irrigation_Density_fao',
-                   'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx']
+exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx',
+                   'Irrigated_Area_Density', 'GW_Irrigation_Density_giam',
+                   'MODIS_Land_Use', 'Aridity_Index',]
 
-prediction_raster_keyword = 'RF86'
+prediction_raster_keyword = 'RF96'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
@@ -88,12 +90,12 @@ prediction_raster_keyword = 'RF86'
 ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                                pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
                                n_estimators=200, min_samples_leaf=1e-05, min_samples_split=2, max_depth=20,
-                               max_features=10, class_weight='balanced',
+                               max_features=7, class_weight='balanced',
                                predictor_imp_keyword=prediction_raster_keyword,
                                predictor_importance=True,  # #
                                plot_pdp=True,  # #
                                plot_confusion_matrix=True,  # #
-                               tune_hyperparameter=False,  # #
+                               tune_hyperparameter=True,  # #
                                k_fold=5, n_iter=80,
                                random_searchCV=True)  # #
 
@@ -107,7 +109,7 @@ create_prediction_raster \
      continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
      prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns, pred_attr='Subsidence',
      prediction_raster_keyword=prediction_raster_keyword,
-     predictor_csv_exists=True,  # #
+     predictor_csv_exists=False,  # #
      predict_probability_greater_1cm=True)  # #
 
 

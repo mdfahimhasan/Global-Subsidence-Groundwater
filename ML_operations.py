@@ -128,7 +128,7 @@ def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_sea
 
     n_estimators = [200]
     max_depth = [5, 11, 13, 15, 17, 19, 20, 25]
-    max_features = [4, 5, 6, 7, 8, 10, 12, 15]
+    max_features = [4, 5, 6, 7, 8, 10]
     min_samples_split = [0.9, 0.8, 0.7, 2]
     min_samples_leaf = [5e-4, 1e-5, 2, 6, 12, 20, 25, 30, 50]
 
@@ -393,9 +393,9 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                           'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
                           'Global_Sediment_Thickness': 'Sediment Thickness',
                           'Global_Sed_Thickness_Exx': 'Sediment Thickness Exxon',
-                          'GW_Irrigation_Density_fao': 'GW Irrigation Density fao',
                           'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                          'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET',
+                          'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)', 'MODIS_ET': 'MODIS ET',
+                          'Irrigated_Area_Density2': 'Irrigated Area Density',
                           'MODIS_PET': 'MODIS PET', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
                           'SRTM_Slope': 'Slope', 'Subsidence': 'Subsidence',
                           'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation',
