@@ -80,7 +80,7 @@ model = 'RF'
 # change for model run
 exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx',
                    'Irrigated_Area_Density', 'GW_Irrigation_Density_giam',
-                   'MODIS_Land_Use', 'Aridity_Index',]
+                   'MODIS_Land_Use', 'Aridity_Index']
 
 prediction_raster_keyword = 'RF96'
 
@@ -109,7 +109,7 @@ create_prediction_raster \
      continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
      prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns, pred_attr='Subsidence',
      prediction_raster_keyword=prediction_raster_keyword,
-     predictor_csv_exists=False,  # #
+     predictor_csv_exists=True,  # #
      predict_probability_greater_1cm=True)  # #
 
 

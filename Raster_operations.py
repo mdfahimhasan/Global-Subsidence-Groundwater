@@ -164,7 +164,8 @@ def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, 
 
 
 def resample_reproject(input_raster, output_dir, raster_name, reference_raster=referenceraster, resample=True,
-                       reproject=False, change_crs_to="EPSG:4326", both=False, nodata=No_Data_Value):
+                       reproject=False, change_crs_to="EPSG:4326", both=False, resample_algorithm='near',
+                       nodata=No_Data_Value):
     """
     Resample/Reproject/Both resample and reproject a raster according to a reference raster.
 
@@ -178,6 +179,8 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
     resample : Set True to resample only. Set reproject and both to False when resample=True.
     reproject : Set True to reproject only. Set resample and both to False when reproject=True.
     both : Set True to both resample and reproject. Set resample and reproject to False when both=True.
+    resample_algorithm : Algorithm for resampling. Defaults set to 'near' (worst resampling/but fast). Also takes
+                        'mode', 'max', 'min', 'sum', 'bilinear', 'cubic' etc. See gdal documentation for detail.
     nodata : No Data value in the processed raster.
     
     Returns : Resampled/Reprojected raster.
@@ -189,7 +192,7 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
     if resample:
         resampled_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, format='GTiff',
                                      width=ref_arr.shape[1], height=ref_arr.shape[0], outputType=gdal.GDT_Float32,
-                                     dstNodata=nodata)
+                                     resampleAlg=resample_algorithm, dstNodata=nodata)
         resampled_raster = None
     if reproject:
         reprojected_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,
@@ -200,7 +203,8 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
     if both:
         processed_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,
                                      width=ref_arr.shape[1], height=ref_arr.shape[0], format='GTiff',
-                                     dstSRS=change_crs_to, outputType=gdal.GDT_Float32, dstNodata=nodata)
+                                     dstSRS=change_crs_to, outputType=gdal.GDT_Float32, resampleAlg=resample_algorithm,
+                                     dstNodata=nodata)
         processed_raster = None
 
     return output_raster

@@ -126,11 +126,11 @@ def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_sea
     Returns : Optimized Hyperparameters (currently n_estimator and max_depth).
     """
 
-    n_estimators = [200]
-    max_depth = [5, 11, 13, 15, 17, 19, 20, 25]
+    n_estimators = [100, 200, 300]
+    max_depth = [5, 11, 13, 15, 17, 19, 20]
     max_features = [4, 5, 6, 7, 8, 10]
-    min_samples_split = [0.9, 0.8, 0.7, 2]
     min_samples_leaf = [5e-4, 1e-5, 2, 6, 12, 20, 25, 30, 50]
+    min_samples_split = [0.9, 0.8, 0.7, 2]
 
     param_dict = {
                    'n_estimators': n_estimators,

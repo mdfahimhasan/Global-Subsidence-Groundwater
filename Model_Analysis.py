@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from Raster_operations import read_raster_arr_object
+from Raster_operations import read_raster_arr_object, mask_by_ref_raster
 from System_operations import makedirs
 
 
@@ -23,7 +23,7 @@ def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_
     land_use : filepath of MODIS land use raster.
     training_raster : filepath of training subsidence raster.
 
-    Returns : A csv with '% prediction on differnet land use' stat.
+    Returns : An excel file with '% prediction on differnet land use' stat.
     """
     subsidence_prediction = read_raster_arr_object(model_prediction, get_file=False)
     land_use = read_raster_arr_object(land_use, get_file=False)
@@ -121,13 +121,24 @@ def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_
     stat_df.to_excel(out_excel, index=True)
 
 
-# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF86_prediction_2013_2019.tif',
+# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF96_prediction_2013_2019.tif',
 #                         land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif')
+
 
 def stat_irrigation_datasets(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/'
                                       'Global Food Security- GFSAD1KCM/GFSAD1KCM.tif',
                              meier_irrigated='../Data/Raw_Data/Land_Use_Data/Raw/global_irrigated_areas/'
                                              'global_irrigated_areas.tif', outdir='../Model Run/Stats'):
+    """
+    Comparison between two irrigation datasets (GFSAD irrigation and Meier irrigation).
+
+    Parameters :
+    gfsad_lu : GFSAD irrigation data filepath.
+    meier_irrigated : Meier irrigation data filepath.
+    outdir : Output directory to save created excel file.
+
+    Returns : An excel file with stats calculated.
+    """
     gfsad_raster = read_raster_arr_object(gfsad_lu, get_file=False)
     meier_raster = read_raster_arr_object(meier_irrigated, get_file=False)
 
@@ -157,4 +168,72 @@ def stat_irrigation_datasets(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/'
     df.to_excel(out_excel, index=True)
 
 
-stat_irrigation_datasets()
+# stat_irrigation_datasets()
+
+
+def overlap_all_irrigation_gw_irrigation(irrigated_area_meier='../Data/Raw_Data/Land_Use_Data/Raw/'
+                                                              'global_irrigated_areas/global_irrigated_areas.tif',
+                                         irrigated_area_gfsad='../Data/Raw_Data/Land_Use_Data/Raw/'
+                                                              'Global Food Security- GFSAD1KCM/GFSAD1KCM.tif',
+                                         gw_irrigation='../Data/Raw_Data/Land_Use_Data/Raw/gmlulca_10classes_global/'
+                                                       'gmlulca_10classes_global.tif', outdir='../Model Run/Stats'):
+    """
+    Counting overlap between Irrigation data (Meier), Irrigation data (GFSAD) and GW irrigation data (GIAM).
+
+    Parameters :
+    irrigated_area_meier : Meier irrigated data filepath.
+    irrigated_area_gfsad : GFSAD irrigated data filepath.
+    gw_irrigation : GIAM GW irrigation data filepath.
+    outdir : Output directory to save created excel file.
+
+    Returns : An excel file with stats calculated.
+    """
+    irrigation_data = mask_by_ref_raster(irrigated_area_meier,
+                                         '../Data/Raw_Data/Land_Use_Data/Raw/global_irrigated_areas',
+                                         'global_irrigated_area_ref_clipped.tif')
+    meier_arr = read_raster_arr_object(irrigation_data, get_file=False)
+
+    irrigation_gfsad = mask_by_ref_raster(irrigated_area_gfsad, '../Data/Raw_Data/Land_Use_Data/Raw/'
+                                                                'Global Food Security- GFSAD1KCM',
+                                          'GFSAD1KCM_ref_clipped.tif')
+    gfsad_arr = read_raster_arr_object(irrigation_gfsad, get_file=False)
+
+    gw_irrigation_data = mask_by_ref_raster(gw_irrigation,
+                                            '../Data/Raw_Data/Land_Use_Data/Raw/gmlulca_10classes_global',
+                                            'gmlulca_10classes_global_ref_clipped.tif')
+    gw_irrigation_raster = read_raster_arr_object(gw_irrigation_data, get_file=False)
+
+    meier_arr = np.where(meier_arr != 0, True, False)
+    meier_arr_count = np.count_nonzero(meier_arr)
+
+    gfsad_arr_all = np.where((gfsad_arr == 1) | (gfsad_arr == 2), True, False)
+    gfsad_arr_major = np.where(gfsad_arr == 1, True, False)
+    gfsad_arr_count = np.count_nonzero(gfsad_arr_all)
+    gfsad_major_arr_count = np.count_nonzero(gfsad_arr_major)
+
+    gw_irrigation = np.where(gw_irrigation_raster == 2, True, False)  # major irrigation (gw) considered
+    gw_irrigation_count = np.count_nonzero(gw_irrigation)
+
+    overlap_irrigation_meier_gfsad_major_irrigation = np.count_nonzero(np.logical_and(meier_arr, gfsad_arr_major))
+    overlap_irrigation_meier_gfsad_irrigation = np.count_nonzero(np.logical_and(meier_arr, gfsad_arr_all))
+    overlap_irrigation_meier_gw_irrigation = np.count_nonzero(np.logical_and(meier_arr, gw_irrigation))
+    overlap_irrigation_gfsad_gw_irrigation = np.count_nonzero(np.logical_and(gfsad_arr_major, gw_irrigation))
+
+    dict = {'Number of cells in irrigated Meier data': meier_arr_count,
+            'Number of cells in irrigated GFSAD (major) data': gfsad_major_arr_count,
+            'Number of cells in irrigated GFSAD data': gfsad_arr_count,
+            'Number of cells in GW irrigated data': gw_irrigation_count,
+            'Overlapped cells between Meier-GFSAD (major) data': overlap_irrigation_meier_gfsad_major_irrigation,
+            'Overlapped cells between Meier-GFSAD data': overlap_irrigation_meier_gfsad_irrigation,
+            'Overlapped cells between Meier-GW data': overlap_irrigation_meier_gw_irrigation,
+            'Overlapped cells between GFSAD (major)-GW data': overlap_irrigation_gfsad_gw_irrigation}
+
+    df = pd.DataFrame.from_dict(dict, orient='index', columns=['Cells'])
+    print(df)
+
+    makedirs([outdir])
+    out_excel = outdir + '/' + 'Irrigation_GW_irrigation_overlap.xlsx'
+    df.to_excel(out_excel, index=True)
+
+
+# overlap_all_irrigation_gw_irrigation()
