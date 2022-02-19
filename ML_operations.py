@@ -10,12 +10,8 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score, roc_auc_score, make_scorer
-from sklearn.model_selection import RandomizedSearchCV,GridSearchCV, StratifiedKFold
-from xgboost import XGBClassifier
-# from sklearn.svm import SVC
-# from sklearn.pipeline import Pipeline
-# from sklearn.preprocessing import StandardScaler
-from sklearn.inspection import plot_partial_dependence
+from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, StratifiedKFold
+from sklearn.inspection import PartialDependenceDisplay
 from Raster_operations import *
 from System_operations import *
 
@@ -88,6 +84,18 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     Returns: X_train, X_test, y_train, y_test
     """
     input_df = pd.read_csv(predictor_csv)
+    predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+                           'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
+                           'Global_Sediment_Thickness': 'Sediment Thickness',
+                           'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
+                           'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)', 'MODIS_ET': 'MODIS ET',
+                           'Irrigated_Area_Density2': 'Irrigated Area Density',
+                           'MODIS_PET': 'MODIS PET', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
+                           'SRTM_Slope': 'Slope', 'Subsidence': 'Subsidence',
+                           'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation',
+                           'TRCLM_soil': 'Soil moisture', 'TRCLM_Tmax': 'Tmax',
+                           'TRCLM_Tmin': 'Tmin', 'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
+    input_df = input_df.rename(columns=predictor_name_dict)
     drop_columns = exclude_columns + [pred_attr]
     print('Dropping Columns-', exclude_columns)
     x = input_df.drop(columns=drop_columns)
@@ -110,7 +118,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
         y_test_df = pd.DataFrame(y_test)
         y_test_df.to_csv(os.path.join(outdir, 'y_test.csv'), index=False)
 
-    return x_train, x_test, y_train, y_test
+    return x_train, x_test, y_train, y_test, predictor_name_dict
 
 
 def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_search=True):
@@ -130,15 +138,15 @@ def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_sea
     max_depth = [5, 11, 13, 15, 17, 19, 20]
     max_features = [4, 5, 6, 7, 8, 10]
     min_samples_leaf = [5e-4, 1e-5, 2, 6, 12, 20, 25, 30, 50]
-    min_samples_split = [0.9, 0.8, 0.7, 2]
+    # min_samples_split = [0.9, 0.8, 0.7, 2]
 
     param_dict = {
-                   'n_estimators': n_estimators,
-                   'max_depth': max_depth,
-                   'max_features': max_features,
-                   'min_samples_leaf': min_samples_leaf,
-                   # 'min_samples_split': min_samples_split
-                    }
+        'n_estimators': n_estimators,
+        'max_depth': max_depth,
+        'max_features': max_features,
+        'min_samples_leaf': min_samples_leaf,
+        # 'min_samples_split': min_samples_split
+    }
 
     pprint(param_dict)
 
@@ -177,6 +185,7 @@ def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_sea
     else:
         CV = GridSearchCV(estimator=rf_classifier, param_grid=param_dict, cv=kfold, verbose=1, n_jobs=-1,
                           scoring='f1_macro', refit=True, return_train_score=True)
+
     CV.fit(x_train, y_train)
 
     print('\n')
@@ -243,10 +252,10 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     """
 
     # Splitting Training and Testing Data
-    x_train, x_test, y_train, y_test = split_train_test_ratio(predictor_csv=predictor_csv,
-                                                              exclude_columns=exclude_columns, pred_attr=pred_attr,
-                                                              test_size=test_size, random_state=random_state,
-                                                              outdir=output_dir)
+    x_train, x_test, y_train, y_test, predictor_name_dict = \
+        split_train_test_ratio(predictor_csv=predictor_csv, exclude_columns=exclude_columns, pred_attr=pred_attr,
+                               test_size=test_size, random_state=random_state, outdir=output_dir)
+
     # Making directory for model
     makedirs([modeldir])
     model_file = os.path.join(modeldir, model)
@@ -264,7 +273,6 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
                                                 bootstrap=bootstrap, class_weight=class_weight, n_jobs=n_jobs,
                                                 oob_score=oob_score)
 
-
         classifier = classifier.fit(x_train, y_train)
 
         pickle.dump(classifier, open(model_file, mode='wb+'))
@@ -277,7 +285,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     if plot_pdp:
         pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword)
 
-    return classifier
+    return classifier, predictor_name_dict
 
 
 def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
@@ -465,30 +473,15 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
 
     Returns : PDP plots.
     """
-    predictor_dict = {'Alexi_ET': 'Alexi ET (mm)', 'Aridity_Index': 'Aridity Index',
-                      'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
-                      'Global_Sediment_Thickness': 'Sediment Thickness (m)',
-                      'Global_Sed_Thickness_Exx': 'Sediment Thickness Exxon (km)',
-                      'GW_Irrigation_Density_fao': 'GW Irrigation Density fao',
-                      'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                      'Irrigated_Area_Density': 'Irrigated Area Density', 'MODIS_ET': 'MODIS ET (mm)',
-                      'MODIS_PET': 'MODIS PET (mm)', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
-                      'SRTM_Slope': 'Slope (%)', 'Subsidence': 'Subsidence (cm/yr)',
-                      'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation (mm)',
-                      'TRCLM_soil': 'Soil moisture (mm)', 'TRCLM_Tmax': 'Tmax (deg C)', 'TRCLM_Tmin': 'Tmin (deg C)',
-                      'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
-
-    x_train = x_train.rename(columns=predictor_dict)
     plot_names = x_train.columns.tolist()
     feature_indices = range(len(plot_names))
 
     plt.rcParams['font.size'] = 18
 
     # Class <1cm
-
-    plot_partial_dependence(classifier, x_train, target=1, features=feature_indices, feature_names=plot_names,
-                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1, random_state=0,
-                            grid_resolution=20)
+    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_indices, target=1,
+                                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
+                                            random_state=0, grid_resolution=20)
     fig = plt.gcf()
     fig.set_size_inches(20, 15)
     fig.suptitle('Partial Dependence Plot for <1cm/yr Subsidence', size=22, y=1)
@@ -499,9 +492,9 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
     print('pdp for <1cm saved')
 
     # Class 1-5cm
-    plot_partial_dependence(classifier, x_train, target=5, features=feature_indices, feature_names=plot_names,
-                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1, random_state=0,
-                            grid_resolution=20)
+    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_indices, target=5,
+                                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
+                                            random_state=0, grid_resolution=20)
     fig = plt.gcf()
     fig.set_size_inches(20, 15)
     fig.suptitle('Partial Dependence Plot for 1-5cm/yr Subsidence', size=22, y=1)
@@ -512,9 +505,9 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
     print('pdp for 1-5cm saved')
 
     # Class >5cm
-    plot_partial_dependence(classifier, x_train, target=10, features=feature_indices, feature_names=plot_names,
-                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1, random_state=0,
-                            grid_resolution=20)
+    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_indices, target=10,
+                                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
+                                            random_state=0, grid_resolution=20)
     fig = plt.gcf()
     fig.set_size_inches(20, 15)
     fig.suptitle('Partial Dependence Plot for >5cm/yr Subsidence', size=22, y=1)
@@ -525,7 +518,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
     print('pdp for >5cm saved')
 
 
-def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], search_by='*.tif',
+def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlist=[2013, 2019], search_by='*.tif',
                              continent_search_by='*continent.shp', predictor_csv_exists=False,
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/Prediction_rasters',
@@ -537,6 +530,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
     Parameters:
     predictors_dir : Predictor rasters' directory.
     model : A fitted model obtained from random_forest_classifier function.
+    predictor_name_dict : Predictot name dictionary (comes from split_train_test_ratio > build_ml_classifier function).
     yearlist : List of years for the prediction.
     search_by : Predictor rasters search criteria. Defaults to '*.tif'.
     continent_search_by : Continent shapefile search criteria. Defaults to '*continent.tif'.
@@ -581,6 +575,8 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
             raster_shape = None
             for predictor in predictor_rasters:
                 variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind('.')]
+                variable_name = predictor_name_dict[variable_name]
+
                 if variable_name not in drop_columns:
                     raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
                                                                            naming_from_both=False)
@@ -606,8 +602,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
                                                                    continent, naming_from_both=False)
             raster_shape = raster_arr.shape
 
-        x = predictor_df.values
-        y_pred = model.predict(x)
+        y_pred = model.predict(predictor_df)
 
         for nan_pos in nan_position_dict.values():
             y_pred[nan_pos] = raster_file.nodata
@@ -620,7 +615,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         print('Prediction raster created for', continent_name)
 
         if predict_probability_greater_1cm:
-            y_pred_proba = model.predict_proba(x)
+            y_pred_proba = model.predict_proba(predictor_df)
             y_pred_proba = y_pred_proba[:, 1] + y_pred_proba[:, 2]
 
             for nan_pos in nan_position_dict.values():
@@ -644,4 +639,3 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
         mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
                        search_by='*proba_greater_1cm*.tif')
         print('Global prediction probability raster created')
-

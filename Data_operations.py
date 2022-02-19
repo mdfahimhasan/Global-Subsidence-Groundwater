@@ -6,7 +6,7 @@ import pickle
 import shutil
 import zipfile
 
-import numpy as np
+import pandas as pd
 import requests
 from Raster_operations import *
 from PCA import *
@@ -823,53 +823,37 @@ def prepare_popdensity_data(
 
 def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sediment_Thickness'
                                                  '/average_soil_and_sedimentary-deposit_thickness.tif',
+                                    interim_dir='../Data/Intermediate_working_dir',
                                     output_dir='../Data/Resampled_Data/Sediment_Thickness',
-                                    raster_name='Global_Sediment_Thickness.tif', skip_processing=False):
+                                    raster_name='Global_Sediment_Thickness.tif',
+                                    skip_processing=False):
     """
     Processing Global Sediment thickness dataset.
 
     Parameters:
     input_raster : Input raster filepath with filename.
     output_dir : Output raster directory path.
+    interim_dir : Intermediate working directory for storing interdim data.
     output_raster_name : Output raster name.
     skip_processing : Set to True if want to skip processing.
 
     Returns : Resampled sedeiment thickness raster.
     """
-    makedirs([output_dir])
+    makedirs([interim_dir, output_dir])
     if not skip_processing:
         print('Processing Sediment Thickness Dataset...')
-        resampled_raster_path = resample_reproject(input_raster, output_dir, raster_name,
+        resampled_raster_path = resample_reproject(input_raster, interim_dir, raster_name,
                                                    reference_raster=referenceraster, resample=True)
         raster_arr, raster_file = read_raster_arr_object(resampled_raster_path)
         raster_arr[raster_arr > 50] = raster_file.nodata
+        output_raster = output_dir + '/' + raster_name
         sediment_raster = write_raster(raster_arr, raster_file, raster_file.transform,
-                                       resampled_raster_path)
+                                       output_raster)
         print('Processed Sediment Thickness Dataset')
     else:
         sediment_raster = '../Data/Resampled_Data/Sediment_Thickness/Global_Sediment_Thickness.tif'
 
     return sediment_raster
-
-
-def prepare_sediment_thickness_data_exxon(input_raster='../Data/Raw_Data/EXXON_Sediment_Thickness/'
-                                                       'Global_Sediment_thickness_EXX.tif',
-                                          skip_processing=False):
-    if not skip_processing:
-        print('Processing Sediment Thickness EXXON Dataset...')
-        resampled_raster = mask_by_ref_raster(input_raster, outdir='../Data/Raw_Data/EXXON_Sediment_Thickness',
-                                              raster_name='Global_Sed_Thickness_Exx_resampled.tif',
-                                              resolution=0.02)
-
-        sediment_thickness_exx_raster = paste_val_on_ref_raster(resampled_raster,
-                                                                outdir='../Data/Resampled_Data/EXXON_Sediment_Thickness',
-                                                                raster_name='Global_Sed_Thickness_Exx.tif')
-        print('Processed Sediment Thickness EXXON Dataset...')
-
-    else:
-        sediment_thickness_exx_raster = '../Data/Resampled_Data/EXXON_Sediment_Thickness/Global_Sed_Thickness_Exx.tif'
-
-    return sediment_thickness_exx_raster
 
 
 def prepare_modis_landuse_data(output_raster,
@@ -912,7 +896,6 @@ def prepare_modis_landuse_data(output_raster,
 def download_process_predictor_datasets(yearlist, start_month, end_month, resampled_gee_dir,
                                         gfsad_cropextent, giam_gw, irrigated_meier, intermediate_dir, outdir_lu,
                                         sediment_thickness, outdir_sed_thickness,
-                                        sediment_thickness_exx,
                                         outdir_pop, perform_pca=False,
                                         skip_download=True, skip_processing=True,
                                         geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000):
@@ -933,7 +916,7 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     outdir_sed_thickness : Output directory for saving processed sediment thickness raster.
     outdir_pop : Output directory for saving processed population raster.
     perform_pca : Set to True if to  run PCA.
-    skip_download : Set to False if want to downlad data from GEE. Default set to True.
+    skip_download : Set to False if want to download data from GEE. Default set to True.
     skip_processing : Set to False if want to process datasets.
     geedatalist : Data list to download from GEE. Can download data from the following list-
                   ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_ret', 'TRCLM_soil', 'MODIS_ET', 'MODIS_PET',
@@ -1031,16 +1014,14 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     gfsad_raster, irrigated_meier_raster, giam_gw_raster = prepare_lu_data(gfsad_cropextent, giam_gw, irrigated_meier,
                                                                            intermediate_dir, outdir_lu, skip_processing)
 
-    sediment_thickness_raster = prepare_sediment_thickness_data(sediment_thickness, outdir_sed_thickness,
-                                                                'Global_Sediment_Thickness.tif', skip_processing)
-
-    sediment_thickness_raster_exxon = prepare_sediment_thickness_data_exxon(sediment_thickness_exx,
-                                                                            skip_processing)
+    sediment_thickness_raster = prepare_sediment_thickness_data(sediment_thickness, intermediate_dir,
+                                                                outdir_sed_thickness, 'Global_Sediment_Thickness.tif',
+                                                                skip_processing)
 
     popdensity_raster = prepare_popdensity_data(PopDensity_GPW, outdir_pop, skip_processing)
 
     return resampled_gee_rasters, gfsad_raster, irrigated_meier_raster, giam_gw_raster, sediment_thickness_raster, \
-           sediment_thickness_raster_exxon, popdensity_raster
+           popdensity_raster
 
 
 def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygons,
@@ -1063,11 +1044,15 @@ def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence
     for each in range(0, len(subsidence_polygons)):
         if each == 0:
             gdf = gpd.read_file(subsidence_polygons[each])
+            df = pd.DataFrame(gdf)
 
         gdf_new = gpd.read_file(subsidence_polygons[each])
-        add_to_gdf = gdf.append(gdf_new, ignore_index=True)
-        gdf = add_to_gdf
-        gdf['Class_name'] = gdf['Class_name'].astype(float)
+        df_new = pd.DataFrame(gdf_new)
+        add_to_df = pd.concat([df, df_new], ignore_index=True)
+        df = add_to_df
+        df['Class_name'] = pd.to_numeric(df['Class_name'], downcast='float')
+
+        gdf = gpd.GeoDataFrame(df, geometry='geometry')
         gdf.to_file(joined_subsidence_polygons)
 
     return joined_subsidence_polygons
@@ -1079,7 +1064,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
                               insar_data_dir='../InSAR_Data/Merged_subsidence_data',
                               interim_dir='../InSAR_Data/Merged_subsidence_data/interim_working_dir',
                               output_dir='../InSAR_Data/Merged_subsidence_data/final_subsidence_raster',
-                              skip_polygon_merge=False, subsidence_column='Class_name',
+                              skip_polygon_merge=False, subsidence_column='Class_name', resample_algorithm='near',
                               final_subsidence_raster='Subsidence_training.tif',
                               polygon_search_criteria='*Subsidence*.shp',
                               insar_search_criteria='*reclass_resampled*.tif', already_prepared=False,
@@ -1095,6 +1080,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
     output_dir : Output raster directory.
     skip_polygon_merge : Set to True if polygon merge is not required.
     subsidence_column : Subsidence value column in joined subsidence polygon. Default set to 'Class_name'.
+    resample_algorithm : Algorithm for resampling polygon subsidence data. Default set to 'near'.
     final_subsidence_raster : Final subsidence raster including georeferenced and insar data.
     polygon_search_criteria : Input subsidence polygon search criteria.
     insar_search_criteria : InSAR data search criteria.
@@ -1113,16 +1099,22 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
         else:
             subsidene_polygons = joined_subsidence_polygon
 
-        subsidence_raster = shapefile_to_raster(subsidene_polygons, interim_dir,
-                                                raster_name='interim_subsidence_raster.tif', use_attr=True,
-                                                attribute=subsidence_column, ref_raster=refraster, alltouched=False)
+        interim_georeferenced_subsidence = \
+            shapefile_to_raster(subsidene_polygons, interim_dir, resolution=0.005,
+                                raster_name='interim_subsidence_raster_0005.tif', use_attr=True,
+                                attribute=subsidence_column, ref_raster=refraster, alltouched=False)
+        georeferenced_subsidence = resample_reproject(interim_georeferenced_subsidence, interim_dir,
+                                                      raster_name='interim_subsidence_raster.tif', resample=True,
+                                                      reproject=False, both=False,
+                                                      resample_algorithm=resample_algorithm)
+
         print('Processed Subsidence Polygons')
 
         print('Processing InSAR Data...')
         insar_arr, merged_insar = mosaic_rasters(insar_data_dir, interim_dir, raster_name='joined_insar_data.tif',
                                                  ref_raster=refraster, search_by=insar_search_criteria, resolution=0.02)
 
-        final_subsidence_arr, subsidence_data = mosaic_two_rasters(merged_insar, subsidence_raster, output_dir,
+        final_subsidence_arr, subsidence_data = mosaic_two_rasters(merged_insar, georeferenced_subsidence, output_dir,
                                                                    final_subsidence_raster, resolution=0.02)
 
         if merge_coastal_subsidence_data:
@@ -1189,6 +1181,7 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
     if not skip_compiling_predictor_subsidence_data:
         shutil.rmtree(output_dir, ignore_errors=True)
         makedirs([output_dir])
+
         for key in gee_data_dict.keys():
             rename_copy_raster(gee_data_dict[key], output_dir, rename=True, new_name=(key + '.tif'))
 
@@ -1198,7 +1191,5 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
         rename_copy_raster(sediment_thickness_data, output_dir, rename=False)
         rename_copy_raster(popdensity_data, output_dir, rename=True, new_name='Population_Density.tif')
         rename_copy_raster(subsidence_data, output_dir, rename=True, new_name='Subsidence.tif')
-        rename_copy_raster('../Data/Resampled_Data/EXXON_Sediment_Thickness/Global_Sed_Thickness_Exx.tif', output_dir,
-                           rename=False)
 
     return output_dir

@@ -7,16 +7,16 @@ from rasterio.mask import mask
 from glob import glob
 import pandas as pd
 import numpy as np
-import gdal
+from osgeo import gdal
 import json
 from fiona import transform
-from shapely.geometry import box, mapping
+from shapely.geometry import box, mapping, Point
 import geopandas as gpd
 import astropy.convolution as apc
 from scipy.ndimage import gaussian_filter
 from System_operations import *
-from datetime import datetime
 import subprocess
+
 
 No_Data_Value = -9999
 
@@ -193,19 +193,19 @@ def resample_reproject(input_raster, output_dir, raster_name, reference_raster=r
         resampled_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster, format='GTiff',
                                      width=ref_arr.shape[1], height=ref_arr.shape[0], outputType=gdal.GDT_Float32,
                                      resampleAlg=resample_algorithm, dstNodata=nodata)
-        resampled_raster = None
+        del resampled_raster
     if reproject:
         reprojected_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,
                                        dstSRS=change_crs_to, format='GTiff', outputType=gdal.GDT_Float32,
                                        dstNodata=nodata)
-        reprojected_raster = None
+        del reprojected_raster
 
     if both:
         processed_raster = gdal.Warp(destNameOrDestDS=output_raster, srcDSOrSrcDSTab=input_raster,
                                      width=ref_arr.shape[1], height=ref_arr.shape[0], format='GTiff',
                                      dstSRS=change_crs_to, outputType=gdal.GDT_Float32, resampleAlg=resample_algorithm,
                                      dstNodata=nodata)
-        processed_raster = None
+        del processed_raster
 
     return output_raster
 
@@ -857,12 +857,13 @@ def rasterize_coastal_subsidence(mean_output_points, output_dir,
     Return : A Geotiff file of 0.02 degree containing coastal subsidence data.
     """
     coastal_df = pd.read_csv(input_csv)
-    coastal_df = coastal_df.astype('Float32')
-    coastal_df = coastal_df[(coastal_df['first_epoch'] >= 2006) & (coastal_df['VLM_mm_yr'] < 0)]
+    new_col_dict = {'Longitude_deg': 'Long_deg', 'Latitude_deg': 'Lat_deg', 'first_epoch': '1st_epoch',
+                    'last_epoch': 'last_epoch', 'VLM_mm_yr': 'VLM_mm_yr','VLM_std_mm_yr': 'VLMstdmmyr'}
+    coastal_df.rename(columns=new_col_dict, inplace=True)
+    coastal_df = coastal_df[(coastal_df['1st_epoch'] >= 2006) & (coastal_df['VLM_mm_yr'] < 0)]
     coastal_df['VLM_cm_yr'] = coastal_df['VLM_mm_yr'] / 10
-    coastal_shp = gpd.GeoDataFrame(coastal_df, geometry=gpd.points_from_xy(coastal_df['Longitude_deg'],
-                                                                           coastal_df['Latitude_deg']),
-                                   crs='EPSG:4326')
+    coords = [Point(xy) for xy in zip(coastal_df['Long_deg'], coastal_df['Lat_deg'])]
+    coastal_shp = gpd.GeoDataFrame(coastal_df, geometry=coords, crs='EPSG:4326')
     intermediate_shp = '../InSAR_Data/Coastal_Subsidence/filtered_point.shp'
     coastal_shp.to_file(intermediate_shp)
 
@@ -872,11 +873,11 @@ def rasterize_coastal_subsidence(mean_output_points, output_dir,
                                        add=False, burnvalue=0, alltouched=True)
     blank_arr, blank_file = read_raster_arr_object(blank_raster)
     index_list = list()
-    for lon, lat in zip(coastal_shp['Longitude_deg'], coastal_shp['Latitude_deg']):
+    for lon, lat in zip(coastal_shp['Long_deg'], coastal_shp['Lat_deg']):
         row, col = blank_file.index(lon, lat)
         index_list.append(str(row + col))
-    coastal_shp['pixel_index'] = index_list
-    mean_subsidence = coastal_shp.groupby('pixel_index', as_index=True)['VLM_cm_yr'].transform('mean')
+    coastal_shp['pix_index'] = index_list
+    mean_subsidence = coastal_shp.groupby('pix_index', as_index=True)['VLM_cm_yr'].transform('mean')
     coastal_shp['mean_cm_yr'] = mean_subsidence
     coastal_shp.to_file(mean_output_points)
 

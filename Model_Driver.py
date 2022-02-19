@@ -3,8 +3,10 @@
 
 from Data_operations import *
 from ML_operations import *
+import warnings
 import timeit
 
+warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore future warning coming from pandas
 start = timeit.default_timer()
 
 gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
@@ -23,20 +25,17 @@ outdir_lu = '../Data/Resampled_Data/Land_Use'
 intermediate_dir = '../Data/Intermediate_working_dir'
 sediment_thickness = '../Data/Raw_Data/Global_Sediment_Thickness/average_soil_and_sedimentary-deposit_thickness.tif'
 outdir_sed_thickness = '../Data/Resampled_Data/Sediment_Thickness'
-sediment_thickness_exx = '../Data/Raw_Data/EXXON_Sediment_Thickness/Global_Sediment_thickness_EXX.tif'
 outdir_pop = '../Data/Resampled_Data/Pop_Density'
 
 # skip_download = False if new data needs to be downloaded from google earth engine
 # skip_processing = False if processing of already downloaded data (secondary processing) is required
-gee_raster_dict, gfsad_raster, irrigated_meier_raster, giam_gw_raster,  sediment_thickness_raster, \
-sediment_thickness_raster_exxon, \
-popdensity_raster = download_process_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
-                                                        gfsad_lu, giam_lu, irrigated_meier, intermediate_dir, outdir_lu,
-                                                        sediment_thickness, outdir_sed_thickness,
-                                                        sediment_thickness_exx,
-                                                        outdir_pop, perform_pca=False,
-                                                        skip_download=True, skip_processing=True,  # #
-                                                        geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
+gee_raster_dict, gfsad_raster, irrigated_meier_raster, giam_gw_raster, sediment_thickness_raster, \
+    popdensity_raster = download_process_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
+                                                            gfsad_lu, giam_lu, irrigated_meier, intermediate_dir,
+                                                            outdir_lu, sediment_thickness, outdir_sed_thickness,
+                                                            outdir_pop, perform_pca=False,
+                                                            skip_download=True, skip_processing=True,  # #
+                                                            geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
 
 input_polygons_dir = '../InSAR_Data/Georeferenced_subsidence_data'
 joined_subsidence_polygon = '../InSAR_Data/Merged_subsidence_data/interim_working_dir/georef_subsidence_polygons.shp'
@@ -49,7 +48,7 @@ training_insar_dir = '../InSAR_Data/Merged_subsidence_data/final_subsidence_rast
 # data has o be integrated
 subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subsidence_polygon,
                                               insar_data_dir, interim_dir, training_insar_dir,
-                                              subsidence_column='Class_name',
+                                              subsidence_column='Class_name', resample_algorithm='near',
                                               final_subsidence_raster='Subsidence_training.tif',
                                               polygon_search_criteria='*Subsidence*.shp',
                                               insar_search_criteria='*reclass_resampled*.tif',
@@ -78,42 +77,43 @@ modeldir = '../Model Run/Model'
 model = 'RF'
 
 # change for model run
-exclude_columns = ['Alexi_ET', 'Grace', 'MODIS_ET', 'ALOS_Landform', 'MODIS_PET', 'Global_Sed_Thickness_Exx',
-                   'Irrigated_Area_Density', 'GW_Irrigation_Density_giam',
-                   'MODIS_Land_Use', 'Aridity_Index']
 
-prediction_raster_keyword = 'RF96'
+exclude_columns = ['Alexi ET', 'Aridity Index', 'Grace', 'MODIS ET', 'Irrigated Area Density (gfsad)',
+                   'GW Irrigation Density giam', 'Slope', 'Landform', 'MODIS PET',
+                   'MODIS Land Use', 'EVI', 'Tmax', 'Tmin']
+
+prediction_raster_keyword = 'RF106'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
 # plot_confusion_matrix = False if confusion matrix plot (as image) is not required
-ML_model = build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
-                               pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                               n_estimators=200, min_samples_leaf=1e-05, min_samples_split=2, max_depth=20,
-                               max_features=7, class_weight='balanced',
-                               predictor_imp_keyword=prediction_raster_keyword,
-                               predictor_importance=True,  # #
-                               plot_pdp=True,  # #
-                               plot_confusion_matrix=True,  # #
-                               tune_hyperparameter=True,  # #
-                               k_fold=5, n_iter=80,
-                               random_searchCV=True)  # #
+ML_model, predictor_name_dict = \
+    build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
+                        pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
+                        n_estimators=300, min_samples_leaf=1e-05, min_samples_split=2, max_depth=17,
+                        max_features='auto', class_weight='balanced',
+                        predictor_imp_keyword=prediction_raster_keyword,
+                        predictor_importance=True,  # #
+                        plot_pdp=True,  # #
+                        plot_confusion_matrix=True,  # #
+                        tune_hyperparameter=False,  # #
+                        k_fold=5, n_iter=80,
+                        random_searchCV=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
 
 # predictor_csv_exists =  False if new predictor has been added so new data has to be added or predictor
 # combination changes
 # predictor_probability_greater_1cm = False if probability plot is not required
-create_prediction_raster \
-    (predictors_dir, ML_model, yearlist=[2013, 2019], search_by='*.tif', continent_search_by='*continent.shp',
-     continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
-     prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns, pred_attr='Subsidence',
-     prediction_raster_keyword=prediction_raster_keyword,
-     predictor_csv_exists=True,  # #
-     predict_probability_greater_1cm=True)  # #
-
+create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist=[2013, 2019], search_by='*.tif',
+                         continent_search_by='*continent.shp',
+                         continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
+                         prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns,
+                         pred_attr='Subsidence', prediction_raster_keyword=prediction_raster_keyword,
+                         predictor_csv_exists=False,  # #
+                         predict_probability_greater_1cm=True)  # #
 
 model_runtime = True
 if model_runtime:
     stop = timeit.default_timer()
-    print('Model Run Time :', round((stop-start)/60, 2), 'min')
+    print('Model Run Time :', round((stop - start) / 60, 2), 'min')
