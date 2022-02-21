@@ -46,6 +46,20 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
     Returns: predictor_df dataframe created from predictor rasters.
     """
     print('Creating Predictors csv...')
+
+    predictor_rename_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+                             'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
+                             'Global_Sediment_Thickness': 'Sediment Thickness (m)',
+                             'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
+                             'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)',
+                             'MODIS_ET': 'MODIS ET (kg/m2)', 'Irrigated_Area_Density2': 'Irrigated Area Density',
+                             'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
+                             'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
+                             'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
+                             'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
+                             'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
+                             'TRCLM_ET': 'TRCLM ET (mm)'}
+
     if not skip_dataframe_creation:
         predictors = glob(os.path.join(input_raster_dir, search_by))
 
@@ -58,6 +72,7 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
 
         predictor_df = pd.DataFrame(predictor_dict)
         predictor_df = predictor_df.dropna(axis=0)
+        predictor_df = predictor_df.rename(columns=predictor_rename_dict)
         predictor_df = reindex_df(predictor_df)
         predictor_df.to_csv(output_csv, index=False)
 
@@ -86,15 +101,16 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     input_df = pd.read_csv(predictor_csv)
     predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
                            'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
-                           'Global_Sediment_Thickness': 'Sediment Thickness',
+                           'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                            'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                           'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)', 'MODIS_ET': 'MODIS ET',
-                           'Irrigated_Area_Density2': 'Irrigated Area Density',
-                           'MODIS_PET': 'MODIS PET', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
-                           'SRTM_Slope': 'Slope', 'Subsidence': 'Subsidence',
-                           'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation',
-                           'TRCLM_soil': 'Soil moisture', 'TRCLM_Tmax': 'Tmax',
-                           'TRCLM_Tmin': 'Tmin', 'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
+                           'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)',
+                           'MODIS_ET': 'MODIS ET (kg/m2)', 'Irrigated_Area_Density2': 'Irrigated Area Density',
+                           'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
+                           'SRTM_Slope': '% Slope', 'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
+                           'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
+                           'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
+                           'TRCLM_ET': 'TRCLM ET (mm)'}
+
     input_df = input_df.rename(columns=predictor_name_dict)
     drop_columns = exclude_columns + [pred_attr]
     print('Dropping Columns-', exclude_columns)
@@ -530,7 +546,7 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
     Parameters:
     predictors_dir : Predictor rasters' directory.
     model : A fitted model obtained from random_forest_classifier function.
-    predictor_name_dict : Predictot name dictionary (comes from split_train_test_ratio > build_ml_classifier function).
+    predictor_name_dict : Predictor name dictionary (comes from split_train_test_ratio > build_ml_classifier function).
     yearlist : List of years for the prediction.
     search_by : Predictor rasters search criteria. Defaults to '*.tif'.
     continent_search_by : Continent shapefile search criteria. Defaults to '*continent.tif'.

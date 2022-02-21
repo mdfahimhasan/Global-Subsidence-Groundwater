@@ -78,11 +78,11 @@ model = 'RF'
 
 # change for model run
 
-exclude_columns = ['Alexi ET', 'Aridity Index', 'Grace', 'MODIS ET', 'Irrigated Area Density (gfsad)',
-                   'GW Irrigation Density giam', 'Slope', 'Landform', 'MODIS PET',
-                   'MODIS Land Use', 'EVI', 'Tmax', 'Tmin']
+exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+                   'GW Irrigation Density giam', 'Landform', 'MODIS PET (kg/m2)',
+                   'Tmin (°C)', 'EVI', 'Tmax (°C)', 'TRCLM RET (mm)', 'MODIS Land Use']
 
-prediction_raster_keyword = 'RF106'
+prediction_raster_keyword = 'RF108'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
