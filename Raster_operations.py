@@ -885,3 +885,4 @@ def rasterize_coastal_subsidence(mean_output_points, output_dir,
                                                     use_attr=True, attribute='mean_cm_yr',
                                                     add=None, burnvalue=0, alltouched=True)
     return coastal_subsidence_raster
+

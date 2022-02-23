@@ -49,7 +49,6 @@ training_insar_dir = '../InSAR_Data/Merged_subsidence_data/final_subsidence_rast
 subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subsidence_polygon,
                                               insar_data_dir, interim_dir, training_insar_dir,
                                               subsidence_column='Class_name', resample_algorithm='near',
-                                              final_subsidence_raster='Subsidence_training.tif',
                                               polygon_search_criteria='*Subsidence*.shp',
                                               insar_search_criteria='*reclass_resampled*.tif',
                                               skip_polygon_merge=True,  # #
@@ -79,10 +78,9 @@ model = 'RF'
 # change for model run
 
 exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
-                   'GW Irrigation Density giam', 'Landform', 'MODIS PET (kg/m2)',
-                   'Tmin (°C)', 'EVI', 'Tmax (°C)', 'TRCLM RET (mm)', 'MODIS Land Use']
+                   'GW Irrigation Density giam', 'Landform', 'MODIS PET (kg/m2)', 'MODIS Land Use']
 
-prediction_raster_keyword = 'RF108'
+prediction_raster_keyword = 'RF112'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
@@ -96,7 +94,7 @@ ML_model, predictor_name_dict = \
                         predictor_importance=True,  # #
                         plot_pdp=True,  # #
                         plot_confusion_matrix=True,  # #
-                        tune_hyperparameter=False,  # #
+                        tune_hyperparameter=True,  # #
                         k_fold=5, n_iter=80,
                         random_searchCV=True)  # #
 
