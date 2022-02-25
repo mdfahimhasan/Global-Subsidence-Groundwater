@@ -75,7 +75,7 @@ predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif'
 modeldir = '../Model Run/Model'
 model = 'rf'
 
-# change for model run
+# change for fitted_model run
 
 exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                    'GW Irrigation Density giam', 'Landform', 'MODIS PET (kg/m2)', 'MODIS Land Use']

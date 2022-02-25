@@ -91,7 +91,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
     parameters:
     input_csv : Input csv (with filepath) containing all the predictors.
-    exclude_columns : Tuple of columns not included in training the model.
+    exclude_columns : Tuple of columns not included in training the fitted_model.
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence'.
     test_size : The percentage of test dataset. Defaults to 0.3.
     random_state : Seed value. Defaults to 0.
@@ -255,10 +255,10 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
 
     Parameters:
     predictor_dataframe_csv : Predictor csv (with filepath) containing all the predictors.
-    modeldir : Model directory to store/load model.
-    exclude_columns : Tuple of columns not included in training the model.
-    model : Machine learning model to run. Choose from 'rf'/'gdbt'. Default set to 'rf'.
-    load_model : Set True to load existing model. Default set to False for new model creation.
+    modeldir : Model directory to store/load fitted_model.
+    exclude_columns : Tuple of columns not included in training the fitted_model.
+    fitted_model : Machine learning fitted_model to run. Choose from 'rf'/'gdbt'. Default set to 'rf'.
+    load_model : Set True to load existing fitted_model. Default set to False for new fitted_model creation.
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     test_size : The percentage of test dataset. Defaults to 0.3.
     random_state : Seed value. Defaults to 0.
@@ -292,7 +292,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     n_iter : Number of parameter combinations to be tested in RandomizedSearchCV. Default set to 70.
     random_searchCV : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
 
-    Returns: rf_classifier (A fitted random forest model)
+    Returns: rf_classifier (A fitted random forest fitted_model)
     """
 
     # Splitting Training and Testing Data
@@ -300,7 +300,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
         split_train_test_ratio(predictor_csv=predictor_csv, exclude_columns=exclude_columns, pred_attr=pred_attr,
                                test_size=test_size, random_state=random_state, outdir=output_dir)
 
-    # Making directory for model
+    # Making directory for fitted_model
     makedirs([modeldir])
     model_file = os.path.join(modeldir, model)
 
@@ -421,7 +421,7 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
     overall_accuracy = round(accuracy_score(y_test, y_pred), 2)
     print('Accuracy Score {}'.format(overall_accuracy))
 
-    # Saving model accuracy for individual classes
+    # Saving fitted_model accuracy for individual classes
     accuracy_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_accuracy.csv'
     save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name)
 
@@ -495,14 +495,14 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
 
 def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
     """
-    Save model accuracy parameters as csv.
+    Save fitted_model accuracy parameters as csv.
 
     Parameters:
     cm_df_test : Confusion matrix dataframe (input from 'classification_accuracy' function).
     overall_accuracy : Overall accuracy value (input from 'classification_accuracy' function).
     accuracy_csv_name : Name of the csv file to save.
 
-    Returns : Saved csv with model accuracy values.
+    Returns : Saved csv with fitted_model accuracy values.
     """
     from operator import truediv
     act_pixel_less_1cm = sum(cm_df_test.loc[('Actual', '<1cm/yr')])
@@ -528,10 +528,10 @@ def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
 def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
              ):
     """
-    Plot Partial Dependence Plot for the model.
+    Plot Partial Dependence Plot for the fitted_model.
 
     Parameters:
-    classifier :ML model classifier.
+    classifier :ML fitted_model classifier.
     x_train : X train array.
     output_dir : Output directory path to save the plots.
     plot_save_keyword : Keyword to sum before saved PDP plots.
@@ -590,11 +590,11 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
                              exclude_columns=(), pred_attr='Subsidence',
                              prediction_raster_keyword='RF', predict_probability_greater_1cm=True):
     """
-    Create predicted raster from random forest model.
+    Create predicted raster from random forest fitted_model.
 
     Parameters:
     predictors_dir : Predictor rasters' directory.
-    model : A fitted model obtained from random_forest_classifier function.
+    fitted_model : A fitted fitted_model obtained from random_forest_classifier function.
     predictor_name_dict : Predictor name dictionary (comes from split_train_test_ratio > build_ml_classifier function).
     yearlist : List of years for the prediction.
     search_by : Predictor rasters search criteria. Defaults to '*.tif'.
@@ -603,7 +603,7 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
                            list of drop columns changes.
     continent_shapes_dir : Directory path of continent shapefiles.
     prediction_raster_dir : Output directory of prediction raster.
-    exclude_columns : Predictor rasters' name that will be excluded from the model. Defaults to ().
+    exclude_columns : Predictor rasters' name that will be excluded from the fitted_model. Defaults to ().
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     prediction_raster_keyword : Keyword added to final prediction raster name.
     predict_probability_greater_1cm : Set to False if probability of prediction of each classes (<1cm, 1-5cm, >5cm)

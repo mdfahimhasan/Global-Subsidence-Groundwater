@@ -3,19 +3,21 @@
 
 import os
 import pickle
-import sys
 from glob import glob
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score
 from System_operations import makedirs
 from Raster_operations import shapefile_to_raster, mosaic_rasters, mosaic_two_rasters, read_raster_arr_object, \
     write_raster, clip_resample_raster_cutline
+
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore future warning coming from pandas
+warnings.filterwarnings(action='ignore')
 
 referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
 
@@ -235,7 +237,7 @@ def create_traintest_df_loo_accuracy(input_raster_dir, subsidence_areacode_dict,
     input_raster_dir : Input rasters directory.
     subsidence_areacode_dict : subsidence area code dictionary (output from 'combine_georef_insar_subsidence_raster'
                                                                 function)
-    exclude_columns List of predictors to be excluded from model training.
+    exclude_columns List of predictors to be excluded from fitted_model training.
     output_dir : Output directory path.
     search_by : Input raster search criteria. Defaults to '*.tif'.
     skip_predictor_subsidence_compilation : Set to True if want to skip processing.
@@ -302,7 +304,7 @@ def create_traintest_df_loo_accuracy(input_raster_dir, subsidence_areacode_dict,
 def train_test_split_loo_accuracy(predictor_csv, loo_test_area_name, pred_attr='Subsidence',
                                   outdir='../Model Run/LOO_Test/Predictors_csv'):
     """
-    Create x_train, y_train, x_test, y_test arrays for machine learning model.
+    Create x_train, y_train, x_test, y_test arrays for machine learning fitted_model.
 
     Parameters:
     predictor_dataframe_csv : Predictor csv filepath.
@@ -346,7 +348,7 @@ def build_ml_classifier(predictor_csv, loo_test_area_name, model='RF', random_st
     Parameters:
     predictor_csv : Predictor csv (with filepath) containing all the predictors.
     loo_test_area_name : Area name which will be used as test data.
-    model : Machine learning model to run.Can only run random forest 'RF' model.
+    fitted_model : Machine learning fitted_model to run.Can only run random forest 'RF' fitted_model.
     random_state : Seed value. Defaults to 0.
     n_estimators : The number of trees in the forest. Defaults to 500.
     max_depth : Depth of each tree. Default set to 20.
@@ -358,9 +360,9 @@ def build_ml_classifier(predictor_csv, loo_test_area_name, model='RF', random_st
     oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
     n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
-    modeldir : Model directory to store/load model. Default is '../Model Run/Model/Model_Loo_test'.
+    modeldir : Model directory to store/load fitted_model. Default is '../Model Run/Model/Model_Loo_test'.
 
-    Returns: rf_classifier (A fitted random forest model)
+    Returns: rf_classifier (A fitted random forest fitted_model)
     """
 
     x_train_csv, x_train, y_train, x_test, y_test = train_test_split_loo_accuracy(predictor_csv, loo_test_area_name,
@@ -398,7 +400,7 @@ def classification_accuracy(y_test, y_pred, loo_test_area_name,
     classifier : ML classifier from build_ML_classifier() function.
     x_train_csv : path of x train csv from 'train_test_split_loo_accuracy' function.
     loo_test_area_name : test area name for which to create confusion matrix.
-    area_index : Index that will help saving accuracy score. (don't need to added manually, model will take from
+    area_index : Index that will help saving accuracy score. (don't need to added manually, fitted_model will take from
                  run_loo_accuracy_test function)
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     predictor_importance : Default set to True to plot predictor importance plot.
@@ -465,24 +467,24 @@ def classification_accuracy(y_test, y_pred, loo_test_area_name,
     return overall_accuracy
 
 
-def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], search_by='*.tif',
+def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019], search_by='*.tif',
                              continent_search_by='*continent.shp',
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/LOO_Test/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
                              prediction_raster_keyword='RF', predictor_csv_exists=False):
     """
-    Create predicted raster from random forest model.
+    Create predicted raster from random forest fitted_model.
 
     Parameters:
     predictors_dir : Predictor rasters' directory.
-    model : A fitted model obtained from randon_forest_classifier function.
+    fitted_model : A fitted_model obtained from random_forest_classifier function.
     yearlist : List of years for the prediction.
     search_by : Predictor rasters search criteria. Defaults to '*.tif'.
     continent_search_by : Continent shapefile search criteria. Defaults to '*continent.tif'.
     continent_shapes_dir : Directory path of continent shapefiles.
     prediction_raster_dir : Output directory of prediction raster.
-    exclude_columns : Predictor rasters' name that will be excluded from the model. Defaults to ().
+    exclude_columns : Predictor rasters' name that will be excluded from the fitted_model. Defaults to ().
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     prediction_raster_keyword : Keyword added to final prediction raster name.
     predictor_csv_exists : Set to True if predictor csv for each continent exists. Default set to False to create
@@ -546,7 +548,7 @@ def create_prediction_raster(predictors_dir, model, yearlist=[2013, 2019], searc
             raster_shape = raster_arr.shape
 
         x = predictor_df.values
-        y_pred = model.predict(x)
+        y_pred = fitted_model.predict(x)
 
         for nan_pos in nan_position_dict.values():
             y_pred[nan_pos] = raster_file.nodata
@@ -572,7 +574,7 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_es
 
     Parameters:
     predictor_dataframe_csv : filepath of predictor csv.
-    exclude_predictors_list : List of predictors to exclude for training the model.
+    exclude_predictors_list : List of predictors to exclude for training the fitted_model.
     n_estimators : The number of trees in the forest. Defaults to 500.
     max_depth : Depth of each tree. Default set to 20.
     min_samples_leaf : Minimum number of samples required to be at a leaf node. Defaults to 1.
@@ -585,9 +587,9 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_es
     predictor_csv_exists : Set to True if predictor csv for each continent exists. Default set to False to create
                            create new predictor csv (also needed if predictor combinations are changed).
 
-    Returns : Classification reports and confusion matrix for individual model training, Overall accuracy result for
-              each model as a single text file,
-              prediction rasters for each model (if skip_create_prediction_raster=False)
+    Returns : Classification reports and confusion matrix for individual fitted_model training, Overall accuracy result for
+              each fitted_model as a single text file,
+              prediction rasters for each fitted_model (if skip_create_prediction_raster=False)
     """
     subsidence_training_area_list = [
         'Arizona', 'Australia_Perth', 'Bangladesh_GBDelta', 'California', 'China_Beijing',
@@ -623,10 +625,10 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_es
 def difference_from_model_prediction(original_model_prediction_raster,
                                      loo_test_prediction_dir='../Model Run/LOO_Test/Prediction_rasters'):
     """
-    Find mismatch % between original model predictions and loo test predictions.
+    Find mismatch % between original fitted_model predictions and loo test predictions.
 
     Parameters:
-    original_model_prediction_raster : Filepath of original model prediction raster.
+    original_model_prediction_raster : Filepath of original fitted_model prediction raster.
     loo_test_prediction_dir : directory path of loo test predictions.
 
     Returns : A text file containing mismatch % values.
@@ -658,7 +660,7 @@ def difference_from_model_prediction(original_model_prediction_raster,
 
 def concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/Accuracy_score'):
     """
-    Merge classification reports from all model runs.
+    Merge classification reports from all fitted_model runs.
 
     Parameters:
     classification_csv_dir : Directory of individual classification reports. Default set to
@@ -683,10 +685,6 @@ def concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/
 
 
 # LOO Accuracy Test Run
-
-import warnings
-
-warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore future warning coming from pandas
 run_loo_test = True
 
 if run_loo_test:
@@ -712,8 +710,8 @@ if run_loo_test:
 
 # Perform Mismatch estimation
 
-# Set run_loo_test=False and mismatch_estimation=True to perform mismatch estimation. Input is origin model prediction
-# raster which will work as the baseline model to compare loo test prediction models.
+# Set run_loo_test=False and mismatch_estimation=True to perform mismatch estimation. Input is origin fitted_model
+# prediction raster which will work as the baseline fitted_model to compare loo test prediction models.
 
 mismatch_estimation = True
 
