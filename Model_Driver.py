@@ -73,7 +73,7 @@ predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif'
                                 skip_dataframe_creation=True)  # #
 
 modeldir = '../Model Run/Model'
-model = 'RF'
+model = 'rf'
 
 # change for model run
 

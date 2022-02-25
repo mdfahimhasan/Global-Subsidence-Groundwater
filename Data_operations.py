@@ -837,7 +837,7 @@ def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sedime
     output_raster_name : Output raster name.
     skip_processing : Set to True if want to skip processing.
 
-    Returns : Resampled sedeiment thickness raster.
+    Returns : Resampled sediment thickness raster.
     """
     makedirs([interim_dir, output_dir])
     if not skip_processing:

@@ -12,6 +12,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_s
     precision_score, recall_score, f1_score, roc_auc_score, make_scorer
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, StratifiedKFold
 from sklearn.inspection import PartialDependenceDisplay
+from lightgbm import LGBMClassifier
 from Raster_operations import *
 from System_operations import *
 
@@ -137,36 +138,44 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     return x_train, x_test, y_train, y_test, predictor_name_dict
 
 
-def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_search=True):
+def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50, random_search=True):
     """
     Hyperparameter optimization using RandomizedSearchCV/GridSearchCV.
 
     Parameters:
     x_train, y_train : x_train (predictor) and y_train (target) arrays from split_train_test_ratio function.
+    mode : Model for which hyperparameters will be tuned. Should be 'rf'/'gbdt'. Default set to 'rf'.
     folds : Number of folds in K Fold CV. Default set to 5.
     n_iter : Number of parameter combinations to be tested in RandomizedSearchCV.
     random_search : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
 
-    Returns : Optimized Hyperparameters (currently n_estimator and max_depth).
+    Returns : Optimized Hyperparameters.
     """
+    param_dict = {'rf':
+                      {'n_estimators': [100, 200, 300],
+                       'max_depth': [5, 11, 13, 15, 17, 19, 20],
+                       'max_features': [4, 5, 6, 7, 8, 10],
+                       'min_samples_leaf': [5e-4, 1e-5, 2, 6, 12, 20, 25, 30, 50]},
 
-    n_estimators = [100, 200, 300]
-    max_depth = [5, 11, 13, 15, 17, 19, 20]
-    max_features = [4, 5, 6, 7, 8, 10]
-    min_samples_leaf = [5e-4, 1e-5, 2, 6, 12, 20, 25, 30, 50]
-    # min_samples_split = [0.9, 0.8, 0.7, 2]
+                  'gbdt':
+                      {'num_leaves': [31, 63, 100, 200],
+                       'max_depth': [10, 12, 15, 20],
+                       'learning_rate': [0.01, 0.05],
+                       'n_estimators': [100, 200, 300],
+                       'subsample': [1, 0.9],
+                       # 'colsample_bytree': [1, 0.9],
+                       'min_child_samples': [20, 25, 30, 35, 50]}
+                  }
 
-    param_dict = {
-        'n_estimators': n_estimators,
-        'max_depth': max_depth,
-        'max_features': max_features,
-        'min_samples_leaf': min_samples_leaf,
-        # 'min_samples_split': min_samples_split
-    }
+    print('Classifier Name:', model)
+    pprint(param_dict[model])
 
-    pprint(param_dict)
-
-    rf_classifier = RandomForestClassifier(random_state=0)
+    if model == 'rf':
+        classifier = RandomForestClassifier(random_state=0, n_jobs=-1, bootstrap=True, oob_score=True,
+                                            class_weight='balanced')
+    elif model == 'gbdt':
+        classifier = LGBMClassifier(boosting_type='gbdt', objective='multiclass', class_weight='balanced',
+                                    importance_type='split', random_state=0, n_jobs=-1)
 
     # creating scorer that gives score of precision and recall of 1-5 cm/year class (works, storing as a reference
     # function to create own score)
@@ -195,11 +204,11 @@ def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_sea
 
     kfold = StratifiedKFold(n_splits=folds, shuffle=True, random_state=0)
     if random_search:
-        CV = RandomizedSearchCV(estimator=rf_classifier, param_distributions=param_dict, n_iter=n_iter,
+        CV = RandomizedSearchCV(estimator=classifier, param_distributions=param_dict[model], n_iter=n_iter,
                                 cv=kfold, verbose=1, random_state=0, n_jobs=-1,
                                 scoring='f1_macro', refit=True, return_train_score=True)
     else:
-        CV = GridSearchCV(estimator=rf_classifier, param_grid=param_dict, cv=kfold, verbose=1, n_jobs=-1,
+        CV = GridSearchCV(estimator=classifier, param_grid=param_dict[model], cv=kfold, verbose=1, n_jobs=-1,
                           scoring='f1_macro', refit=True, return_train_score=True)
 
     CV.fit(x_train, y_train)
@@ -207,51 +216,70 @@ def hyperparameter_optimization(x_train, y_train, folds=5, n_iter=50, random_sea
     print('\n')
     print('best parameters for macro f1 value ', '\n')
     pprint(CV.best_params_)
-    print('best macro f1 score', CV.best_score_)
     print('\n')
-    print('mean_test_macro_f1_score', CV.cv_results_['mean_test_score'][CV.best_index_])
-    print('mean_train_macro_f1_score', CV.cv_results_['mean_train_score'][CV.best_index_])
+    print('mean_test_macro_f1_score', round(CV.cv_results_['mean_test_score'][CV.best_index_], 2))
+    print('mean_train_macro_f1_score', round(CV.cv_results_['mean_train_score'][CV.best_index_], 2))
 
-    optimized_estimators = CV.best_params_['n_estimators']
-    optimized_depth = CV.best_params_['max_depth']
-    optimized_max_features = CV.best_params_['max_features']
-    optimized_samples_leaf = CV.best_params_['min_samples_leaf']
-    # optimized_samples_split = CV.best_params_['min_samples_split']
+    if model == 'rf':
+        optimized_param_dict = {'n_estimators': CV.best_params_['n_estimators'],
+                                 'max_depth': CV.best_params_['max_depth'],
+                                 'max_features': CV.best_params_['max_features'],
+                                 'min_samples_leaf': CV.best_params_['min_samples_leaf']}
 
-    return optimized_estimators, optimized_depth, optimized_max_features, optimized_samples_leaf
+        return optimized_param_dict
+
+    elif model == 'gbdt':
+        optimized_param_dict = {'num_leaves': CV.best_params_['num_leaves'],
+                                'max_depth': CV.best_params_['max_depth'],
+                                'learning_rate': CV.best_params_['learning_rate'],
+                                'n_estimators': CV.best_params_['n_estimators'],
+                                'subsample': CV.best_params_['subsample'],
+                                # 'colsample_bytree': CV.best_params_['colsample_bytree'],
+                                'min_child_samples': CV.best_params_['min_child_samples']}
+
+        return optimized_param_dict
 
 
-def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF', load_model=False,
+def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf', load_model=False,
                         pred_attr='Subsidence', test_size=0., random_state=0, output_dir=None,
                         n_estimators=300, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
                         bootstrap=True, oob_score=True, n_jobs=-1, class_weight='balanced',
+                        num_leaves=31, max_depth_gbdt=-1, learning_rate=0.01, n_estimators_gbdt=200, subsample=0.9,
+                        colsample_bytree=1, min_child_samples=20,
                         accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
                         plot_pdp=False, plot_confusion_matrix=True,
                         tune_hyperparameter=False, k_fold=5, n_iter=70, random_searchCV=True):
     """
-    Build Machine Learning Classifier. Can run 'Random Forest', 'Extra Trees Classifier' and 'XGBClassifier'.
+    Build Machine Learning Classifier. Can run 'Random Forest', 'Gradient Boosting Decision Tree'.
 
     Parameters:
     predictor_dataframe_csv : Predictor csv (with filepath) containing all the predictors.
     modeldir : Model directory to store/load model.
     exclude_columns : Tuple of columns not included in training the model.
-    model : Machine learning model to run. Choose from 'RF'/ETC'/'XGBC'. Default set to 'RF'.
+    model : Machine learning model to run. Choose from 'rf'/'gdbt'. Default set to 'rf'.
     load_model : Set True to load existing model. Default set to False for new model creation.
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     test_size : The percentage of test dataset. Defaults to 0.3.
     random_state : Seed value. Defaults to 0.
     shuffle : Whether or not to shuffle data before splitting. Defaults to True.
     output_dir : Set a output directory if training and test dataset need to be saved. Defaults to None.
-    n_estimators : Number of trees in the forest. Defaults to 450.
-    min_samples_leaf : Minimum number of samples required to be at a leaf node. Defaults to 1.
-    min_samples_split : Minimum number of samples required to split an internal node. Defaults to 2.
-    max_features : The number of features to consider when looking for the best split. Defaults to 'log2'.
-    max_depth : max_length of tree. Default set to 76.
-    bootstrap : Whether bootstrap samples are used when building trees. Defaults to True.
-    oob_score : Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
-    n_jobs : The number of jobs to run in parallel. Defaults to -1(using all processors).
-    class_weight : To assign class weight. Default set to 'balanced'.
+    n_estimators (rf param) : Number of trees in the random forest. Defaults to 300.
+    min_samples_leaf (rf param): Minimum number of samples required to be at a leaf node. Defaults to 1.
+    min_samples_split (rf param): Minimum number of samples required to split an internal node. Defaults to 2.
+    max_features (rf param): The number of features to consider when looking for the best split. Defaults to 'log2'.
+    max_depth (rf param): max_length of tree. Default set to 76.
+    bootstrap (rf param): Whether bootstrap samples are used when building trees. Defaults to True.
+    oob_score (rf param): Whether to use out-of-bag samples to estimate the generalization accuracy. Defaults to True.
+    n_jobs (rf/gbdt param): The number of jobs to run in parallel. Defaults to -1(using all processors).
+    class_weight (rf/gbdt param): To assign class weight. Default set to 'balanced'.
+    num_leaves (gbdt param): Maximum tree leaves for base learners. Default set to 31.
+    max_depth_gbdt (gbdt param): Maximum tree depth for base learners. Default set to -1 (<=0 means no limit).
+    learning_rate (gbdt param): Boosting learning rate. Default set to 0.01.
+    n_estimators_gbdt (gbdt param): Boosting learning rate. Default set to 200.
+    subsample (gbdt param): Subsample ratio of the training instance. Default set to 0.9.
+    colsample_bytree (gbdt param): Subsample ratio of columns when constructing each tree. Default set to 1.
+    min_child_samples (gbdt param):  Minimum number of data needed in a child (leaf). Default set to 20.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
@@ -276,18 +304,40 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='RF',
     makedirs([modeldir])
     model_file = os.path.join(modeldir, model)
 
+    # Hyperparamter Tuning
     if tune_hyperparameter:
-        n_estimators, max_depth, max_features, min_samples_leaf = \
-            hyperparameter_optimization(x_train, y_train, folds=k_fold, n_iter=n_iter, random_search=random_searchCV)
+        optimized_param_dict = hyperparameter_optimization(x_train, y_train, model=model, folds=k_fold, n_iter=n_iter,
+                                                           random_search=random_searchCV)
+        if model == 'rf':
+            n_estimators = optimized_param_dict['n_estimators']
+            max_depth = optimized_param_dict['max_depth']
+            max_features = optimized_param_dict['max_features']
+            min_samples_leaf = optimized_param_dict['min_samples_leaf']
+
+        elif model == 'gbdt':
+            num_leaves = optimized_param_dict['num_leaves']
+            max_depth_gbdt = optimized_param_dict['max_depth']
+            learning_rate = optimized_param_dict['learning_rate']
+            n_estimators_gbdt = optimized_param_dict['n_estimators']
+            subsample = optimized_param_dict['subsample']
+            # colsample_bytree = optimized_param_dict['colsample_bytree']
+            min_child_samples = optimized_param_dict['min_child_samples']
 
     # Machine Learning Models
     if not load_model:
-        if model == 'RF':
+        if model == 'rf':
             classifier = RandomForestClassifier(n_estimators=n_estimators, max_features=max_features,
                                                 min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split,
                                                 max_depth=max_depth, random_state=random_state,
                                                 bootstrap=bootstrap, class_weight=class_weight, n_jobs=n_jobs,
                                                 oob_score=oob_score)
+        elif model == 'gbdt':
+            classifier = LGBMClassifier(boosting_type='gbdt', objective='multiclass', class_weight='balanced',
+                                        num_leaves=num_leaves, max_depth_gbdt=max_depth_gbdt,
+                                        learning_rate=learning_rate, n_estimators_gbdt=n_estimators_gbdt,
+                                        subsample=subsample, colsample_bytree=colsample_bytree,
+                                        min_child_samples=min_child_samples, importance_type='split', random_state=0,
+                                        n_jobs=-1)
 
         classifier = classifier.fit(x_train, y_train)
 
@@ -413,18 +463,17 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
 
     # predictor importance plot
     if predictor_importance:
-        predictor_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
-                          'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI',
-                          'Global_Sediment_Thickness': 'Sediment Thickness',
-                          'Global_Sed_Thickness_Exx': 'Sediment Thickness Exxon',
+        predictor_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+                          'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
+                          'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                           'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                          'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)', 'MODIS_ET': 'MODIS ET',
-                          'Irrigated_Area_Density2': 'Irrigated Area Density',
-                          'MODIS_PET': 'MODIS PET', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
-                          'SRTM_Slope': 'Slope', 'Subsidence': 'Subsidence',
-                          'TRCLM_RET': 'TRCLM RET (mm)', 'TRCLM_precp': 'Precipitation',
-                          'TRCLM_soil': 'Soil moisture', 'TRCLM_Tmax': 'Tmax',
-                          'TRCLM_Tmin': 'Tmin', 'MODIS_Land_Use': 'MODIS Land Use', 'TRCLM_ET': 'TRCLM ET (mm)'}
+                          'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)', 'MODIS_ET': 'MODIS ET (kg/m2)',
+                          'Irrigated_Area_Density2': 'Irrigated Area Density', 'MODIS_PET': 'MODIS PET (kg/m2)',
+                          'NDWI': 'NDWI', 'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
+                          'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
+                          'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
+                          'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
+                          'TRCLM_ET': 'TRCLM ET (mm)'}
         x_train_df = pd.DataFrame(x_train)
         x_train_df = x_train_df.rename(columns=predictor_dict)
         col_labels = np.array(x_train_df.columns)
