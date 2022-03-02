@@ -5,12 +5,11 @@ import rasterio as rio
 from rasterio.merge import merge
 from rasterio.mask import mask
 from glob import glob
-import pandas as pd
 import numpy as np
 from osgeo import gdal
 import json
 from fiona import transform
-from shapely.geometry import box, mapping, Point
+from shapely.geometry import box, mapping
 import geopandas as gpd
 import astropy.convolution as apc
 from scipy.ndimage import gaussian_filter
@@ -20,7 +19,7 @@ import subprocess
 
 No_Data_Value = -9999
 
-referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
+referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
 
 
 def read_raster_arr_object(input_raster, band=1, raster_object=False, get_file=True, change_dtype=True):
@@ -478,8 +477,8 @@ def mosaic_rasters(input_dir, output_dir, raster_name, ref_raster=referenceraste
 
     Parameters:
     input_dir : Input rasters directory.
-    output_dir : Outpur raster directory.
-    output_raster_name : Outpur raster name.
+    output_dir : Output raster directory.
+    output_raster_name : Output raster name.
     ref_raster : Reference raster with filepath.
     search_by : Input raster search criteria.
     no_data : No data value. Default -9999.
@@ -515,8 +514,8 @@ def mosaic_two_rasters(input_raster1, input_raster2, output_dir, raster_name, re
     Parameters:
     input_raster1 : Input raster 1.
     input_raster2 : Input raster 2.
-    output_dir : Outpur raster directory.
-    output_raster_name : Outpur raster name.
+    output_dir : Output raster directory.
+    output_raster_name : Output raster name.
     ref_raster : Reference raster with filepath.
     no_data : No data value. Default -9999.
     resolution: Resolution of the output raster.
@@ -842,47 +841,4 @@ def subsidence_point_to_geotiff(inputshp, output_raster, res=0.02):
                                  outputType=gdal.GDT_Float32, xRes=res, yRes=res, noData=-9999, attribute='value',
                                  allTouched=True)
     del cont_raster
-
-
-def rasterize_coastal_subsidence(mean_output_points, output_dir,
-                                 input_csv='../InSAR_Data/Coastal_Subsidence/Fig3_data.csv'):
-    """
-    Rasterize coastal subsidence data from Shirzaei_et_al 2020.
-
-    Parameters:
-    mean_output_points : Filepath to save filtered points (with mean subsidence values) from input_csv as point shapefile.
-    output_dir : Output directory filepath to save converted Geotiff file.
-    input_csv : Input csv filepath. Set to path '../InSAR_Data/Coastal_Subsidence/Fig3_data.csv'.
-
-    Return : A Geotiff file of 0.02 degree containing coastal subsidence data.
-    """
-    coastal_df = pd.read_csv(input_csv)
-    new_col_dict = {'Longitude_deg': 'Long_deg', 'Latitude_deg': 'Lat_deg', 'first_epoch': '1st_epoch',
-                    'last_epoch': 'last_epoch', 'VLM_mm_yr': 'VLM_mm_yr','VLM_std_mm_yr': 'VLMstdmmyr'}
-    coastal_df.rename(columns=new_col_dict, inplace=True)
-    coastal_df = coastal_df[(coastal_df['1st_epoch'] >= 2006) & (coastal_df['VLM_mm_yr'] < 0)]
-    coastal_df['VLM_cm_yr'] = coastal_df['VLM_mm_yr'] / 10
-    coords = [Point(xy) for xy in zip(coastal_df['Long_deg'], coastal_df['Lat_deg'])]
-    coastal_shp = gpd.GeoDataFrame(coastal_df, geometry=coords, crs='EPSG:4326')
-    intermediate_shp = '../InSAR_Data/Coastal_Subsidence/filtered_point.shp'
-    coastal_shp.to_file(intermediate_shp)
-
-    # blank_raster will only be used to pixel locations (indices)
-    blank_raster = shapefile_to_raster(intermediate_shp, output_dir, 'blank_raster.tif',
-                                       use_attr=False, attribute='VLM_cm_yr',
-                                       add=False, burnvalue=0, alltouched=True)
-    blank_arr, blank_file = read_raster_arr_object(blank_raster)
-    index_list = list()
-    for lon, lat in zip(coastal_shp['Long_deg'], coastal_shp['Lat_deg']):
-        row, col = blank_file.index(lon, lat)
-        index_list.append(str(row + col))
-    coastal_shp['pix_index'] = index_list
-    mean_subsidence = coastal_shp.groupby('pix_index', as_index=True)['VLM_cm_yr'].transform('mean')
-    coastal_shp['mean_cm_yr'] = mean_subsidence
-    coastal_shp.to_file(mean_output_points)
-
-    coastal_subsidence_raster = shapefile_to_raster(mean_output_points, output_dir, 'coastal_subsidence.tif',
-                                                    use_attr=True, attribute='mean_cm_yr',
-                                                    add=None, burnvalue=0, alltouched=True)
-    return coastal_subsidence_raster
 

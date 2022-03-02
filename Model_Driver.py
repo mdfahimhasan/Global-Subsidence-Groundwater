@@ -10,7 +10,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore futu
 start = timeit.default_timer()
 
 gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
-                 'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'ALOS_Landform', 'Aridity_Index', 'Grace',
+                 'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'Aridity_Index', 'Grace',
                  'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
                  'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use', 'TRCLM_ET']
 
@@ -33,7 +33,7 @@ gee_raster_dict, gfsad_raster, irrigated_meier_raster, giam_gw_raster, sediment_
     popdensity_raster = download_process_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
                                                             gfsad_lu, giam_lu, irrigated_meier, intermediate_dir,
                                                             outdir_lu, sediment_thickness, outdir_sed_thickness,
-                                                            outdir_pop, perform_pca=False,
+                                                            outdir_pop, perform_pca=False, # #
                                                             skip_download=True, skip_processing=True,  # #
                                                             geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
 
@@ -78,9 +78,9 @@ model = 'rf'
 # change for fitted_model run
 
 exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
-                   'GW Irrigation Density giam', 'Landform', 'MODIS PET (kg/m2)', 'MODIS Land Use']
+                   'GW Irrigation Density giam', 'MODIS PET (kg/m2)']
 
-prediction_raster_keyword = 'RF112'
+prediction_raster_keyword = 'RF115'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
@@ -88,7 +88,7 @@ prediction_raster_keyword = 'RF112'
 ML_model, predictor_name_dict = \
     build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                         pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                        n_estimators=300, min_samples_leaf=1e-05, min_samples_split=2, max_depth=17,
+                        n_estimators=100, min_samples_leaf=1e-05, min_samples_split=2, max_depth=19,
                         max_features='auto', class_weight='balanced',
                         predictor_imp_keyword=prediction_raster_keyword,
                         predictor_importance=True,  # #

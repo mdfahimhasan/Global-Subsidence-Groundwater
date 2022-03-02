@@ -40,7 +40,6 @@ def read_raster_arr_object(input_raster,band=1,raster_object=False,get_file=True
     return raster_arr
 
 
-    
 def plot_multi_raster_hist(input_raster_dir,nrow=1,ncol=2,search_by="*.tif",figsize=(15,5),sharey=True,sharex=True,
                            bins=20,density=True,histtype='bar',alpha=0.5, ec='skyblue',fc='skyblue',
                            change_xlim=False,xlim_start=0.01,xlimmax=True,xlim_end="",

@@ -16,7 +16,7 @@ from lightgbm import LGBMClassifier
 from Raster_operations import *
 from System_operations import *
 
-referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
+referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
 
 
 def reindex_df(df):
@@ -48,7 +48,7 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
     """
     print('Creating Predictors csv...')
 
-    predictor_rename_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+    predictor_rename_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
                              'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                              'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                              'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
@@ -100,7 +100,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     Returns: X_train, X_test, y_train, y_test
     """
     input_df = pd.read_csv(predictor_csv)
-    predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+    predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
                            'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                            'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                            'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
@@ -463,7 +463,7 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
 
     # predictor importance plot
     if predictor_importance:
-        predictor_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+        predictor_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
                           'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                           'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                           'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',

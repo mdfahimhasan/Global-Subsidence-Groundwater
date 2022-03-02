@@ -2,8 +2,12 @@
 # Email: mhm4b@mst.edu
 
 import os
+import warnings
 from glob import glob
 import geopandas as gpd
+from System_operations import makedirs
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 def select_by_attribute(shape,column,value,outshape):
@@ -14,13 +18,14 @@ def select_by_attribute(shape,column,value,outshape):
     shape: Input shapefile path.
     column: Shapefile column to compare.
     value: A list of string or value to make comparison.
-    outshape (TYPE): Output shapefile path.
+    outshape : Output shapefile path.
 
     Returns:Shapefile with selected attribute..
     """
     shape=gpd.read_file(shape)
     select_shape=shape[shape[column]==value]
     select_shape.to_file(outshape)
+
 
 def append_two_shapefiles(shape1, shape2, outshape, ignore_index=True):
     """
@@ -126,34 +131,46 @@ def buffer_variable(shape, outshape, buffer_coef=0.0015, reprojection=True, proj
         buffer_shape.to_file(outshape)
 
 
-def separate_shapes(input_shape,output_dir,index_col=True,label='Id'):
+def separate_shapes(input_shape, output_dir, index_col=True, label='Id', name_from=None):
     """
     Separate individual shapes from a single shapefile.
 
     Parameters:
     input_shape : Input shape file.
-    output_dir : Output shapefile sirectory..
+    output_dir : Output shapefile directory..
     index_col : If new index column need to be created. Defaults to True.
     label : Label based on which separation will occur. Defaults to 'Id'. Only needed if index_col is False.
+    name_from : Attribute column that will be used for naming. Default set to None.
 
     Returns: Separated shapefiles.
     """
-    shape=gpd.read_file(input_shape)
+    makedirs([output_dir])
+    shape = gpd.read_file(input_shape)
     
-    num=1
+    num = 1
     if index_col:
-        shape['index']=shape.index 
+        shape['index'] = shape.index
         for each in shape['index']:
-           name= input_shape[input_shape.rfind(os.sep)+1:input_shape.rfind(".")]+"_"+str(num)+"_"+".shp"
-           new_shape=shape[shape['index']==each]
-           new_shape.to_file(os.path.join(output_dir,name))
-           num=num+1
+            new_shape = shape[shape['index'] == each]
+
+            if name_from is None:
+                name = input_shape[input_shape.rfind('/') + 1:input_shape.rfind('.')] + '_' + str(num) + '.shp'
+            else:
+                name = name_from.values[0] + '.shp'
+
+            new_shape.to_file(os.path.join(output_dir, name))
+            num = num + 1
     else:
-       for each in shape[label]:
-           name= input_shape[input_shape.rfind(os.sep)+1:input_shape.rfind(".")]+"_"+str(num)+".shp"
-           new_shape=shape[shape[label]==each]
-           new_shape.to_file(os.path.join(output_dir,name))
-           num=num+1
+        for each in shape[label]:
+            new_shape = shape[shape[label] == each]
+
+            if name_from is None:
+                name = input_shape[input_shape.rfind('/') + 1:input_shape.rfind('.')] + '_' + str(num) + '.shp'
+            else:
+                name = new_shape[name_from].values[0] + '.shp'
+
+            new_shape.to_file(os.path.join(output_dir, name))
+            num = num + 1
 
 
 def append_multiple_shapefiles(shapefile_dir, outshape, shapefile_searchby='*.shp', ignore_index=True):

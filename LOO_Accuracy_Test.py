@@ -19,7 +19,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore future warning coming from pandas
 warnings.filterwarnings(action='ignore')
 
-referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster_002.tif'
+referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
 
 
 def combine_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygons,
@@ -502,6 +502,19 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
     makedirs([prediction_raster_dir])
     makedirs([continent_prediction_raster_dir])
 
+    predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+                           'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
+                           'Global_Sediment_Thickness': 'Sediment Thickness (m)',
+                           'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
+                           'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)',
+                           'MODIS_ET': 'MODIS ET (kg/m2)', 'Irrigated_Area_Density2': 'Irrigated Area Density',
+                           'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
+                           'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
+                           'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
+                           'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
+                           'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
+                           'TRCLM_ET': 'TRCLM ET (mm)'}
+
     for continent in continent_shapes:
         continent_name = continent[continent.rfind(os.sep) + 1:continent.rfind('_')]
 
@@ -523,6 +536,8 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
 
             for predictor in predictor_rasters:
                 variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind('.')]
+                variable_name = predictor_name_dict[variable_name]
+
                 if variable_name not in drop_columns:
                     raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
                                                                            naming_from_both=False)
@@ -697,13 +712,13 @@ if run_loo_test:
                           'GW Irrigation Density giam', 'Landform', 'MODIS PET (kg/m2)', 'MODIS Land Use']
 
     df, predictor_csv = create_traintest_df_loo_accuracy(predictor_raster_dir, areaname_dict, exclude_predictors,
-                                                         skip_dataframe_creation=False)  # #
+                                                         skip_dataframe_creation=True)  # #
 
     run_loo_accuracy_test(predictor_dataframe_csv=predictor_csv, exclude_predictors_list=exclude_predictors,
                           n_estimators=200, max_depth=20, max_features=5, min_samples_leaf=1e-05,
                           class_weight='balanced',
                           predictor_raster_directory='../Model Run/Predictors_2013_2019',
-                          skip_create_prediction_raster=True,  # #
+                          skip_create_prediction_raster=False,  # #
                           predictor_csv_exists=False)  # #
 
     concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/Accuracy_score')
