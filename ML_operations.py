@@ -248,7 +248,10 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
                         colsample_bytree=1, min_child_samples=20,
                         accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
                         predictor_importance=False, predictor_imp_keyword='RF',
-                        plot_pdp=False, plot_confusion_matrix=True,
+                        plot_pdp=False, variables_pdp=('Clay content PCA', 'Irrigated Area Density',
+                                                       'Population Density', 'Precipitation (mm)',
+                                                       'Sediment Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)'),
+                        plot_confusion_matrix=True,
                         tune_hyperparameter=False, k_fold=5, n_iter=70, random_searchCV=True):
     """
     Build Machine Learning Classifier. Can run 'Random Forest', 'Gradient Boosting Decision Tree'.
@@ -286,6 +289,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     predictor_imp_keyword : Keyword to save predictor important plot.
     plot_save_keyword : Keyword to sum before saved PDP plots.
     plot_pdp : Set to True if want to plot PDP.
+    variables_pdp : Tuple of variable names to plot in pdp plot.
     plot_confusion_matrix : Set to True if want to plot confusion matrix.
     tune_hyperparameter : Set to True to tune hyperparameter. Default set to False.
     k_fold : number of folds in K-fold CV. Default set to 5.
@@ -349,7 +353,8 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     classification_accuracy(x_train, x_test, y_train, y_test, classifier, accuracy_dir, cm_name,
                             predictor_importance, predictor_imp_keyword, plot_confusion_matrix)
     if plot_pdp:
-        pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword)
+        pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword,
+                 feature_names=variables_pdp)
 
     return classifier, predictor_name_dict
 
@@ -525,8 +530,9 @@ def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
     accuracy_dataframe.to_csv(accuracy_csv_name)
 
 
-def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
-             ):
+def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
+             feature_names=('Clay content PCA', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
+                            'Sediment Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)')):
     """
     Plot Partial Dependence Plot for the fitted_model.
 
@@ -535,16 +541,14 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
     x_train : X train array.
     output_dir : Output directory path to save the plots.
     plot_save_keyword : Keyword to sum before saved PDP plots.
+    feature_names : Tuple of variable names to plot in pdp plot.
 
     Returns : PDP plots.
     """
-    plot_names = x_train.columns.tolist()
-    feature_indices = range(len(plot_names))
-
     plt.rcParams['font.size'] = 18
 
     # Class <1cm
-    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_indices, target=1,
+    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=1,
                                             response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
                                             random_state=0, grid_resolution=20)
     fig = plt.gcf()
@@ -557,7 +561,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
     print('pdp for <1cm saved')
 
     # Class 1-5cm
-    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_indices, target=5,
+    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=5,
                                             response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
                                             random_state=0, grid_resolution=20)
     fig = plt.gcf()
@@ -570,7 +574,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='RF'
     print('pdp for 1-5cm saved')
 
     # Class >5cm
-    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_indices, target=10,
+    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=10,
                                             response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
                                             random_state=0, grid_resolution=20)
     fig = plt.gcf()
@@ -588,7 +592,7 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
-                             prediction_raster_keyword='RF', predict_probability_greater_1cm=True):
+                             prediction_raster_keyword='rf', predict_probability_greater_1cm=True):
     """
     Create predicted raster from random forest fitted_model.
 

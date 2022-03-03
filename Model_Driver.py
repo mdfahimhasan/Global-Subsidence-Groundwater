@@ -78,7 +78,10 @@ model = 'rf'
 # change for fitted_model run
 
 exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
-                   'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'MODIS Land Use']
+                   'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'NDWI', 'EVI']
+
+variables_in_pdp = ('Clay content PCA', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
+                    'Sediment Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)')
 
 prediction_raster_keyword = 'RF116'
 
@@ -92,9 +95,9 @@ ML_model, predictor_name_dict = \
                         max_features='auto', class_weight='balanced',
                         predictor_imp_keyword=prediction_raster_keyword,
                         predictor_importance=True,  # #
-                        plot_pdp=True,  # #
+                        variables_pdp=variables_in_pdp, plot_pdp=True,  # #
                         plot_confusion_matrix=True,  # #
-                        tune_hyperparameter=True,  # #
+                        tune_hyperparameter=False,  # #
                         k_fold=5, n_iter=80,
                         random_searchCV=True)  # #
 
@@ -109,7 +112,7 @@ create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist
                          prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns,
                          pred_attr='Subsidence', prediction_raster_keyword=prediction_raster_keyword,
                          predictor_csv_exists=False,  # #
-                         predict_probability_greater_1cm=True)  # #
+                         predict_probability_greater_1cm=False)  # #
 
 model_runtime = True
 if model_runtime:
