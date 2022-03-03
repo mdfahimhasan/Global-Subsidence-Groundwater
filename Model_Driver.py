@@ -78,9 +78,9 @@ model = 'rf'
 # change for fitted_model run
 
 exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
-                   'GW Irrigation Density giam', 'MODIS PET (kg/m2)']
+                   'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'MODIS Land Use']
 
-prediction_raster_keyword = 'RF115'
+prediction_raster_keyword = 'RF116'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required

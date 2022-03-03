@@ -1,10 +1,10 @@
+import os
 import numpy as np
 import pandas as pd
 from glob import glob
 import geopandas as gpd
-from shapely.geometry import Polygon
-from Raster_operations import read_raster_arr_object, mask_by_ref_raster
 from System_operations import makedirs
+from Raster_operations import read_raster_arr_object, mask_by_ref_raster, clip_resample_raster_cutline
 
 
 def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif',
@@ -241,4 +241,58 @@ def overlap_all_irrigation_gw_irrigation(irrigated_area_meier='../Data/Raw_Data/
 
 # overlap_all_irrigation_gw_irrigation()
 
+def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats'):
+    """
+    Estimated area of subsidence >1cm/yr by country.
 
+    Parameters:
+    subsidence_prediction : Subsidence prediction raster path.
+    outdir : Directory path to save output excel file.
+
+    Returns : An excel file with calculated stats.
+    """
+
+    outdir_country_arr = outdir + '/country_predictions'
+    makedirs([outdir, outdir_country_arr])
+
+    country_shapes = glob('../Data/Reference_rasters_shapes/Country_shapes/Individual_country' + '/' + '*.shp')
+
+    # Area Calculation (1 deg = ~ 111km)
+    deg_002 = 111 * 0.02  # unit km
+    area_per_002_pixel = deg_002 ** 2
+
+    area_sqkm = []
+    country_name = []
+    area_subsidence = []
+    for shape in country_shapes:
+        country = gpd.read_file(shape)
+        name = shape[shape.rfind(os.sep) + 1:shape.rfind('.')]
+        area_sqkm.append(country['Area_sqkm'].values[0])
+        country_name.append(name)
+        save_clipped_raster_as = name + '.tif'
+
+        country_arr, country_file = clip_resample_raster_cutline(subsidence_prediction, outdir_country_arr,
+                                                                 shape, naming_from_both=False, naming_from_raster=False,
+                                                                 assigned_name=save_clipped_raster_as)
+
+        prediction_1_to_5 = np.count_nonzero(np.where(country_arr == 5, 1, 0))
+        prediction_greater_5 = np.count_nonzero(np.where(country_arr == 10, 1, 0))
+        prediction_greater_1 = np.count_nonzero(np.where(country_arr > 1, 1, 0))
+
+        area_prediction_1_to_5 = round(prediction_1_to_5 * area_per_002_pixel, 2)
+        area_prediction_greater_5 = round(prediction_greater_5 * area_per_002_pixel, 2)
+        area_prediction_greater_1 = round(prediction_greater_1 * area_per_002_pixel, 2)
+        area_subsidence.append(( area_prediction_greater_1, area_prediction_1_to_5, area_prediction_greater_5))
+
+    stat_dict = {'country_name': country_name,
+                 'area_sqkm': area_sqkm,
+                 'area subsidence >1cm/yr': [i[0] for i in area_subsidence],
+                 'area subsidence 1-5cm/yr': [i[1] for i in area_subsidence],
+                 'area subsidence >5cm/yr': [i[2] for i in area_subsidence]}
+    stat_df = pd.DataFrame(stat_dict)
+    stat_df['perc_subsidence_of_cntry_area'] = round(stat_df['area subsidence >1cm/yr'] * 100 / stat_df['area_sqkm'], 4)
+    stat_df = stat_df.sort_values(by='area subsidence >1cm/yr', ascending=False)
+    stat_df.to_excel(os.path.join(outdir, 'subsidence_area_by_country.xlsx'), index=False)
+
+
+# area_subsidence_by_country(subsidence_prediction = '../Model Run/Prediction_rasters/RF115_prediction_2013_2019.tif')

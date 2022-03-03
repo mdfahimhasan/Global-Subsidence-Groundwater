@@ -428,12 +428,12 @@ def mask_by_ref_raster(input_raster, outdir, raster_name, ref_raster=referencera
 
 
 def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, coordinate="EPSG:4326",
-                                 xpixel=0.02, ypixel=0.02, NoData=No_Data_Value, naming_from_both=True):
+                                 xpixel=0.02, ypixel=0.02, NoData=No_Data_Value, naming_from_both=False,
+                                 naming_from_raster=False, assigned_name=None):
     """
     clip raster by shapefile (cutline) to exact extent, resample pixel size and coordinate system
 
-    Parameters
-    ----------
+    Parameters:
     input_raster : Input raster.
     output_raster_dir : Output raster directory.
     input_shape : Input shapefile (cutline).
@@ -442,7 +442,11 @@ def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, c
     ypixel :  Y pixel size. The default is 0.02.
     NoData : No Data value. By default None.
     naming_from_both : If clipped raster need to contain both name from raster and shapefile set True.
-                       Otherwise set False.
+                       Otherwise set False (Default False).
+    naming_from_raster : If clipped raster need to contain name from raster set True (naming_from_both must be False) .
+                         Otherwise set False (Default False).
+    assigned_name : If naming_from_both, naming_from_raster=False, assign a name to save processed raster ('*.tif').
+                    Default set to None.
 
     Returns : Clipped raster array and raster file.
     """
@@ -456,9 +460,12 @@ def clip_resample_raster_cutline(input_raster, output_raster_dir, input_shape, c
         shape_part = input_shape[input_shape.rfind(os.sep) + 1:input_shape.rfind("_")]
         output_path = os.path.join(output_raster_dir, shape_part + "_" + raster_part)
 
-    else:
+    elif naming_from_raster:
         raster_part = input_raster[input_raster.rfind(os.sep) + 1:]
         output_path = os.path.join(output_raster_dir, raster_part)
+
+    else:
+        output_path = os.path.join(output_raster_dir, assigned_name)
 
     dataset = gdal.Warp(destNameOrDestDS=output_path, srcDSOrSrcDSTab=raster_file, dstSRS=coordinate,
                         targetAlignedPixels=True, xRes=xpixel, yRes=ypixel, cutlineDSName=input_shape,

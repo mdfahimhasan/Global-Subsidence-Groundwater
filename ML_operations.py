@@ -644,7 +644,8 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
 
                 if variable_name not in drop_columns:
                     raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
-                                                                           naming_from_both=False)
+                                                                           naming_from_both=False,
+                                                                           naming_from_raster=True, assigned_name=None)
                     raster_shape = raster_arr.shape
                     raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
                     nan_position_dict[variable_name] = np.isnan(raster_arr)
@@ -664,7 +665,8 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
             nan_position_dict = pickle.load(open(dict_name, mode='rb'))
 
             raster_arr, raster_file = clip_resample_raster_cutline(predictor_rasters[1], clipped_predictor_dir,
-                                                                   continent, naming_from_both=False)
+                                                                   continent, naming_from_both=False,
+                                                                   naming_from_raster=True, assigned_name=None)
             raster_shape = raster_arr.shape
 
         y_pred = model.predict(predictor_df)
