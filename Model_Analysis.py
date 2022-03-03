@@ -295,4 +295,4 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
     stat_df.to_excel(os.path.join(outdir, 'subsidence_area_by_country.xlsx'), index=False)
 
 
-# area_subsidence_by_country(subsidence_prediction = '../Model Run/Prediction_rasters/RF115_prediction_2013_2019.tif')
+area_subsidence_by_country(subsidence_prediction = '../Model Run/Prediction_rasters/RF115_prediction_2013_2019.tif')
