@@ -33,7 +33,7 @@ gee_raster_dict, gfsad_raster, irrigated_meier_raster, giam_gw_raster, sediment_
     popdensity_raster = download_process_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
                                                             gfsad_lu, giam_lu, irrigated_meier, intermediate_dir,
                                                             outdir_lu, sediment_thickness, outdir_sed_thickness,
-                                                            outdir_pop, perform_pca=False, # #
+                                                            outdir_pop, perform_pca=False,  # #
                                                             skip_download=True, skip_processing=True,  # #
                                                             geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
 
@@ -52,7 +52,7 @@ subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subside
                                               polygon_search_criteria='*Subsidence*.shp',
                                               insar_search_criteria='*reclass_resampled*.tif',
                                               skip_polygon_merge=True,  # #
-                                              already_prepared=True,  # #
+                                              already_prepared=False,  # #
                                               merge_coastal_subsidence_data=True)
 
 predictor_dir = '../Model Run/Predictors_2013_2019'
@@ -62,7 +62,7 @@ predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster
                                                    irrigated_meier_raster, sediment_thickness_raster, popdensity_raster,
                                                    subsidence_raster,
                                                    predictor_dir,
-                                                   skip_compiling_predictor_subsidence_data=True)  # #
+                                                   skip_compiling_predictor_subsidence_data=False)  # #
 
 csv_dir = '../Model Run/Predictors_csv'
 makedirs([csv_dir])
@@ -70,7 +70,7 @@ train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 
 # skip_dataframe_creation = False if any change occur in predictors or subsidence data
 predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif',
-                                skip_dataframe_creation=True)  # #
+                                skip_dataframe_creation=False)  # #
 
 modeldir = '../Model Run/Model'
 model = 'rf'
@@ -78,12 +78,14 @@ model = 'rf'
 # change for fitted_model run
 
 exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
-                   'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'NDWI', 'EVI']
+                   'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'MODIS Land Use']
+                   # 'EVI', 'NDWI', 'Soil moisture (mm)', '% Slope', 'Precipitation (mm)',
+                   # 'Tmax (°C)', 'Tmin (°C)', 'TRCLM RET (mm)', 'TRCLM ET (mm)']
 
 variables_in_pdp = ('Clay content PCA', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
                     'Sediment Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)')
 
-prediction_raster_keyword = 'RF116'
+prediction_raster_keyword = 'RF119'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
@@ -91,13 +93,13 @@ prediction_raster_keyword = 'RF116'
 ML_model, predictor_name_dict = \
     build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                         pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                        n_estimators=100, min_samples_leaf=1e-05, min_samples_split=2, max_depth=19,
+                        n_estimators=100, min_samples_leaf=1e-05, min_samples_split=2, max_depth=17,
                         max_features='auto', class_weight='balanced',
                         predictor_imp_keyword=prediction_raster_keyword,
                         predictor_importance=True,  # #
                         variables_pdp=variables_in_pdp, plot_pdp=True,  # #
                         plot_confusion_matrix=True,  # #
-                        tune_hyperparameter=False,  # #
+                        tune_hyperparameter=True,  # #
                         k_fold=5, n_iter=80,
                         random_searchCV=True)  # #
 
@@ -112,7 +114,7 @@ create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist
                          prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns,
                          pred_attr='Subsidence', prediction_raster_keyword=prediction_raster_keyword,
                          predictor_csv_exists=False,  # #
-                         predict_probability_greater_1cm=False)  # #
+                         predict_probability_greater_1cm=True)  # #
 
 model_runtime = True
 if model_runtime:

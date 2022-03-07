@@ -816,36 +816,3 @@ def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan
                  outfile_path=output_raster)
     return output_raster
 
-
-def subsidence_point_to_geotiff(inputshp, output_raster, res=0.02):
-    """
-    Convert point shapefile (*) to geotiff.
-    * point geometry must have subsidence (z) value. Typically such point shapefile is converted
-    from kml file (using QGIS) processed from InSAR.
-
-    Parameters :
-    inputshp : Input point shapefile path.
-    res : Default set to 0.02 degree.
-    output_raster : Output raster filepath.
-
-    Returns : Raster in Geotiff format.
-    """
-    point_shp = gpd.read_file(inputshp)
-
-    def getXYZ(pt):
-        return pt.x, pt.y, pt.z
-
-    lon, lat, z = [list(t) for t in zip(*map(getXYZ, point_shp['geometry']))]
-
-    minx, maxx = min(lon), max(lon)
-    miny, maxy = min(lat), max(lat)
-    point_shp['value'] = z
-    bounds = [minx, miny, maxx, maxy]
-
-    point_shp.to_file(inputshp)
-
-    cont_raster = gdal.Rasterize(output_raster, inputshp, format='GTiff', outputBounds=bounds,outputSRS='EPSG:4326',
-                                 outputType=gdal.GDT_Float32, xRes=res, yRes=res, noData=-9999, attribute='value',
-                                 allTouched=True)
-    del cont_raster
-

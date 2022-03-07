@@ -72,11 +72,11 @@ def classify_insar_raster(input_raster, output_raster_name, unit_scale,
 
 
 def process_primary_insar_data(processing_areas=('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin',
-                                                 'China_Hebei', 'China_Hefei'),
+                                                 'China_Hebei', 'China_Hefei', 'Colorado'),
                                output_dir='../InSAR_Data/Merged_subsidence_data/resampled_insar_data'):
     """
     Resamples and reclassifies insar data for 'California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin', 'China_Hebei',
-                                              'China_Hefei'.
+                                              'China_Hefei', 'Colorado'.
 
     Parameters:
     processing_areas : A tuple of insar data areas. Default set as
@@ -96,7 +96,8 @@ def process_primary_insar_data(processing_areas=('California', 'Arizona', 'Pakis
                  'Pakistan_Quetta': '../InSAR_Data/Pakistan_Quetta/Quetta_2017_2021.tif',
                  'Iran_Qazvin': '../InSAR_Data/Iran/Iran_Qazvin.tif',
                  'China_Hebei': '../InSAR_Data/China_Hebei/China_Hebei.tif',
-                 'China_Hefei': '../InSAR_Data/China_Hefei/China_Hefei.tif'}
+                 'China_Hefei': '../InSAR_Data/China_Hefei/China_Hefei.tif',
+                 'Colorado': '../InSAR_Data/Colorado/Colorado.tif'}
 
     for area in processing_areas:
         if area == 'California':
@@ -129,6 +130,10 @@ def process_primary_insar_data(processing_areas=('California', 'Arizona', 'Pakis
         elif area == 'China_Hefei':
             classify_insar_raster(input_raster=data_dict[area], output_raster_name='China_Hefei_reclass.tif',
                                   unit_scale=0.1, resampled_raster_name='China_Hefei_reclass_resampled.tif',
+                                  output_dir=output_dir)
+        elif area == 'Colorado':
+            classify_insar_raster(input_raster=data_dict[area], output_raster_name='Colorado_reclass.tif',
+                                  unit_scale=1, resampled_raster_name='Colorado_reclass_resampled.tif',
                                   output_dir=output_dir)
 
 
@@ -173,3 +178,37 @@ def rasterize_coastal_subsidence(mean_output_points, output_dir,
                                                     use_attr=True, attribute='mean_cm_yr',
                                                     add=None, burnvalue=0, alltouched=True)
     return coastal_subsidence_raster
+
+
+def subsidence_point_to_geotiff(inputshp, output_raster, res=0.02):
+    """
+    Convert point shapefile (*) to geotiff.
+    * point geometry must have subsidence (z) value. Typically such point shapefile is converted
+    from kml file (using QGIS) processed from InSAR.
+
+    Parameters :
+    inputshp : Input point shapefile path.
+    res : Default set to 0.02 degree.
+    output_raster : Output raster filepath.
+
+    Returns : Raster in Geotiff format.
+    """
+    point_shp = gpd.read_file(inputshp)
+
+    def getXYZ(pt):
+        return pt.x, pt.y, pt.z
+
+    lon, lat, z = [list(t) for t in zip(*map(getXYZ, point_shp['geometry']))]
+
+    minx, maxx = min(lon), max(lon)
+    miny, maxy = min(lat), max(lat)
+    point_shp['value'] = z
+    bounds = [minx, miny, maxx, maxy]
+
+    point_shp.to_file(inputshp)
+
+    cont_raster = gdal.Rasterize(output_raster, inputshp, format='GTiff', outputBounds=bounds,outputSRS='EPSG:4326',
+                                 outputType=gdal.GDT_Float32, xRes=res, yRes=res, noData=-9999, attribute='value',
+                                 allTouched=True)
+    del cont_raster
+

@@ -152,11 +152,14 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
     Returns : Optimized Hyperparameters.
     """
     param_dict = {'rf':
-                      {'n_estimators': [100, 200, 300],
-                       'max_depth': [5, 11, 13, 15, 17, 19, 20],
+                      # {'n_estimators': [100, 200, 300],
+                      #  'max_depth': [5, 11, 12, 13, 15, 16, 17, 18],
+                      #  'max_features': [4, 5, 6, 7, 8, 10],
+                      #  'min_samples_leaf': [5e-4, 1e-5, 1e-3, 2, 6, 12, 20, 25]},
+                      {'n_estimators': [60, 70, 80, 100],
+                       'max_depth': [5, 11, 12, 13, 15],
                        'max_features': [4, 5, 6, 7, 8, 10],
-                       'min_samples_leaf': [5e-4, 1e-5, 2, 6, 12, 20, 25, 30, 50]},
-
+                       'min_samples_leaf': [5e-4, 1e-5, 1e-3, 2, 6, 12, ]},
                   'gbdt':
                       {'num_leaves': [31, 63, 100, 200],
                        'max_depth': [10, 12, 15, 20],

@@ -1103,7 +1103,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
         print('Processing InSAR Data...')
 
         process_primary_insar_data(processing_areas=('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin',
-                                                     'China_Hebei', 'China_Hefei'),
+                                                     'China_Hebei', 'China_Hefei', 'Colorado'),
                                    output_dir=insar_data_dir)
         insar_arr, merged_insar = mosaic_rasters(insar_data_dir, interim_dir, raster_name='joined_insar_data.tif',
                                                  ref_raster=refraster, search_by=insar_search_criteria, resolution=0.02)
