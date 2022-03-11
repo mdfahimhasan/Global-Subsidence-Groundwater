@@ -848,6 +848,74 @@ def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sedime
     return sediment_raster
 
 
+def prepare_clay_thickness_data(clay_raster='../Data/Resampled_Data/GEE_data_2013_2019/'
+                                            'clay_content_200cm_2013_2019.tif',
+                                sediment_thickness_raster='../Data/Resampled_Data/Sediment_Thickness/'
+                                                          'Global_Sediment_Thickness.tif',
+                                output_dir='../Data/Resampled_Data/Clay_Thickness', skip_processing=True):
+    """
+    Prepare clay thickness data.
+
+    Parameters:
+    clay_raster : Filepath of clay thickness raster.
+    sediment_thickness_raster : Filepath of sediment thickness raster.
+    output_dir : Output raster directory path.
+    skip_processing : Set to True if want to skip processing.
+
+    Returns : Clay thickness raster dataset.
+    """
+    if not skip_processing:
+        print('Processing Clay Thickness Dataset...')
+        clay_thickness_raster = array_multiply(clay_raster, sediment_thickness_raster, outdir=output_dir,
+                                               raster_name='Clay_Thickness.tif', scale=0.01)
+        print('Processed Clay Thickness Dataset')
+    else:
+        clay_thickness_raster = '../Data/Resampled_Data/Sediment_Thickness/Clay_Thickness.tif'
+
+    return clay_thickness_raster
+
+
+def prepare_river_proximity_data(input_shape='../Data/Raw_Data/Surface_Water/mrb_shp/mrb_rivers.shp',
+                                 output_dir='../Data/Resampled_Data/Surface_Water', gaussian_pixels=7,
+                                 ref_raster=referenceraster, skip_processing=True):
+    """
+    Prepare river proximity (distance) datasets.
+
+    Parameters:
+    input_shape : Input river shapefile filepath.
+    output_dir : Output raster directory path.
+    gaussian_pixels : Number of pixels used in gaussian filtering window. Default set to 7.
+    ref_raster : Reference raster. Default to to referenceraster.
+    skip_processing : Set to True if want to skip processing.
+
+    Returns : River distance raster dataset.
+    """
+
+    if not skip_processing:
+        print('Processing River Dataset')
+        makedirs([output_dir])
+        river_raster = shapefile_to_raster(input_shape, output_dir, 'River_raster.tif', use_attr=False, burnvalue=1,
+                                           resolution=0.02)
+        river_arr = read_raster_arr_object(river_raster, get_file=False).flatten()
+        ref_arr, ref_file = read_raster_arr_object(ref_raster)
+        ref_arr = ref_arr.flatten()
+        modified_river_arr = np.where(river_arr == 1, river_arr, ref_arr)
+        modified_river_arr = modified_river_arr.reshape(ref_file.shape)
+
+        final_river_raster = output_dir + '/River_raster_final.tif'
+        river_raster = write_raster(modified_river_arr, ref_file, ref_file.transform, final_river_raster)
+
+        interm_dist_raster = compute_proximity(river_raster, output_dir, 'River_distance_interim.tif',
+                                               target_values=(1,))
+        river_distance = paste_val_on_ref_raster(interm_dist_raster, output_dir, 'River_distance.tif', value=0,
+                                                 ref_raster=ref_raster)
+        print('Processed River Dataset')
+    else:
+        river_distance = '../Data/Resampled_Data/Surface_Water/River_distance.tif'
+
+    return river_distance
+
+
 def prepare_modis_landuse_data(output_raster,
                                input_raster='../Data/Raw_Data/GEE_data/MODIS_Land_Use/merged_rasters'
                                             '/MODIS_Land_Use_2013_2019.tif'):
@@ -887,9 +955,8 @@ def prepare_modis_landuse_data(output_raster,
 
 def download_process_predictor_datasets(yearlist, start_month, end_month, resampled_gee_dir,
                                         gfsad_cropextent, giam_gw, irrigated_meier, intermediate_dir, outdir_lu,
-                                        sediment_thickness, outdir_sed_thickness,
-                                        outdir_pop, perform_pca=False,
-                                        skip_download=True, skip_processing=True,
+                                        sediment_thickness, outdir_sed_thickness, outdir_pop, river_shape, outdir_sw,
+                                        perform_pca=False, skip_download=True, skip_processing=True,
                                         geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000):
     """
     Download and process (resample) GEE data and other datasets (Land Use, Population, Sediment thickness).
@@ -907,6 +974,8 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     sediment thickness : Unsampled/Raw sediment thickness data.
     outdir_sed_thickness : Output directory for saving processed sediment thickness raster.
     outdir_pop : Output directory for saving processed population raster.
+    input_shape : Input river shapefile filepath.
+    oudir_sw : Output directory for saving processed river rasters.
     perform_pca : Set to True if to  run PCA.
     skip_download : Set to False if want to download data from GEE. Default set to True.
     skip_processing : Set to False if want to process datasets.
@@ -957,7 +1026,8 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     Downloaded_list = {'EVI': EVI, 'NDWI': NDWI, 'Grace': Grace, 'TRCLM_precp': TRCLM_precp, 'TRCLM_soil': TRCLM_soil,
                        'TRCLM_Tmin': TRCLM_Tmin, 'TRCLM_Tmax': TRCLM_Tmax, 'TRCLM_RET': TRCLM_RET, 'MODIS_ET': MODIS_ET,
                        'MODIS_PET': MODIS_PET, 'SRTM_Slope': SRTM_DEM, 'Aridity_Index': Aridity_Index,
-                       'Alexi_ET': Alexi_ET, 'Clay_content_PCA': None, 'MODIS_Land_Use': MODIS_LU, 'TRCLM_ET': TRCLM_ET}
+                       'Alexi_ET': Alexi_ET, 'Clay_content_PCA': None, 'MODIS_Land_Use': MODIS_LU, 'TRCLM_ET': TRCLM_ET,
+                       'Clay_200cm': Clay_200cm}
 
     if not skip_processing:
         resampled_gee_rasters = {}
@@ -1008,28 +1078,42 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
                                                                 outdir_sed_thickness, 'Global_Sediment_Thickness.tif',
                                                                 skip_processing)
 
+    clay_thickness_raster = prepare_clay_thickness_data(Clay_200cm, sediment_thickness_raster, outdir_sed_thickness,
+                                                        skip_processing)
+
     popdensity_raster = prepare_popdensity_data(PopDensity_GPW, outdir_pop, skip_processing)
 
+    river_distance = prepare_river_proximity_data(river_shape, outdir_sw, skip_processing=skip_processing)
+
     return resampled_gee_rasters, gfsad_raster, irrigated_meier_raster, giam_gw_raster, sediment_thickness_raster, \
-           popdensity_raster
+           clay_thickness_raster, popdensity_raster, river_distance
 
 
-def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygons,
+def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygons, exclude_areas=None,
                                            search_criteria='*Subsidence*.shp'):
     """
     Joining georeferenced subsidence polygons.
 
+    Area processed -'Australia_Perth', 'Bangladesh_GBDelta', 'China_Beijing', 'China_Shanghai', 'China_Tianjin',
+    'China_Wuhan', 'China_Xian', 'China_YellowRiverDelta', 'Egypt_NileDelta', 'England_London', 'India_Delhi',
+    'Indonesia_Bandung', 'Indonesia_Semarang', 'Iran_MarandPlain', 'Iran_Tehran', 'Iraq_TigrisEuphratesBasin',
+    'Italy_PoDelta', 'Italy_VeniceLagoon', 'Mexico_MexicoCity', 'Nigeria_Lagos', 'Spain_Murcia', 'Taiwan_Yunlin',
+    'Turkey_Bursa', 'Turkey_Karapinar', 'US_Huston', 'Vietnam_Hanoi', 'Vietnam_HoChiMinh'
+
     Parameters:
     input_polygons_dir : Input subsidence polygons' directory.
     joined_subsidence_polygons : Output joined subsidence polygon filepath.
+    exclude_areas : Tuple of area names to be excluded from processing. Default set to None.
+                    For excluding single area follow tuple pattern ('Bangladesh_GBDelta',)
     search_criteria : Search criteria for input polygons.
 
     Returns : Joined subsidence polygon.
     """
+    # global df
     subsidence_polygons = glob(os.path.join(input_polygons_dir, search_criteria))
 
     sep = joined_subsidence_polygons.rfind(os.sep)
-    makedirs([joined_subsidence_polygons[:sep]])  # creating directory for the  prepare_subsidence_raster function
+    makedirs([joined_subsidence_polygons[:sep]])  # creating directory for the prepare_subsidence_raster function
 
     for each in range(0, len(subsidence_polygons)):
         if each == 0:
@@ -1042,9 +1126,13 @@ def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence
         df = add_to_df
         df['Class_name'] = pd.to_numeric(df['Class_name'], downcast='float')
 
-        gdf = gpd.GeoDataFrame(df, geometry='geometry')
-        gdf.to_file(joined_subsidence_polygons)
-
+    if exclude_areas is not None:
+        exclude_areas = list(exclude_areas)
+        areas = list(df['Area_name'].unique())
+        keep_areas = [area for area in areas if area not in exclude_areas]
+        df = df.loc[df['Area_name'].isin(keep_areas)]
+    gdf = gpd.GeoDataFrame(df, geometry='geometry')
+    gdf.to_file(joined_subsidence_polygons)
     return joined_subsidence_polygons
 
 
@@ -1055,7 +1143,9 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
                               interim_dir='../InSAR_Data/Merged_subsidence_data/interim_working_dir',
                               output_dir='../InSAR_Data/Merged_subsidence_data/final_subsidence_raster',
                               skip_polygon_merge=False, subsidence_column='Class_name', resample_algorithm='near',
-                              final_subsidence_raster='Subsidence_training.tif',
+                              final_subsidence_raster='Subsidence_training.tif', exclude_georeferenced_areas=None,
+                              process_insar_areas=('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin',
+                                                   'China_Hebei', 'China_Hefei', 'Colorado'),
                               polygon_search_criteria='*Subsidence*.shp',
                               insar_search_criteria='*reclass_resampled*.tif', already_prepared=False,
                               refraster=referenceraster, merge_coastal_subsidence_data=False):
@@ -1072,7 +1162,13 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
     subsidence_column : Subsidence value column in joined subsidence polygon. Default set to 'Class_name'.
     resample_algorithm : Algorithm for resampling polygon subsidence data. Default set to 'near'.
     final_subsidence_raster : Final subsidence raster including georeferenced and insar data.
+    exclude_georeferenced_areas : Tuple of area names to be excluded from processing. Default set to None to include all
+                                  gereferenced areas. For excluding single area follow
+                                  tuple pattern ('Bangladesh_GBDelta',)
     polygon_search_criteria : Input subsidence polygon search criteria.
+    process_insar_areas : Tuple of insar data regions to be included in the model.
+                          Default set to ('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin', 'China_Hebei',
+                                          'China_Hefei', 'Colorado')
     insar_search_criteria : InSAR data search criteria.
     already_prepared : Set to True if subsidence raster is already prepared.
     refraster : Global Reference raster.
@@ -1085,6 +1181,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
         if not skip_polygon_merge:
             print('Processing Subsidence Polygons...')
             subsidene_polygons = join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygon,
+                                                                        exclude_georeferenced_areas,
                                                                         polygon_search_criteria)
         else:
             subsidene_polygons = joined_subsidence_polygon
@@ -1102,9 +1199,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
 
         print('Processing InSAR Data...')
 
-        process_primary_insar_data(processing_areas=('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin',
-                                                     'China_Hebei', 'China_Hefei', 'Colorado'),
-                                   output_dir=insar_data_dir)
+        process_primary_insar_data(processing_areas=process_insar_areas, output_dir=insar_data_dir)
         insar_arr, merged_insar = mosaic_rasters(insar_data_dir, interim_dir, raster_name='joined_insar_data.tif',
                                                  ref_raster=refraster, search_by=insar_search_criteria, resolution=0.02)
 
@@ -1154,7 +1249,8 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
 
 
 def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam_gw_data, irrigated_meier_data,
-                                       sediment_thickness_data, popdensity_data, subsidence_data,
+                                       sediment_thickness_data, clay_thickness_data, popdensity_data,
+                                       river_distance_data, subsidence_data,
                                        output_dir, skip_compiling_predictor_subsidence_data=False):
     """
     Compile predictor datasets and subsidence data in a single folder (to be used for creating predictor database)
@@ -1165,7 +1261,9 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
     giam_gw : Resampled GIAM GW Irrigation filepath.
     irrigated_meier_data: Resampled Irrigated area by meier filepath.
     sediment_thickness_data : Resampled sediment thickness filepath.
+    clay_thickness_data : Resampled clay thickness data.
     popdensity_data : Resampled population density filepath.
+    river_distance_data : Resampled river distance data filepath.
     subsidence_data : Resampled subsidence filepath.
     output_dir : Output directory filepath.
     skip_predictor_subsidence_compilation : Set to True if want to skip compiling all the data again.
@@ -1180,10 +1278,15 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
             rename_copy_raster(gee_data_dict[key], output_dir, rename=True, new_name=(key + '.tif'))
 
         rename_copy_raster(gfsad_irrigated_area, output_dir, rename=False)
+        rename_copy_raster(gfsad_irrigated_area, output_dir, rename=False)
         rename_copy_raster(giam_gw_data, output_dir, rename=False)
         rename_copy_raster(irrigated_meier_data, output_dir, rename=True, new_name='Irrigated_Area_Density2.tif')
         rename_copy_raster(sediment_thickness_data, output_dir, rename=False)
+        rename_copy_raster(clay_thickness_data, output_dir, rename=False)
         rename_copy_raster(popdensity_data, output_dir, rename=True, new_name='Population_Density.tif')
+        rename_copy_raster(river_distance_data, output_dir, rename=False)
         rename_copy_raster(subsidence_data, output_dir, rename=True, new_name='Subsidence.tif')
 
     return output_dir
+
+

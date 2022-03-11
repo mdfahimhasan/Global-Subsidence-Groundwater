@@ -1,6 +1,6 @@
 # Author: Md Fahim Hasan
 # Email: mhm4b@mst.edu
-
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -59,7 +59,9 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
                              'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
                              'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                              'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                             'TRCLM_ET': 'TRCLM ET (mm)'}
+                             'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
+                             'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
+                             'River_distance': 'River Distance'}
 
     if not skip_dataframe_creation:
         predictors = glob(os.path.join(input_raster_dir, search_by))
@@ -110,7 +112,9 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
                            'SRTM_Slope': '% Slope', 'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
                            'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                            'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                           'TRCLM_ET': 'TRCLM ET (mm)'}
+                           'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
+                           'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
+                           'River_distance': 'River Distance'}
 
     input_df = input_df.rename(columns=predictor_name_dict)
     drop_columns = exclude_columns + [pred_attr]
@@ -151,15 +155,20 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
 
     Returns : Optimized Hyperparameters.
     """
+    global classifier
     param_dict = {'rf':
                       # {'n_estimators': [100, 200, 300],
                       #  'max_depth': [5, 11, 12, 13, 15, 16, 17, 18],
                       #  'max_features': [4, 5, 6, 7, 8, 10],
                       #  'min_samples_leaf': [5e-4, 1e-5, 1e-3, 2, 6, 12, 20, 25]},
-                      {'n_estimators': [60, 70, 80, 100],
-                       'max_depth': [5, 11, 12, 13, 15],
-                       'max_features': [4, 5, 6, 7, 8, 10],
-                       'min_samples_leaf': [5e-4, 1e-5, 1e-3, 2, 6, 12, ]},
+                      {'n_estimators': [100, 200, 300],
+                       'max_depth': [8, 12,  13, 14],
+                       'max_features': [6, 7, 9, 10],
+                       'min_samples_leaf': [5e-4, 1e-5, 1e-3, 6, 12, 20, 25],
+                       # 'max_leaf_nodes': [90, 120, 150],
+                       # 'max_samples': [None, 0.9, 0.8],
+                       'min_samples_split': [6, 7, 8, 10]
+                       },
                   'gbdt':
                       {'num_leaves': [31, 63, 100, 200],
                        'max_depth': [10, 12, 15, 20],
@@ -227,7 +236,11 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
         optimized_param_dict = {'n_estimators': CV.best_params_['n_estimators'],
                                  'max_depth': CV.best_params_['max_depth'],
                                  'max_features': CV.best_params_['max_features'],
-                                 'min_samples_leaf': CV.best_params_['min_samples_leaf']}
+                                 'min_samples_leaf': CV.best_params_['min_samples_leaf'],
+                                 # 'max_leaf_nodes': CV.best_params_['max_leaf_nodes'],
+                                 # 'max_samples': CV.best_params_['max_samples'],
+                                'min_samples_split': CV.best_params_['min_samples_split']
+                                }
 
         return optimized_param_dict
 
@@ -246,6 +259,7 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf', load_model=False,
                         pred_attr='Subsidence', test_size=0., random_state=0, output_dir=None,
                         n_estimators=300, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
+                        max_samples = None, max_leaf_nodes=None,  ##
                         bootstrap=True, oob_score=True, n_jobs=-1, class_weight='balanced',
                         num_leaves=31, max_depth_gbdt=-1, learning_rate=0.01, n_estimators_gbdt=200, subsample=0.9,
                         colsample_bytree=1, min_child_samples=20,
@@ -303,6 +317,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     """
 
     # Splitting Training and Testing Data
+    global classifier
     x_train, x_test, y_train, y_test, predictor_name_dict = \
         split_train_test_ratio(predictor_csv=predictor_csv, exclude_columns=exclude_columns, pred_attr=pred_attr,
                                test_size=test_size, random_state=random_state, outdir=output_dir)
@@ -320,6 +335,9 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
             max_depth = optimized_param_dict['max_depth']
             max_features = optimized_param_dict['max_features']
             min_samples_leaf = optimized_param_dict['min_samples_leaf']
+            # max_leaf_nodes = optimized_param_dict['max_leaf_nodes']
+            # max_samples = optimized_param_dict['max_samples']
+            min_samples_split = optimized_param_dict['min_samples_split']
 
         elif model == 'gbdt':
             num_leaves = optimized_param_dict['num_leaves']
@@ -335,7 +353,8 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
         if model == 'rf':
             classifier = RandomForestClassifier(n_estimators=n_estimators, max_features=max_features,
                                                 min_samples_leaf=min_samples_leaf, min_samples_split=min_samples_split,
-                                                max_depth=max_depth, random_state=random_state,
+                                                max_depth=max_depth, max_samples=max_samples,
+                                                max_leaf_nodes=max_leaf_nodes, random_state=random_state,
                                                 bootstrap=bootstrap, class_weight=class_weight, n_jobs=n_jobs,
                                                 oob_score=oob_score)
         elif model == 'gbdt':
@@ -410,26 +429,21 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
     print(cm_df_test, '\n')
 
     if plot_confusion_matrix:
-        font = 18
+        font = 11
         label = np.array(['<1cm', '1-5 cm', '>5cm'])
         disp = ConfusionMatrixDisplay(cm_test, display_labels=label)
-        fig, ax = plt.subplots(figsize=(10, 8))
-        disp.plot(cmap='YlGn', ax=ax)
+        disp.plot(cmap='YlGn')
         for labels in disp.text_.ravel():
             labels.set_fontsize(font)
-        ax.set_xlabel('Predicted Class', fontsize=font)
-        ax.set_ylabel('True Class', fontsize=font)
-        ax.set_xticklabels(label, fontsize=font)
-        ax.set_yticklabels(label, fontsize=font)
-
+        disp.ax_.set_ylabel('True Class', fontsize=font)
+        disp.ax_.set_xlabel('Predicted Class', fontsize=font)
         plot_name = cm_name_test[:cm_name_test.rfind('.')] + '.png'
-        plt.savefig((accuracy_dir + '/' + plot_name), dpi=600)
-
-    # print Overall accuracy
-    overall_accuracy = round(accuracy_score(y_test, y_pred), 2)
-    print('Accuracy Score {}'.format(overall_accuracy))
+        plt.savefig((accuracy_dir + '/' + plot_name), dpi=400)
+        print('Test confusion matrix saved')
 
     # Saving fitted_model accuracy for individual classes
+    overall_accuracy = round(accuracy_score(y_test, y_pred), 2)
+    print('Accuracy Score {}'.format(overall_accuracy))
     accuracy_csv_name = accuracy_dir + '/' + predictor_imp_keyword + '_accuracy.csv'
     save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name)
 
@@ -481,7 +495,9 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                           'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
                           'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                           'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                          'TRCLM_ET': 'TRCLM ET (mm)'}
+                          'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
+                          'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
+                          'River_distance': 'River Distance'}
         x_train_df = pd.DataFrame(x_train)
         x_train_df = x_train_df.rename(columns=predictor_dict)
         col_labels = np.array(x_train_df.columns)
@@ -490,10 +506,11 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
         imp_df = pd.DataFrame(imp_dict)
         imp_df.sort_values(by=['feature_importance'], ascending=False, inplace=True)
         plt.figure(figsize=(10, 8))
-        plt.rcParams['font.size'] = 20
-        sns.barplot(x=imp_df['feature_importance'], y=imp_df['feature_names'], palette='rocket_r')
-        plt.xlabel('Predictor Importance')
-        plt.ylabel('Predictor Names')
+        plt.rcParams['font.size'] = 14
+        sns.barplot(x=imp_df['feature_names'], y=imp_df['feature_importance'], palette='rocket')
+        plt.xticks(rotation=90)
+        plt.ylabel('Variable Importance')
+        plt.xlabel('Variable Names')
         plt.tight_layout()
         plt.savefig((accuracy_dir + '/' + predictor_imp_keyword + '_pred_importance.png'), dpi=600)
         print('Feature importance plot saved')
@@ -534,7 +551,7 @@ def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
 
 
 def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
-             feature_names=('Clay content PCA', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
+             feature_names=('Clay Thickness (m)', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
                             'Sediment Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)')):
     """
     Plot Partial Dependence Plot for the fitted_model.
@@ -550,52 +567,32 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
     """
     plt.rcParams['font.size'] = 18
 
-    # Class <1cm
-    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=1,
-                                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
-                                            random_state=0, grid_resolution=20)
-    fig = plt.gcf()
-    fig.set_size_inches(20, 15)
-    fig.suptitle('Partial Dependence Plot for <1cm/yr Subsidence', size=22, y=1)
-    fig.subplots_adjust(wspace=0.1, hspace=0.5)
-    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
-    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + 'PDP less 1cm Subsidence.png'),
-                dpi=300, bbox_inches='tight')
-    print('pdp for <1cm saved')
+    classes = [1, 5, 10]
 
-    # Class 1-5cm
-    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=5,
-                                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
-                                            random_state=0, grid_resolution=20)
-    fig = plt.gcf()
-    fig.set_size_inches(20, 15)
-    fig.suptitle('Partial Dependence Plot for 1-5cm/yr Subsidence', size=22, y=1)
-    fig.subplots_adjust(wspace=0.1, hspace=0.5)
-    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
-    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + 'PDP 1 to 5cm Subsidence.png'),
-                dpi=300, bbox_inches='tight')
-    print('pdp for 1-5cm saved')
+    for each in classes:
 
-    # Class >5cm
-    PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=10,
-                                            response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
-                                            random_state=0, grid_resolution=20)
-    fig = plt.gcf()
-    fig.set_size_inches(20, 15)
-    fig.suptitle('Partial Dependence Plot for >5cm/yr Subsidence', size=22, y=1)
-    fig.subplots_adjust(wspace=0.1, hspace=0.5)
-    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
-    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + 'PDP greater 5cm Subsidence.png'),
-                dpi=300, bbox_inches='tight')
-    print('pdp for >5cm saved')
+        pdisp = PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=each,
+                                                        response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
+                                                        random_state=0, grid_resolution=20)
+        for row_idx in range(0, pdisp.axes_.shape[0]):
+            pdisp.axes_[row_idx][0].set_ylabel('Subsidence Probability')
+        fig = plt.gcf()
+        fig.set_size_inches(20, 15)
+        fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+        pdp_plot_name = {1: 'PDP less 1cm Subsidence.png', 5: 'PDP 1 to 5cm Subsidence.png',
+                         10: 'PDP greater 5cm Subsidence.png'}
+        fig.savefig((output_dir + '/' + plot_save_keyword + '_' + pdp_plot_name[each]),
+                    dpi=400, bbox_inches='tight')
+        print(pdp_plot_name[each].split('.')[0], 'saved')
 
 
-def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlist=[2013, 2019], search_by='*.tif',
+def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlist=(2013, 2019), search_by='*.tif',
                              continent_search_by='*continent.shp', predictor_csv_exists=False,
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
-                             prediction_raster_keyword='rf', predict_probability_greater_1cm=True):
+                             prediction_raster_keyword='rf', filter_by_crop_builtup=False,
+                             predict_probability_greater_1cm=True):
     """
     Create predicted raster from random forest fitted_model.
 
@@ -603,7 +600,7 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
     predictors_dir : Predictor rasters' directory.
     fitted_model : A fitted fitted_model obtained from random_forest_classifier function.
     predictor_name_dict : Predictor name dictionary (comes from split_train_test_ratio > build_ml_classifier function).
-    yearlist : List of years for the prediction.
+    yearlist :Tuple of years for the prediction. Default set to (2013, 2019).
     search_by : Predictor rasters search criteria. Defaults to '*.tif'.
     continent_search_by : Continent shapefile search criteria. Defaults to '*continent.tif'.
     predictor_csv_exists : Set to True if predictor csv already exists. Defaults set to False. Should be False if
@@ -613,12 +610,15 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
     exclude_columns : Predictor rasters' name that will be excluded from the fitted_model. Defaults to ().
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     prediction_raster_keyword : Keyword added to final prediction raster name.
+    filter_by_crop_builtup : Set to True to filter prediction raster based on cropland and builtup landuse.
+                             Default set to False.
     predict_probability_greater_1cm : Set to False if probability of prediction of each classes (<1cm, 1-5cm, >5cm)
                                       is required. Default set to True to predict probability of prediction for >1cm.
 
     Returns: Subsidence prediction raster and
              Subsidence prediction probability raster (if prediction_probability=True).
     """
+    global raster_file
     predictor_rasters = glob(os.path.join(predictors_dir, search_by))
     continent_shapes = glob(os.path.join(continent_shapes_dir, continent_search_by))
     drop_columns = list(exclude_columns) + [pred_attr]
@@ -704,7 +704,15 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
             print('Prediction probability for >1cm created for', continent_name)
 
     raster_name = prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
-    mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name, search_by='*prediction*.tif')
+    subsidence_arr, path = mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name,
+                                      search_by='*prediction*.tif')
+
+    if filter_by_crop_builtup:
+        final_raster_name = prediction_raster_keyword + '_prediction_filtered_' + str(yearlist[0]) + '_' + \
+                            str(yearlist[1]) + '.tif'
+        filter_subsidence_prediction(path, final_raster_name, prediction_raster_dir,
+                                     modis_lu='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif')
+
     print('Global prediction raster created')
 
     if predict_probability_greater_1cm:
@@ -713,3 +721,32 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
         mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
                        search_by='*proba_greater_1cm*.tif')
         print('Global prediction probability raster created')
+
+
+def filter_subsidence_prediction(prediction_raster,  final_raster_name, prediction_raster_dir,
+                                 modis_lu='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif'):
+    """
+    Apply filter on model prediction raster with MODIS Land Use cropland (3) and urban (4) land use.
+
+    Parameters:
+    prediction_arr : Model prediction array generated by create_prediction_raster() function.
+    final_raster_name, prediction_raster_dir
+    modis_lu : MODIS LU raster filepath.
+
+    Returns: Filtered prediction raster.
+    """
+    prediction_arr, prediction_file = read_raster_arr_object(prediction_raster)
+
+    shape = prediction_arr.shape
+    prediction_arr = prediction_arr.ravel()
+    modis_lu_arr = read_raster_arr_object(modis_lu, get_file=False).ravel()
+
+    filtered_subsidence_arr = np.where((modis_lu_arr == 3) | (modis_lu_arr == 4), prediction_arr, 1)
+    filtered_subsidence_arr = np.where(np.isnan(prediction_arr), prediction_arr, filtered_subsidence_arr)
+
+    filtered_subsidence_arr = filtered_subsidence_arr.reshape(shape)
+
+    filtered_subsidence = write_raster(raster_arr=filtered_subsidence_arr, raster_file=prediction_file,
+                                       transform=prediction_file.transform,
+                                       outfile_path=os.path.join(prediction_raster_dir, final_raster_name))
+    return filtered_subsidence

@@ -74,4 +74,4 @@ def make_gdal_sys_call(gdal_command, args, verbose=True):
         return sys_call
 
     else:
-        print('not optimized for linux yet')
+        print('gdal sys call not optimized for linux yet')

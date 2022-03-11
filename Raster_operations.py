@@ -26,14 +26,13 @@ def read_raster_arr_object(input_raster, band=1, raster_object=False, get_file=T
     """
     read raster as raster object and array. If raster_object=True get only the raster array 
     
-    Parameters
-    ----------
+    Parameters:
     input_raster : Input raster file path
     band : Selected band to read (Default 1)
     raster_object : Set true if raster_file is a rasterio object
     get_file : Get both rasterio object and raster array file if set to True
     change_dtype : Change raster data type to float if true
-    ----------    
+
     Returns : Raster numpy array and rasterio object file (rasterio_obj=False and get_file=True)
     """
     if not raster_object:
@@ -58,15 +57,14 @@ def write_raster(raster_arr, raster_file, transform, outfile_path, no_data_value
     """
     Write raster file in GeoTIFF format
     
-    Parameters
-    ----------
+    Parameters:
     raster_arr: Raster array data to be written
     raster_file: Original rasterio raster file containing geo-coordinates
     transform: Affine transformation matrix
     outfile_path: Outfile file path with filename
     no_data_value: No data value for raster (default float32 type is considered)
     ref_file: Write output raster considering parameters from reference raster file
-    ----------
+
     Returns : filepath of of output raster
     """
     if ref_file:
@@ -94,8 +92,7 @@ def filter_lower_larger_value(input_raster, output_dir, band=1, lower=True, larg
     """
     filter out and replace value in raster
 
-    Parameters
-    ----------
+    Parameters:
     input_raster : input raster directory with raster name
     output_dir : output raster directory
     band : band  to read. Default is 1
@@ -125,8 +122,7 @@ def filter_specific_values(input_raster, outdir, raster_name, fillvalue=np.nan, 
     """
     Filter and replace values in raster.
 
-    Parameters
-    ----------
+    Parameters:
     input_raster : input raster directory with raster name.
     outdir : Output raster directory.
     raster_name: Output raster name.
@@ -554,16 +550,15 @@ def mean_rasters(input_dir, outdir, raster_name, reference_raster=None, searchby
     """
     mean multiple rasters from a directory. 
 
-    Parameters
-    ----------
+    Parameters:
     input_dir :Input raster directory
     outdir : Output raster directory
     raster_name : Output raster name
     reference_raster : Reference raster for setting affine
     searchby : Searching criteria for input raster. The default is "*.tif".
     no_data_value: No Data Value default set as -9999.
-    ----------
-    Returns: None
+
+    Returns: Mean output raster.
     """
     input_rasters = glob(os.path.join(input_dir, searchby))
 
@@ -590,15 +585,14 @@ def mean_2_rasters(input1, input2, outdir, raster_name, nodata=No_Data_Value):
     """
     mean 2 rasters . 
 
-    Parameters
-    ----------
+    Parameters:
     input1 :Input raster 1 with filepath
     input2 :Input raster 2 with filepath
     outdir : Output raster directory
     raster_name : Output raster name
     nodata : No data value. Defaults to -9999
-    ----------
-    Returns: None
+
+    Returns: Mean output raster.
     """
     arr1, rasfile1 = read_raster_arr_object(input1)
     arr2, rasfile2 = read_raster_arr_object(input2)
@@ -613,26 +607,33 @@ def mean_2_rasters(input1, input2, outdir, raster_name, nodata=No_Data_Value):
     write_raster(raster_arr=mean_arr, raster_file=rasfile1, transform=rasfile1.transform,
                  outfile_path=output_raster, no_data_value=nodata)
 
+    return output_raster
 
-def array_multiply(input_raster1, input_raster2, outdir, raster_name):
+
+def array_multiply(input_raster1, input_raster2, outdir, raster_name, scale=None):
     """
-    Multiplies 2 rasters. the rasters should be of same shape (row, column size).
+    Multiplies 2 rasters. The rasters should be of same shape (row, column size).
     
     Parameters:
     input_raster1 : Raster 1 file with file name.
     input_raster2 : Raster 1 file with file name.
     output_dir : Output Raster Directory.
     output_raster_name : Output raster name.
+    scale : Set appropriate scale value if multiplied array needs to changed with a factor. Default set to None.
 
-    Returns:None.
+    Returns: Multiplied output raster.
     """
     arr1, data1 = read_raster_arr_object(input_raster1)
     arr2, data2 = read_raster_arr_object(input_raster2)
     new_arr = np.multiply(arr1, arr2)
 
+    if scale is not None:
+        new_arr = new_arr * scale
+
     makedirs([outdir])
     output_raster = os.path.join(outdir, raster_name)
     write_raster(raster_arr=new_arr, raster_file=data1, transform=data1.transform, outfile_path=output_raster)
+
     return output_raster
 
 
@@ -740,6 +741,7 @@ def create_nanfilled_raster(input_raster, outdir, raster_name, ref_raster=refere
     makedirs([outdir])
     output_raster = os.path.join(outdir, raster_name)
     write_raster(raster_arr=new_arr, raster_file=ras_file, transform=ras_file.transform, outfile_path=output_raster)
+
     return output_raster
 
 
@@ -814,5 +816,32 @@ def apply_gaussian_filter(input_raster, outdir, raster_name, sigma=3, ignore_nan
     output_raster = os.path.join(outdir, raster_name)
     write_raster(raster_arr=raster_arr_flt, raster_file=raster_file, transform=raster_file.transform,
                  outfile_path=output_raster)
+
     return output_raster
 
+
+def compute_proximity(input_raster, output_dir, raster_name, target_values=(1,), nodatavalue=No_Data_Value):
+
+    makedirs([output_dir])
+    output_raster = os.path.join(output_dir, raster_name)
+
+    inras_file = gdal.Open(input_raster, gdal.GA_ReadOnly)
+    inras_band = inras_file.GetRasterBand(1)
+    driver = gdal.GetDriverByName('GTiff')
+
+    x_size = inras_file.RasterXSize
+    y_size = inras_file.RasterYSize
+    dest_ds = driver.Create(output_raster, x_size, y_size, 1, gdal.GDT_Float32)
+    dest_ds.SetProjection(inras_file.GetProjection())
+    dest_ds.SetGeoTransform(inras_file.GetGeoTransform())
+    dest_band = dest_ds.GetRasterBand(1)
+    dest_band.SetNoDataValue(nodatavalue)
+
+    target_values_list = list(target_values)
+    values = 'VALUES=' + ','.join(str(val) for val in target_values_list)
+
+    gdal.ComputeProximity(inras_band, dest_band, [values, "DISTUNITS=GEO"])
+
+    inras_file, inras_band, dest_ds, dest_band = None, None, None, None
+
+    return output_raster

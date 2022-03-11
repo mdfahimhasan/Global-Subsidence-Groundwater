@@ -11,8 +11,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score
 from System_operations import makedirs
-from Raster_operations import shapefile_to_raster, mosaic_rasters, mosaic_two_rasters, read_raster_arr_object, \
-    write_raster, clip_resample_raster_cutline
+from Raster_operations import shapefile_to_raster, mosaic_rasters, read_raster_arr_object, \
+    write_raster, clip_resample_raster_cutline, resample_reproject
 
 import warnings
 
@@ -36,6 +36,7 @@ def combine_georeferenced_subsidence_polygons(input_polygons_dir, joined_subside
     Returns : Joined subsidence polygon.
     """
 
+    global gdf
     if not skip_polygon_processing:
         subsidence_polygons = glob(os.path.join(input_polygons_dir, search_criteria))
 
@@ -80,7 +81,7 @@ def combine_georeferenced_subsidence_polygons(input_polygons_dir, joined_subside
 def substitute_area_code_on_raster(input_raster, value_to_substitute, output_raster):
     """
     Substitute raster values with area code for InSAR produced subsidence rasters (California, Arizona, Quetta, Qazvin,
-    China_Hebei, Coastal_subsidence etc.)
+    China_Hebei, China_Hefei, Colorado, Coastal_subsidence etc.)
 
     Parameters:
     input_raster : Input subsidence raster filepath.
@@ -140,13 +141,14 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
                                                       polygon_search_criteria, skip_polygon_processing)
 
         print('Processed area coded subsidence polygons')
-        georeferenced_raster_area_coded = shapefile_to_raster(subsidence_polygons, interim_dir,
-                                                              raster_name='interim_georef_subsidence_raster_areacode'
-                                                                          '.tif',
-                                                              use_attr=True, attribute=area_code_column,
-                                                              ref_raster=refraster, alltouched=False)
-        georef_arr = read_raster_arr_object(georeferenced_raster_area_coded, get_file=None)
-
+        interim_georeferenced_raster_area_coded = \
+            shapefile_to_raster(subsidence_polygons, interim_dir, resolution=0.005,
+                                raster_name='interim_georef_subsidence_raster_areacode_0005.tif',
+                                use_attr=True, attribute=area_code_column, ref_raster=refraster, alltouched=False)
+        georeferenced_raster_area_coded = \
+            resample_reproject(interim_georeferenced_raster_area_coded, interim_dir,
+                               raster_name='interim_georef_subsidence_raster_areacode.tif', resample=True,
+                               reproject=False, both=False, resample_algorithm='near')
         print('Processing area coded InSAR data...')
         georef_subsidence_gdf = gpd.read_file(joined_subsidence_polygon)
         num_of_georef_subsidence = len(georef_subsidence_gdf['Area_code'].unique())
@@ -156,13 +158,17 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
         quetta_area_code = arizona_area_code + 1
         qazvin_area_code = quetta_area_code + 1
         hebei_area_code = qazvin_area_code + 1
-        coastal_area_code = hebei_area_code + 1
+        hefei_area_code = hebei_area_code + 1
+        colorado_area_code = hefei_area_code + 1
+        coastal_area_code = colorado_area_code + 1
 
         subsidence_areaname_dict['California'] = california_area_code
         subsidence_areaname_dict['Arizona'] = arizona_area_code
         subsidence_areaname_dict['Pakistan_Quetta'] = quetta_area_code
         subsidence_areaname_dict['Iran_Qazvin'] = qazvin_area_code
         subsidence_areaname_dict['China_Hebei'] = hebei_area_code
+        subsidence_areaname_dict['China_Hefei'] = hefei_area_code
+        subsidence_areaname_dict['Colorado'] = colorado_area_code
         subsidence_areaname_dict['Coastal'] = coastal_area_code
 
         california_subsidence = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data' \
@@ -175,6 +181,10 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
                             'Iran_Qazvin_reclass_resampled.tif'
         hebei_subsidence = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data/' \
                            'China_Hebei_reclass_resampled.tif'
+        hefei_subsidence = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data/' \
+                           'China_Hefei_reclass_resampled.tif'
+        colorado_subsidence = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data/' \
+                              'Colorado_reclass_resampled.tif'
         coastal_subsidence = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data' \
                              '/Coastal_subsidence.tif'
 
@@ -193,25 +203,34 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
         substitute_area_code_on_raster(hebei_subsidence, hebei_area_code,
                                        '../Model Run/LOO_Test/InSAR_Data/'
                                        'interim_working_dir/China_Hebei_area_raster.tif')
+        substitute_area_code_on_raster(hefei_subsidence, hefei_area_code,
+                                       '../Model Run/LOO_Test/InSAR_Data/'
+                                       'interim_working_dir/China_Hefei_area_raster.tif')
+        substitute_area_code_on_raster(colorado_subsidence, colorado_area_code,
+                                       '../Model Run/LOO_Test/InSAR_Data/'
+                                       'interim_working_dir/Colorado_area_raster.tif')
         coastal_raster_area_coded = substitute_area_code_on_raster(coastal_subsidence, coastal_area_code,
                                                                    '../Model Run/LOO_Test/InSAR_Data/'
                                                                    'interim_working_dir/Coastal_raster.tif')
 
         mosaic_rasters(insar_data_dir, output_dir=insar_data_dir, raster_name='interim_insar_Area_data.tif',
                        ref_raster=refraster, search_by='*area_raster.tif', resolution=0.02)
-        insar_arr, merged_insar_file = read_raster_arr_object(os.path.join(insar_data_dir,
-                                                                           'interim_insar_Area_data.tif'))
-        # adding coastal area coded raster
-        row, col = insar_arr.shape[0], insar_arr.shape[1]
-        coastal_arr = read_raster_arr_object(coastal_raster_area_coded, get_file=None).ravel()
-        insar_arr = insar_arr.ravel()
-        insar_arr = np.where(coastal_arr == coastal_area_code, coastal_arr, insar_arr).reshape((row, col))
-        merged_insar = os.path.join(insar_data_dir, 'final_insar_Area_data.tif')
-        write_raster(insar_arr, merged_insar_file, merged_insar_file.transform, merged_insar)
 
         # merging georeferenced and insar subsidence data
+        georef_arr = read_raster_arr_object(georeferenced_raster_area_coded, get_file=False).flatten()
+        insar_arr = read_raster_arr_object(os.path.join(insar_data_dir, 'interim_insar_Area_data.tif'),
+                                                              get_file=False).flatten()
+        interim_subsidence_arr = np.where(insar_arr > 0, insar_arr, georef_arr)
+
         ref_arr, ref_file = read_raster_arr_object(referenceraster)
-        final_subsidence_arr = np.where(insar_arr > 0, insar_arr, georef_arr)
+        shape = ref_file.shape
+
+        # adding coastal area coded raster
+        coastal_arr = read_raster_arr_object(coastal_raster_area_coded, get_file=False).flatten()
+        interim_subsidence_arr = interim_subsidence_arr.flatten()
+        final_subsidence_arr = \
+            np.where(coastal_arr == coastal_area_code, coastal_arr, interim_subsidence_arr).reshape(shape)
+
         subsidence_data = os.path.join(output_dir, final_subsidence_raster)
         write_raster(final_subsidence_arr, ref_file, ref_file.transform, subsidence_data)
 
@@ -261,7 +280,7 @@ def create_traintest_df_loo_accuracy(input_raster_dir, subsidence_areacode_dict,
         predictor_dict['Area_code'] = subsidence_area_arr.flatten()
         predictor_df = pd.DataFrame(predictor_dict)
 
-        predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+        predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
                                'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                                'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                                'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
@@ -272,11 +291,12 @@ def create_traintest_df_loo_accuracy(input_raster_dir, subsidence_areacode_dict,
                                'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
                                'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                                'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                               'TRCLM_ET': 'TRCLM ET (mm)'}
+                               'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
+                               'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
+                               'River_distance': 'River Distance'}
         predictor_df = predictor_df.rename(columns=predictor_name_dict)
         predictor_df = predictor_df.drop(columns=exclude_columns)
         predictor_df = predictor_df.dropna(axis=0)
-        print(predictor_df['Area_code'].unique().sort())
         area_code = predictor_df['Area_code'].tolist()
 
         area_name_list = list(subsidence_areacode_dict.keys())
@@ -365,10 +385,10 @@ def build_ml_classifier(predictor_csv, loo_test_area_name, model='RF', random_st
     Returns: rf_classifier (A fitted random forest fitted_model)
     """
 
-    x_train_csv, x_train, y_train, x_test, y_test = train_test_split_loo_accuracy(predictor_csv, loo_test_area_name,
-                                                                                  pred_attr='Subsidence',
-                                                                                  outdir='../Model Run/LOO_test/'
-                                                                                         'Predictors_csv')
+    global classifier
+    x_train_csv, x_train, y_train, x_test, y_test = \
+        train_test_split_loo_accuracy(predictor_csv, loo_test_area_name, pred_attr='Subsidence',
+                                      outdir='../Model Run/LOO_test/Predictors_csv')
 
     makedirs([modeldir])
     model_file = os.path.join(modeldir, model)
@@ -410,12 +430,13 @@ def classification_accuracy(y_test, y_pred, loo_test_area_name,
     """
     subsidence_training_area_list = [
         'Arizona', 'Australia_Perth', 'Bangladesh_GBDelta', 'California', 'China_Beijing',
-        'China_Hebei', 'China_Shanghai', 'China_Tianjin', 'China_Wuhan', 'China_Xian',
-        'China_YellowRiverDelta', 'Coastal', 'Egypt_NileDelta', 'England_London',
-        'Indonesia_Bandung', 'Indonesia_Semarang', 'Iran_MarandPlain''Iran_Qazvin',
+        'China_Hebei', 'China_Hefei', 'China_Shanghai', 'China_Tianjin', 'China_Wuhan', 'China_Xian',
+        'China_YellowRiverDelta', 'Coastal', 'Colorado', 'Egypt_NileDelta', 'England_London', 'India_Delhi',
+        'Indonesia_Bandung', 'Indonesia_Semarang', 'Iran_MarandPlain', 'Iran_Mashhad', 'Iran_Qazvin',
         'Iran_Tehran', 'Iraq_TigrisEuphratesBasin', 'Italy_PoDelta', 'Italy_VeniceLagoon',
-        'Mexico_MexicoCity', 'Nigeria_Lagos', 'Pakistan_Quetta', 'Spain_Murcia',
-        'Taiwan_Yunlin', 'Turkey_Bursa' 'Turkey_Karapinar', 'US_Huston', 'Vietnam_HoChiMinh'
+        'Mexico_MexicoCity', 'Nigeria_Lagos', 'Pakistan_Quetta', 'Philippines_Manila', 'Spain_Murcia',
+        'Taiwan_Yunlin', 'Turkey_Bursa', 'Turkey_Karapinar', 'US_Huston',
+        'Vietnam_Hanoi', 'Vietnam_HoChiMinh'
     ]
     subsidence_training_area_list = sorted(subsidence_training_area_list)
 
@@ -467,19 +488,19 @@ def classification_accuracy(y_test, y_pred, loo_test_area_name,
     return overall_accuracy
 
 
-def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019], search_by='*.tif',
+def create_prediction_raster(predictors_dir, fitted_model, yearlist=(2013, 2019), search_by='*.tif',
                              continent_search_by='*continent.shp',
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/LOO_Test/Prediction_rasters',
-                             exclude_columns=(), pred_attr='Subsidence',
-                             prediction_raster_keyword='RF', predictor_csv_exists=False):
+                             exclude_columns=(), pred_attr='Subsidence', prediction_raster_keyword='RF',
+                             predictor_csv_exists=False, predict_probability_greater_1cm=False):
     """
     Create predicted raster from random forest fitted_model.
 
     Parameters:
     predictors_dir : Predictor rasters' directory.
     fitted_model : A fitted_model obtained from random_forest_classifier function.
-    yearlist : List of years for the prediction.
+    yearlist : Tuple of years for the prediction. Default set to (2013, 2019).
     search_by : Predictor rasters search criteria. Defaults to '*.tif'.
     continent_search_by : Continent shapefile search criteria. Defaults to '*continent.tif'.
     continent_shapes_dir : Directory path of continent shapefiles.
@@ -488,11 +509,13 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     prediction_raster_keyword : Keyword added to final prediction raster name.
     predictor_csv_exists : Set to True if predictor csv for each continent exists. Default set to False to create
-                           create new predcitor csv (also needed if predictor combinations are changed).
+                           create new predictor csv (also needed if predictor combinations are changed).
+    predict_probability_greater_1cm : Set to True if want to create >1cm/yr probability raster. Default set to False.
 
     Returns: Subsidence prediction raster and
              Subsidence prediction probability raster (if prediction_probability=True).
     """
+    global raster_file
     predictor_rasters = glob(os.path.join(predictors_dir, search_by))
     continent_shapes = glob(os.path.join(continent_shapes_dir, continent_search_by))
     drop_columns = list(exclude_columns) + [pred_attr]
@@ -502,7 +525,7 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
     makedirs([prediction_raster_dir])
     makedirs([continent_prediction_raster_dir])
 
-    predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index', 'ALOS_Landform': 'Landform',
+    predictor_name_dict = {'Alexi_ET': 'Alexi ET', 'Aridity_Index': 'Aridity Index',
                            'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                            'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                            'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
@@ -513,7 +536,9 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
                            'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
                            'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                            'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                           'TRCLM_ET': 'TRCLM ET (mm)'}
+                           'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
+                           'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
+                           'River_distance': 'River Distance'}
 
     for continent in continent_shapes:
         continent_name = continent[continent.rfind(os.sep) + 1:continent.rfind('_')]
@@ -540,7 +565,8 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
 
                 if variable_name not in drop_columns:
                     raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
-                                                                           naming_from_both=False)
+                                                                           naming_from_both=False,
+                                                                           naming_from_raster=True)
                     raster_shape = raster_arr.shape
                     raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
                     nan_position_dict[variable_name] = np.isnan(raster_arr)
@@ -559,7 +585,8 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
             nan_position_dict = pickle.load(open(nan_pos_dict_name, mode='rb'))
 
             raster_arr, raster_file = clip_resample_raster_cutline(predictor_rasters[1], clipped_predictor_dir,
-                                                                   continent, naming_from_both=False)
+                                                                   continent, naming_from_both=False,
+                                                                   naming_from_raster=True)
             raster_shape = raster_arr.shape
 
         x = predictor_df.values
@@ -575,6 +602,21 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
                      outfile_path=predicted_raster)
         print('Prediction raster created for', continent_name)
 
+        if predict_probability_greater_1cm:
+            y_pred_proba = fitted_model.predict_proba(x)
+            y_pred_proba = y_pred_proba[:, 1] + y_pred_proba[:, 2]
+
+            for nan_pos in nan_position_dict.values():
+                y_pred_proba[nan_pos] = raster_file.nodata
+            y_pred_proba = y_pred_proba.reshape(raster_shape)
+
+            probability_raster_name = continent_name + '_proba_greater_1cm_' + str(yearlist[0]) + '_' + \
+                                     str(yearlist[1]) + '.tif'
+            probability_raster = os.path.join(continent_prediction_raster_dir, probability_raster_name)
+            write_raster(raster_arr=y_pred_proba, raster_file=raster_file, transform=raster_file.transform,
+                         outfile_path=probability_raster)
+            print('Prediction probability for >1cm created for', continent_name)
+
     raster_name = prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
     mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name, search_by='*prediction*.tif')
     print('Global prediction raster created')
@@ -583,7 +625,8 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=[2013, 2019]
 def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_estimators=300, max_depth=20,
                           max_features=10, min_samples_leaf=1e-05, min_samples_split=2, class_weight='balanced',
                           predictor_raster_directory='../Model Run/Predictors_2013_2019',
-                          skip_create_prediction_raster=False, predictor_csv_exists=False):
+                          skip_create_prediction_raster=False, predictor_csv_exists=False,
+                          predict_probability_greater_1cm=False):
     """
     Driver code for running Loo Accuracy Test.
 
@@ -601,19 +644,21 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_es
     skip_create_prediction_raster : Set to True if want to skip prediction raster creation.
     predictor_csv_exists : Set to True if predictor csv for each continent exists. Default set to False to create
                            create new predictor csv (also needed if predictor combinations are changed).
+    predict_probability_greater_1cm : Set to True if want to create >1cm/yr probability raster. Default set to False.
 
-    Returns : Classification reports and confusion matrix for individual fitted_model training, Overall accuracy result for
-              each fitted_model as a single text file,
-              prediction rasters for each fitted_model (if skip_create_prediction_raster=False)
+    Returns : Classification reports and confusion matrix for individual fitted_model training, Overall accuracy result
+              for each fitted_model as a single text file, prediction rasters for each fitted_model
+              (if skip_create_prediction_raster=False)
     """
     subsidence_training_area_list = [
         'Arizona', 'Australia_Perth', 'Bangladesh_GBDelta', 'California', 'China_Beijing',
-        'China_Hebei', 'China_Shanghai', 'China_Tianjin', 'China_Wuhan', 'China_Xian',
-        'China_YellowRiverDelta', 'Coastal', 'Egypt_NileDelta', 'England_London',
-        'Indonesia_Bandung', 'Indonesia_Semarang', 'Iran_MarandPlain', 'Iran_Qazvin',
+        'China_Hebei', 'China_Hefei', 'China_Shanghai', 'China_Tianjin', 'China_Wuhan', 'China_Xian',
+        'China_YellowRiverDelta', 'Coastal', 'Colorado', 'Egypt_NileDelta', 'England_London', 'India_Delhi',
+        'Indonesia_Bandung', 'Indonesia_Semarang', 'Iran_MarandPlain', 'Iran_Mashhad', 'Iran_Qazvin',
         'Iran_Tehran', 'Iraq_TigrisEuphratesBasin', 'Italy_PoDelta', 'Italy_VeniceLagoon',
-        'Mexico_MexicoCity', 'Nigeria_Lagos', 'Pakistan_Quetta', 'Spain_Murcia',
-        'Taiwan_Yunlin', 'Turkey_Bursa', 'Turkey_Karapinar', 'US_Huston', 'Vietnam_HoChiMinh'
+        'Mexico_MexicoCity', 'Nigeria_Lagos', 'Pakistan_Quetta', 'Philippines_Manila', 'Spain_Murcia',
+        'Taiwan_Yunlin', 'Turkey_Bursa', 'Turkey_Karapinar', 'US_Huston',
+        'Vietnam_Hanoi', 'Vietnam_HoChiMinh'
     ]
     subsidence_training_area_list = sorted(subsidence_training_area_list)
 
@@ -634,7 +679,8 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_es
                                      prediction_raster_dir='../Model Run/LOO_Test/Prediction_rasters',
                                      exclude_columns=exclude_predictors_list, pred_attr='Subsidence',
                                      prediction_raster_keyword='Trained_without_' + area,
-                                     predictor_csv_exists=predictor_csv_exists)
+                                     predictor_csv_exists=predictor_csv_exists,
+                                     predict_probability_greater_1cm=predict_probability_greater_1cm)
 
 
 def difference_from_model_prediction(original_model_prediction_raster,
@@ -709,17 +755,19 @@ if run_loo_test:
 
     predictor_raster_dir = '../Model Run/Predictors_2013_2019'
     exclude_predictors = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
-                          'GW Irrigation Density giam', 'Landform', 'MODIS PET (kg/m2)', 'MODIS Land Use']
+                          'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
+                          'Clay % 200cm', 'MODIS Land Use']
 
     df, predictor_csv = create_traintest_df_loo_accuracy(predictor_raster_dir, areaname_dict, exclude_predictors,
                                                          skip_dataframe_creation=True)  # #
 
     run_loo_accuracy_test(predictor_dataframe_csv=predictor_csv, exclude_predictors_list=exclude_predictors,
-                          n_estimators=200, max_depth=20, max_features=5, min_samples_leaf=1e-05,
-                          class_weight='balanced',
+                          n_estimators=300, max_depth=14, max_features=7, min_samples_leaf=1e-05,
+                          min_samples_split=7, class_weight='balanced',
                           predictor_raster_directory='../Model Run/Predictors_2013_2019',
                           skip_create_prediction_raster=False,  # #
-                          predictor_csv_exists=False)  # #
+                          predictor_csv_exists=True,  # #
+                          predict_probability_greater_1cm=True)  # #
 
     concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/Accuracy_score')
 
@@ -730,7 +778,7 @@ if run_loo_test:
 
 mismatch_estimation = True
 
-original_model_prediction = '../Model Run/Prediction_rasters/RF112_prediction_2013_2019.tif'
+original_model_prediction = '../Model Run/Prediction_rasters/RF125_prediction_2013_2019.tif'
 
 if mismatch_estimation:
     difference_from_model_prediction(original_model_prediction,
