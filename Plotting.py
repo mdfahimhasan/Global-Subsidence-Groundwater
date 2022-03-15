@@ -25,7 +25,7 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=26):
     sns.barplot(x='country_name', y='perc_subsidence_of_cntry_area', data=stat_highest_1, palette='Blues_r', ax=axs[0])
     axs[0].bar_label(axs[0].containers[0], fmt='%.2f', fontsize=6)
     axs[0].set_xticks(range(len(stat_highest_1['country_name'])), list(stat_highest_1['country_name']), rotation=90)
-    axs[0].set_xlabel('')
+    axs[0].set_xlabel('(a)', fontsize=12)
     axs[0].set_ylabel('% area of country subsiding >1cm/year', labelpad=15)
 
     stat_2 = stat.sort_values('area subsidence >1cm/yr', ascending=False)
@@ -34,7 +34,7 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=26):
     axs[1].bar_label(axs[1].containers[0], fmt='%.f', fontsize=6)
     axs[1].set_yscale('log')
     axs[1].set_xticks(range(len(stat_highest_2['country_name'])), list(stat_highest_2['country_name']), rotation=90)
-    axs[1].set_xlabel('')
+    axs[1].set_xlabel('(b)', fontsize=12)
     axs[1].set_ylabel('area (sqkm) of country subsiding >1cm/year \n (log-scale)')
 
     plt.tight_layout(pad=1, w_pad=1, h_pad=1)
