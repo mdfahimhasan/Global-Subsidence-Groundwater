@@ -3,16 +3,19 @@
 
 import os
 import pickle
-from glob import glob
+import fiona
 import numpy as np
 import pandas as pd
+from glob import glob
 import geopandas as gpd
+from rasterio.mask import mask
+from shapely.geometry import mapping, MultiPolygon, shape
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score
 from System_operations import makedirs
 from Raster_operations import shapefile_to_raster, mosaic_rasters, read_raster_arr_object, \
-    write_raster, clip_resample_raster_cutline, resample_reproject
+    write_raster, clip_resample_raster_cutline, resample_reproject, extract_raster_array_by_shapefile
 
 import warnings
 
@@ -617,9 +620,12 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=(2013, 2019)
                          outfile_path=probability_raster)
             print('Prediction probability for >1cm created for', continent_name)
 
-    raster_name = prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
+    raster_name = prediction_raster_keyword + '_prediction' + '.tif'
     mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name, search_by='*prediction*.tif')
     print('Global prediction raster created')
+
+    proba_raster_name = prediction_raster_keyword + '_proba_greater_1cm' + '.tif'
+    mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name, search_by='*proba*.tif')
 
 
 def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_estimators=300, max_depth=20,
@@ -696,7 +702,7 @@ def difference_from_model_prediction(original_model_prediction_raster,
     """
     pred_arr = read_raster_arr_object(original_model_prediction_raster, get_file=False).ravel()
     pred_arr = pred_arr[~np.isnan(pred_arr)]
-    loo_rasters = glob(os.path.join(loo_test_prediction_dir, '*.tif'))
+    loo_rasters = glob(os.path.join(loo_test_prediction_dir, '*prediction*.tif'))
 
     i = 0
     for loo_prediction in loo_rasters:
@@ -745,6 +751,98 @@ def concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/
                              'Classification_reports_joined.csv')
 
 
+def categorize_based_on_probability():
+    """
+    Categorizing LOO accuracy results.
+
+    Categorizing Criterion-
+            if pixels_greater_40_proba > number_subsidence_pixels:
+                accuracy_category = 1, status = 'satisfactory'
+            elif 1 <= perc_pixels_greater_40_proba < 20:
+                accuracy_category = 2, status = 'acceptable'
+            else:
+                accuracy_category = 3, status = 'not satisfactory'
+
+            if region_name in region_subsidence_less_1cm:
+            accuracy_category = 1, status = 'satisfactory (only <1cm train data)'
+
+    Returns: A excel file with accuracy category for each region.
+    """
+    polygon_boundary = '../Data/Reference_rasters_shapes/Training_Insar_Regions/global_georef_subsidence_polygons.shp'
+    proba_predictions = glob(os.path.join('../Model Run/LOO_Test/Prediction_rasters', '*proba*.tif'))
+    region_file_dict = dict()
+    subsidence_training_data = '../Model Run/Predictors_2013_2019/Subsidence.tif'
+
+    for file in proba_predictions:
+        file_name = file[file.rfind(os.sep) + 1: file.rfind('.')]
+        str_list = file_name.split('_')
+        filterout_list = ['Trained', 'without', 'proba', 'greater', '1cm']
+        str_list_filtered = [i for i in str_list if i not in filterout_list]
+        area_name = '_'.join(str_list_filtered)
+        region_file_dict[area_name] = file
+
+    del region_file_dict['Coastal']
+
+    area_shape_list = [(pol['properties']['Area_Name'], shape(pol['geometry'])) for pol in fiona.open(polygon_boundary)]
+    region_subsidence_less_1cm = ['Australia_Perth', 'Colorado', 'Egypt_NileDelta', 'England_London',
+                                  'Iraq_TigrisEuphratesBasin', 'Italy_VeniceLagoon']
+
+    for each in area_shape_list:
+        region_name, shapely_geom = each
+        geom = [mapping(shapely_geom)]
+        raster_arr, file = read_raster_arr_object(region_file_dict[region_name])
+        proba_prediction_arr, transform = mask(dataset=file, shapes=geom, filled=True, crop=True)
+        proba_prediction_arr = proba_prediction_arr.squeeze()
+
+        outdir = '../Model Run/LOO_Test/Accuracy_score/regional_probability_prediction'
+        makedirs([outdir])
+        saved_raster = os.path.join(outdir, region_name + '.tif')
+        write_raster(proba_prediction_arr, file, transform, saved_raster)
+
+        proba_prediction_arr = proba_prediction_arr.flatten()
+        total_pixels = np.count_nonzero(np.where(proba_prediction_arr != np.nan, 1, 0))
+        pixels_greater_40_proba = np.count_nonzero(np.where(proba_prediction_arr >= 0.40, 1, 0))
+
+        perc_pixels_greater_40_proba = pixels_greater_40_proba * 100 / total_pixels
+
+        subsidence_data, subsidence_file = read_raster_arr_object(subsidence_training_data)
+        subsidence_arr, sub_transform = mask(dataset=subsidence_file, shapes=geom, filled=True, crop=True)
+        subsidence_arr = subsidence_arr.flatten()
+        number_subsidence_pixels = np.count_nonzero(np.where(subsidence_arr > 1, 1, 0))
+
+        if region_name in region_subsidence_less_1cm:
+            accuracy_category = 1
+            status = 'satisfactory (only <1cm train data)'
+        else:
+            if pixels_greater_40_proba > number_subsidence_pixels:
+                accuracy_category = 1
+                status = 'satisfactory'
+            elif 1 <= perc_pixels_greater_40_proba < 20:
+                accuracy_category = 2
+                status = 'acceptable'
+            else:
+                accuracy_category = 3
+                status = 'not satisfactory'
+
+        region_file_dict[region_name] = accuracy_category, status, perc_pixels_greater_40_proba
+
+    region_name = []
+    accuracy_category = []
+    status = []
+    perc_pixels_greater_40_proba = []
+
+    for i, j in region_file_dict.items():
+        region_name.append(i)
+        accuracy_category.append(j[0])
+        status.append(j[1])
+        perc_pixels_greater_40_proba.append(j[2])
+
+    loo_accuracy_df = pd.DataFrame(list(zip(region_name, accuracy_category, status, perc_pixels_greater_40_proba)),
+                                   columns=['Name', 'Accuracy Category', 'Accuracy Status',
+                                            '% pixels > 40% probability'])
+    loo_accuracy_df.to_excel('../Model Run/Stats/LOO_accuracy_stat.xlsx')
+
+
 # LOO Accuracy Test Run
 run_loo_test = True
 
@@ -759,7 +857,7 @@ if run_loo_test:
                           'Clay % 200cm', 'MODIS Land Use']
 
     df, predictor_csv = create_traintest_df_loo_accuracy(predictor_raster_dir, areaname_dict, exclude_predictors,
-                                                         skip_dataframe_creation=True)  # #
+                                                         skip_dataframe_creation=False)  # #
 
     run_loo_accuracy_test(predictor_dataframe_csv=predictor_csv, exclude_predictors_list=exclude_predictors,
                           n_estimators=300, max_depth=14, max_features=7, min_samples_leaf=1e-05,
@@ -783,3 +881,8 @@ original_model_prediction = '../Model Run/Prediction_rasters/RF125_prediction_20
 if mismatch_estimation:
     difference_from_model_prediction(original_model_prediction,
                                      loo_test_prediction_dir='../Model Run/LOO_Test/Prediction_rasters')
+
+# Categorizing LOO Test Results
+categorize = True
+if categorize:
+    categorize_based_on_probability()

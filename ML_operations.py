@@ -510,7 +510,7 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
         sns.barplot(x=imp_df['feature_names'], y=imp_df['feature_importance'], palette='rocket')
         plt.xticks(rotation=90)
         plt.ylabel('Variable Importance')
-        plt.xlabel('Variable Names')
+        plt.xlabel('Variables')
         plt.tight_layout()
         plt.savefig((accuracy_dir + '/' + predictor_imp_keyword + '_pred_importance.png'), dpi=600)
         print('Feature importance plot saved')

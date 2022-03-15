@@ -124,7 +124,7 @@ def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_
     stat_df.to_excel(out_excel, index=True)
 
 
-# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF96_prediction_2013_2019.tif',
+# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF125_prediction_2013_2019.tif',
 #                         land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif')
 
 
@@ -282,7 +282,8 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
         area_prediction_1_to_5 = round(prediction_1_to_5 * area_per_002_pixel, 2)
         area_prediction_greater_5 = round(prediction_greater_5 * area_per_002_pixel, 2)
         area_prediction_greater_1 = round(prediction_greater_1 * area_per_002_pixel, 2)
-        area_subsidence.append(( area_prediction_greater_1, area_prediction_1_to_5, area_prediction_greater_5))
+        area_subsidence.append((int(round(area_prediction_greater_1, 0)), int(round(area_prediction_1_to_5, 0)),
+                                int(round(area_prediction_greater_5, 0))))
 
     stat_dict = {'country_name': country_name,
                  'area_sqkm': area_sqkm,
@@ -295,4 +296,5 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
     stat_df.to_excel(os.path.join(outdir, 'subsidence_area_by_country.xlsx'), index=False)
 
 
-# area_subsidence_by_country(subsidence_prediction = '../Model Run/Prediction_rasters/RF115_prediction_2013_2019.tif')
+# area_subsidence_by_country(
+#     subsidence_prediction='../Model Run/Prediction_rasters/RF125_prediction_2013_2019.tif')

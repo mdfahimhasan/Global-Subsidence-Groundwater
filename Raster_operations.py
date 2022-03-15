@@ -304,8 +304,7 @@ def crop_raster_by_extent(input_raster, ref_file, output_dir, raster_name, inver
     """
     Crop a raster with a given shapefile/raster. Only use to crop to extent. Cannot perform cropping to exact shapefile.
 
-    Parameters
-    ----------
+    Parameters:
     input_raster: Input raster file path.
     ref_file : Reference raster or shape file to crop input_raster. 
     output_dir : Output raster directory.
@@ -313,7 +312,7 @@ def crop_raster_by_extent(input_raster, ref_file, output_dir, raster_name, inver
     invert : If False (default) pixels outside shapes will be masked. 
              If True, pixels inside shape will be masked.
     crop : Whether to crop the raster to the extent of the shapes. Change to False if invert=True is used.
-    -------
+
     Returns : Cropped raster.
     """
 
@@ -345,13 +344,12 @@ def crop_raster_by_extent(input_raster, ref_file, output_dir, raster_name, inver
 
 
 # Unstable for Austrlia
-def extract_raster_array_by_shapefile(input_raster, ref_shape, output_dir=None, raster_name=None, invert=False, crop=True,
-                                      save_cropped_arr=False):
+def extract_raster_array_by_shapefile(input_raster, ref_shape, output_dir=None, raster_name=None, invert=False,
+                                      crop=True, save_cropped_arr=False):
     """
     Extract a raster array within the input shapefile.
 
-    Parameters
-    ----------
+    Parameters:
     input_raster: Input raster file path.
     ref_shape : Reference shape file to crop input_raster.
     output_dir : Defaults to None. Set a output raster directory path if saved_cropped_arr is True.
@@ -369,7 +367,6 @@ def extract_raster_array_by_shapefile(input_raster, ref_shape, output_dir=None, 
     shapefile = gpd.read_file(ref_shape)
     geoms = shapefile['geometry'].values  # list of shapely geometries
     geoms = [mapping(geoms[0])]
-
     # masking
     cropped_arr, cropped_transform = mask(dataset=input_file, shapes=geoms, filled=True, crop=crop, invert=invert)
     cropped_arr = cropped_arr.squeeze()  # Remove axes of length 1 from the array
