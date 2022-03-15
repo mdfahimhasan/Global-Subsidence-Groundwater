@@ -26,38 +26,36 @@ def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_
     land_use : filepath of MODIS land use raster.
     training_raster : filepath of training subsidence raster.
 
-    Returns : An excel file with '% prediction on differnet land use' stat.
+    Returns : An excel file with '% prediction on different land use' stat.
     """
     subsidence_prediction = read_raster_arr_object(model_prediction, get_file=False)
     land_use = read_raster_arr_object(land_use, get_file=False)
     training = read_raster_arr_object(training_raster, get_file=False)
 
-    cropland = np.count_nonzero(np.where(land_use == 3, True, False))
-    urban = np.count_nonzero(np.where(land_use == 4, True, False))
-    vegetation = np.count_nonzero(np.where(land_use == 2, True, False))
-    others = np.count_nonzero(np.where(((land_use == 1) | (land_use == 5) | (land_use == 6) | (land_use == 7)) &
-                                       (land_use != np.nan), True, False))
+    training_samples_5_10 = np.count_nonzero(np.where((training == 5) | (training == 10), 1, 0))
+    subsidence_prediction_5_10 = np.count_nonzero(np.where((subsidence_prediction == 5) | (subsidence_prediction == 10),
+                                                           1, 0))
 
     training_of_cropland = np.count_nonzero(np.where(((training == 5) | (training == 10))
                                                      & (land_use == 3), 1, 0))
     prediction_of_cropland = np.count_nonzero(np.where(((subsidence_prediction == 5) | (subsidence_prediction == 10))
                                                        & (land_use == 3), 1, 0))
-    perc_training_of_cropland = round(training_of_cropland * 100 / cropland, 2)
-    perc_subsidence_of_cropland = round(prediction_of_cropland * 100 / cropland, 2)
+    perc_cropland_in_training = round(training_of_cropland * 100 / training_samples_5_10, 2)
+    perc_cropland_in_subsidence = round(prediction_of_cropland * 100 / subsidence_prediction_5_10, 2)
 
     training_of_urban = np.count_nonzero(np.where(((training == 5) | (training == 10))
                                                   & (land_use == 4), 1, 0))
     prediction_of_urban = np.count_nonzero(np.where(((subsidence_prediction == 5) | (subsidence_prediction == 10))
                                                     & (land_use == 4), 1, 0))
-    perc_training_of_urban = round(training_of_urban * 100 / urban, 2)
-    perc_subsidence_of_urban = round(prediction_of_urban * 100 / urban, 2)
+    perc_urban_in_training = round(training_of_urban * 100 / training_samples_5_10, 2)
+    perc_urban_in_subsidence = round(prediction_of_urban * 100 / subsidence_prediction_5_10, 2)
 
     training_of_vegetation = np.count_nonzero(np.where(((training == 5) | (training == 10))
                                                        & (land_use == 2), 1, 0))
-    prediction_of_vegetation = np.count_nonzero(np.where((subsidence_prediction == 5) | (subsidence_prediction == 10)
+    prediction_of_vegetation = np.count_nonzero(np.where(((subsidence_prediction == 5) | (subsidence_prediction == 10))
                                                          & (land_use == 2), 1, 0))
-    perc_training_of_vegetation = round(training_of_vegetation * 100 / vegetation, 2)
-    perc_subsidence_of_vegetation = round(prediction_of_vegetation * 100 / vegetation, 2)
+    perc_vegetation_in_training = round(training_of_vegetation * 100 / training_samples_5_10, 2)
+    perc_vegetation_in_subsidence = round(prediction_of_vegetation * 100 / subsidence_prediction_5_10, 2)
 
     training_of_others = np.count_nonzero(np.where(((training == 5) | (training == 10))
                                                    & ((land_use == 1) | (land_use == 5) | (land_use == 6) |
@@ -65,55 +63,25 @@ def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_
     prediction_of_others = np.count_nonzero(np.where(((subsidence_prediction == 5) | (subsidence_prediction == 10))
                                                      & ((land_use == 1) | (land_use == 5) | (land_use == 6) |
                                                         (land_use == 7)), 1, 0))
-    perc_training_of_others = round(training_of_others * 100 / others, 4)
-    perc_subsidence_of_others = round(prediction_of_others * 100 / others, 2)
+    perc_others_in_training = round(training_of_others * 100 / training_samples_5_10, 4)
+    perc_others_in_subsidence = round(prediction_of_others * 100 / subsidence_prediction_5_10, 2)
 
-    # Area Calculation (1 deg = ~ 111km)
-
-    deg_002 = 111 * 0.02  # unit km
-    area_per_002_pixel = deg_002 ** 2
-
-    area_cropland = round(area_per_002_pixel * cropland, 0)
-    area_training_cropland = round(area_per_002_pixel * training_of_cropland, 0)
-    area_prediction_cropland = round(area_per_002_pixel * prediction_of_cropland, 0)
-    area_urban = round(area_per_002_pixel * urban, 0)
-    area_training_urban = round(area_per_002_pixel * training_of_urban, 0)
-    area_prediction_urban = round(area_per_002_pixel * prediction_of_urban, 0)
-    area_vegetation = round(area_per_002_pixel * vegetation, 0)
-    area_training_vegetation = round(area_per_002_pixel * training_of_vegetation, 0)
-    area_prediction_vegetation = round(area_per_002_pixel * prediction_of_vegetation, 0)
-    area_others = round(area_per_002_pixel * others, 0)
-    area_training_others = round(area_per_002_pixel * training_of_others, 0)
-    area_prediction_others = round(area_per_002_pixel * prediction_of_others, 0)
-
-    stat_dict = {'% of Training from Cropland': [perc_training_of_cropland],
-                 '% Predicted on Cropland': [perc_subsidence_of_cropland],
-                 '% of Training from Urban': [perc_training_of_urban],
-                 '% Predicted on Urban': [perc_subsidence_of_urban],
-                 '% of Training from Vegetation': [perc_training_of_vegetation],
-                 '% Predicted on Vegetation': [perc_subsidence_of_vegetation],
-                 '% of Training from Others': [perc_training_of_others],
-                 '% Predicted on Others': [perc_subsidence_of_others],
+    stat_dict = {'% of Training from Cropland': [perc_cropland_in_training],
+                 '% Predicted on Cropland': [perc_cropland_in_subsidence],
+                 '% of Training from Urban': [perc_urban_in_training],
+                 '% Predicted on Urban': [perc_urban_in_subsidence],
+                 '% of Training from Vegetation': [perc_vegetation_in_training],
+                 '% Predicted on Vegetation': [perc_vegetation_in_subsidence],
+                 '% of Training from Others': [perc_others_in_training],
+                 '% Predicted on Others': [perc_others_in_subsidence],
                  ' ': ['cells before nan removal'],
                  'training cells Cropland': [training_of_cropland],
                  'training cells Urban': [training_of_urban],
                  'training cells Vegetation': [training_of_vegetation],
                  'training cells Others': [training_of_others],
                  'Total >1cm cells': [training_of_cropland + training_of_urban + training_of_vegetation +
-                                      training_of_others],
-                 '  ': ['km2'],  # unit of area
-                 'Area Trained on Cropland': [area_training_cropland],
-                 'Area Predicted on Cropland': [area_prediction_cropland],
-                 'Area Cropland': [area_cropland],
-                 'Area Trained on Urban': [area_training_urban],
-                 'Area Predicted on Urban': [area_prediction_urban],
-                 'Area urban': [area_urban],
-                 'Area Trained on Vegetation': [area_training_vegetation],
-                 'Area Predicted on vegetation': [area_prediction_vegetation],
-                 'Area vegetation': [area_vegetation],
-                 'Area Trained on Others': [area_training_others],
-                 'Area Predicted on Others': [area_prediction_others],
-                 'Area others': [area_others]}
+                                      training_of_others]
+                 }
 
     stat_df = pd.DataFrame.from_dict(stat_dict, orient='index', columns=['percent'])
     print(stat_df)
@@ -279,11 +247,10 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
         prediction_greater_5 = np.count_nonzero(np.where(country_arr == 10, 1, 0))
         prediction_greater_1 = np.count_nonzero(np.where(country_arr > 1, 1, 0))
 
-        area_prediction_1_to_5 = round(prediction_1_to_5 * area_per_002_pixel, 2)
-        area_prediction_greater_5 = round(prediction_greater_5 * area_per_002_pixel, 2)
-        area_prediction_greater_1 = round(prediction_greater_1 * area_per_002_pixel, 2)
-        area_subsidence.append((int(round(area_prediction_greater_1, 0)), int(round(area_prediction_1_to_5, 0)),
-                                int(round(area_prediction_greater_5, 0))))
+        area_prediction_1_to_5 = round(prediction_1_to_5 * area_per_002_pixel, 0)
+        area_prediction_greater_5 = round(prediction_greater_5 * area_per_002_pixel, 0)
+        area_prediction_greater_1 = round(prediction_greater_1 * area_per_002_pixel, 0)
+        area_subsidence.append([area_prediction_greater_1, area_prediction_1_to_5, area_prediction_greater_5])
 
     stat_dict = {'country_name': country_name,
                  'area_sqkm': area_sqkm,

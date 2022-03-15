@@ -17,6 +17,7 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=26):
     Returns: Bar plots showing countries' stats.
     """
     stat = pd.read_excel(country_stat_excel, sheet_name=0)
+    stat['area subsidence >1cm/yr'] = stat['area subsidence >1cm/yr'].astype('int')
     stat_1 = stat.sort_values('perc_subsidence_of_cntry_area', ascending=False)
     stat_highest_1 = stat_1.iloc[0: number_of_countries-1, :]
 
@@ -30,11 +31,11 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=26):
     stat_2 = stat.sort_values('area subsidence >1cm/yr', ascending=False)
     stat_highest_2 = stat_2.iloc[0: number_of_countries-1, :]
     sns.barplot(x='country_name', y='area subsidence >1cm/yr', data=stat_highest_2, palette='Purples_r', ax=axs[1])
-    axs[1].bar_label(axs[1].containers[0], fmt='%.2f', fontsize=6)
+    axs[1].bar_label(axs[1].containers[0], fmt='%.f', fontsize=6)
     axs[1].set_yscale('log')
     axs[1].set_xticks(range(len(stat_highest_2['country_name'])), list(stat_highest_2['country_name']), rotation=90)
     axs[1].set_xlabel('')
-    axs[1].set_ylabel('area (sqkm) of country subsiding >1cm/year \n log scale')
+    axs[1].set_ylabel('area (sqkm) of country subsiding >1cm/year \n (log-scale)')
 
     plt.tight_layout(pad=1, w_pad=1, h_pad=1)
 
