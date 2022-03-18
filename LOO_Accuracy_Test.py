@@ -296,7 +296,7 @@ def create_traintest_df_loo_accuracy(input_raster_dir, subsidence_areacode_dict,
                                'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
                                'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
                                'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                               'River_distance': 'River Distance'}
+                               'River_distance': 'River Distance', 'Confining_layers': 'Confining Layers'}
         predictor_df = predictor_df.rename(columns=predictor_name_dict)
         predictor_df = predictor_df.drop(columns=exclude_columns)
         predictor_df = predictor_df.dropna(axis=0)
@@ -541,7 +541,7 @@ def create_prediction_raster(predictors_dir, fitted_model, yearlist=(2013, 2019)
                            'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
                            'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
                            'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                           'River_distance': 'River Distance'}
+                           'River_distance': 'River Distance', 'Confining_layers': 'Confining Layers'}
 
     for continent in continent_shapes:
         continent_name = continent[continent.rfind(os.sep) + 1:continent.rfind('_')]
@@ -689,42 +689,6 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_es
                                      predict_probability_greater_1cm=predict_probability_greater_1cm)
 
 
-def difference_from_model_prediction(original_model_prediction_raster,
-                                     loo_test_prediction_dir='../Model Run/LOO_Test/Prediction_rasters'):
-    """
-    Find mismatch % between original fitted_model predictions and loo test predictions.
-
-    Parameters:
-    original_model_prediction_raster : Filepath of original fitted_model prediction raster.
-    loo_test_prediction_dir : directory path of loo test predictions.
-
-    Returns : A text file containing mismatch % values.
-    """
-    pred_arr = read_raster_arr_object(original_model_prediction_raster, get_file=False).ravel()
-    pred_arr = pred_arr[~np.isnan(pred_arr)]
-    loo_rasters = glob(os.path.join(loo_test_prediction_dir, '*prediction*.tif'))
-
-    i = 0
-    for loo_prediction in loo_rasters:
-
-        loo_arr = read_raster_arr_object(loo_prediction, get_file=False).ravel()
-        loo_arr = loo_arr[~np.isnan(loo_arr)]
-        name = loo_prediction[loo_prediction.rfind(os.sep) + 1: loo_prediction.find('prediction') - 1]
-        mismatch = round((np.sum(pred_arr != loo_arr) * 100 / len(pred_arr)), 2)
-        txt_path = '../Model Run/LOO_Test/Accuracy_score/Accuracy_Reports_Joined/mismatch.txt'
-        if i == 0:
-            os.remove(txt_path)
-            text = open(txt_path, 'w+')
-            text.write('{} mismatch : {} % \n'.format(name, mismatch))
-            text.close()
-        else:
-            text = open(txt_path, 'a+')
-            text.write('{} mismatch : {} % \n'.format(name, mismatch))
-            text.close()
-        i += 1
-        print('{} mismatch : {} % \n'.format(name, mismatch))
-
-
 def concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/Accuracy_score'):
     """
     Merge classification reports from all fitted_model runs.
@@ -751,7 +715,7 @@ def concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/
                              'Classification_reports_joined.csv')
 
 
-def categorize_based_on_probability():
+def categorize_based_on_probability(run=False):
     """
     Categorizing LOO accuracy results.
 
@@ -765,6 +729,9 @@ def categorize_based_on_probability():
 
             if region_name in region_subsidence_less_1cm:
             accuracy_category = 1, status = 'satisfactory (only <1cm train data)'
+
+    Parameters:
+    run : Set to True if want to run this function to assess LOAO test accuracy.
 
     Returns: A excel file with accuracy category for each region.
     """
@@ -785,7 +752,7 @@ def categorize_based_on_probability():
 
     area_shape_list = [(pol['properties']['Area_Name'], shape(pol['geometry'])) for pol in fiona.open(polygon_boundary)]
     region_subsidence_less_1cm = ['Australia_Perth', 'Colorado', 'Egypt_NileDelta', 'England_London',
-                                  'Iraq_TigrisEuphratesBasin', 'Italy_VeniceLagoon']
+                                  'Iraq_TigrisEuphratesBasin', 'Italy_VeniceLagoon', 'Nigeria_Lagos']
 
     for each in area_shape_list:
         region_name, shapely_geom = each
@@ -810,9 +777,21 @@ def categorize_based_on_probability():
         subsidence_arr = subsidence_arr.flatten()
         number_subsidence_pixels = np.count_nonzero(np.where(subsidence_arr > 1, 1, 0))
 
+        if '_' in region_name:
+            if 'US' in region_name:
+                country = 'United States'
+            else:
+                country = region_name.split('_')[0]
+            region = region_name.split('_')[1]
+
+        else:
+            country = 'United States'
+            region = region_name
+
         if region_name in region_subsidence_less_1cm:
             accuracy_category = 1
-            status = 'satisfactory (only <1cm train data)'
+            status = 'satisfactory (only <1cm/year train data)'
+
         else:
             if pixels_greater_40_proba > number_subsidence_pixels:
                 accuracy_category = 1
@@ -824,65 +803,79 @@ def categorize_based_on_probability():
                 accuracy_category = 3
                 status = 'not satisfactory'
 
-        region_file_dict[region_name] = accuracy_category, status, perc_pixels_greater_40_proba
+        region_file_dict[region_name] = country, region, accuracy_category, status, perc_pixels_greater_40_proba
 
-    region_name = []
+    country_list = []
+    region_list = []
     accuracy_category = []
     status = []
     perc_pixels_greater_40_proba = []
 
     for i, j in region_file_dict.items():
-        region_name.append(i)
-        accuracy_category.append(j[0])
-        status.append(j[1])
-        perc_pixels_greater_40_proba.append(j[2])
+        country_list.append(j[0])
+        region_list.append(j[1])
+        accuracy_category.append(j[2])
+        status.append(j[3])
+        perc_pixels_greater_40_proba.append(j[4])
 
-    loo_accuracy_df = pd.DataFrame(list(zip(region_name, accuracy_category, status, perc_pixels_greater_40_proba)),
-                                   columns=['Name', 'Accuracy Category', 'Accuracy Status',
+    loo_accuracy_df = pd.DataFrame(list(zip(country_list, region_list, accuracy_category, status,
+                                            perc_pixels_greater_40_proba)),
+                                   columns=['Country', 'Region', 'Accuracy Category', 'Accuracy Status',
                                             '% pixels > 40% probability'])
     loo_accuracy_df.to_excel('../Model Run/Stats/LOO_accuracy_stat.xlsx')
 
 
-# LOO Accuracy Test Run
-run_loo_test = True
+def run_loao_test_models(run_loao_test=True, subsidence_data_already_prepared=False, skip_polygon_processing=False,
+                         skip_dataframe_creation=False, exclude_predictors=(), predictor_csv_exists=False):
+    """
+    Runs LOAO test models.
 
-if run_loo_test:
-    subsidence_raster, areaname_dict = \
-        combine_georef_insar_subsidence_raster(already_prepared=True,  # #
-                                               skip_polygon_processing=True)  # #
+    Parameters:
+    run_loao_test : Default set to True to run Leave-One-Area-Out (LOAO) test models.
+    subsidence_data_already_prepared : Default set to False to prepare subsidence dataset.
+    skip_polygon_processing :Set to True to georeferenced polygon merging during preparing subsidence dataset.
+                             Default set to False.
+    skip_dataframe_creation : Set to True if want to skip train-test dataset creation. Default set to False.
+    exclude_predictors : Tuple of predictor names to exclude.
+    predictor_csv_exists : Set to False if any change is made in predictor combination. At least need to be False
+                           during running one for first regions. Then the code can be stopped and run again setting this
+                           parameter as True to save model running time significantly.
 
-    predictor_raster_dir = '../Model Run/Predictors_2013_2019'
-    exclude_predictors = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
-                          'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
-                          'Clay % 200cm', 'MODIS Land Use']
+    Returns: Prediction rasters and accuracy results for all model runs.
+    """
+    if run_loao_test:
+        subsidence_raster, areaname_dict = \
+            combine_georef_insar_subsidence_raster(already_prepared=subsidence_data_already_prepared,  # #
+                                                   skip_polygon_processing=skip_polygon_processing)  # #
 
-    df, predictor_csv = create_traintest_df_loo_accuracy(predictor_raster_dir, areaname_dict, exclude_predictors,
-                                                         skip_dataframe_creation=False)  # #
+        predictor_raster_dir = '../Model Run/Predictors_2013_2019'
+        exclude_predictors = list(exclude_predictors)
 
-    run_loo_accuracy_test(predictor_dataframe_csv=predictor_csv, exclude_predictors_list=exclude_predictors,
-                          n_estimators=300, max_depth=14, max_features=7, min_samples_leaf=1e-05,
-                          min_samples_split=7, class_weight='balanced',
-                          predictor_raster_directory='../Model Run/Predictors_2013_2019',
-                          skip_create_prediction_raster=False,  # #
-                          predictor_csv_exists=True,  # #
-                          predict_probability_greater_1cm=True)  # #
+        df, predictor_csv = create_traintest_df_loo_accuracy(predictor_raster_dir, areaname_dict, exclude_predictors,
+                                                             skip_dataframe_creation=skip_dataframe_creation)  # #
 
-    concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/Accuracy_score')
+        run_loo_accuracy_test(predictor_dataframe_csv=predictor_csv, exclude_predictors_list=exclude_predictors,
+                              n_estimators=300, max_depth=14, max_features=7, min_samples_leaf=1e-05,
+                              min_samples_split=7, class_weight='balanced',
+                              predictor_raster_directory='../Model Run/Predictors_2013_2019',
+                              skip_create_prediction_raster=False,  # #
+                              predictor_csv_exists=predictor_csv_exists,  # #
+                              predict_probability_greater_1cm=True)  # #
 
-# Perform Mismatch estimation
+        concat_classification_reports(classification_csv_dir='../Model Run/LOO_Test/Accuracy_score')
 
-# Set run_loo_test=False and mismatch_estimation=True to perform mismatch estimation. Input is origin fitted_model
-# prediction raster which will work as the baseline fitted_model to compare loo test prediction models.
 
-mismatch_estimation = True
+# LOAO Accuracy Test Run
+exclude_predictor = ('Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+                     'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
+                     'Clay % 200cm', 'MODIS Land Use', 'Sediment Thickness (m)')
 
-original_model_prediction = '../Model Run/Prediction_rasters/RF125_prediction_2013_2019.tif'
 
-if mismatch_estimation:
-    difference_from_model_prediction(original_model_prediction,
-                                     loo_test_prediction_dir='../Model Run/LOO_Test/Prediction_rasters')
+# Set random forest parameters manually in the function from main model hyperparameter tuning. Not added in the function
+# variables for maintaining simplicity.
+run_loao_test_models(run_loao_test=False,  # Set to True to skip run and only run categorize_based_on_probability()
+                     subsidence_data_already_prepared=True, skip_polygon_processing=True,
+                     skip_dataframe_creation=True, exclude_predictors=exclude_predictor, predictor_csv_exists=True)
 
-# Categorizing LOO Test Results
-categorize = True
-if categorize:
-    categorize_based_on_probability()
+# Categorizing LOAO Test Results
+categorize_based_on_probability(run=True)

@@ -916,6 +916,29 @@ def prepare_river_proximity_data(input_shape='../Data/Raw_Data/Surface_Water/mrb
     return river_distance
 
 
+def process_global_confining_layer_data(input_raster=
+                                        '../Data/Raw_Data/Global_confining_layer/global_confining_layer.tif',
+                                        output_dir='../Data/Resampled_Data/Global_confining_layers',
+                                        ref_raster=referenceraster):
+    """
+    Process global confining layer dataset (made by Dr. Ryan Smith).
+
+    Parameters:
+    input_raster : Input raster filepath.
+    output_dir : Filepath of output directory to save processed raster.
+    ref_raster : Reference raster filepath.
+
+    Returns: Confining layers dataset.
+    """
+    makedirs([output_dir])
+    masked_raster = mask_by_ref_raster(input_raster, '../Data/Raw_Data/Global_confining_layer',
+                                       'confining_layers_masked.tif', ref_raster=ref_raster)
+
+    confining_layer = paste_val_on_ref_raster(masked_raster, output_dir, 'Confining_layers.tif', value=0)
+
+    return confining_layer
+
+
 def prepare_modis_landuse_data(output_raster,
                                input_raster='../Data/Raw_Data/GEE_data/MODIS_Land_Use/merged_rasters'
                                             '/MODIS_Land_Use_2013_2019.tif'):
@@ -956,6 +979,7 @@ def prepare_modis_landuse_data(output_raster,
 def download_process_predictor_datasets(yearlist, start_month, end_month, resampled_gee_dir,
                                         gfsad_cropextent, giam_gw, irrigated_meier, intermediate_dir, outdir_lu,
                                         sediment_thickness, outdir_sed_thickness, outdir_pop, river_shape, outdir_sw,
+                                        confining_layer, outdir_confining_layer,
                                         perform_pca=False, skip_download=True, skip_processing=True,
                                         geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000):
     """
@@ -975,7 +999,9 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     outdir_sed_thickness : Output directory for saving processed sediment thickness raster.
     outdir_pop : Output directory for saving processed population raster.
     input_shape : Input river shapefile filepath.
-    oudir_sw : Output directory for saving processed river rasters.
+    oudir_sw : Output directory for saving processed river raster.
+    confining_layer : Input confining layers dataset.
+    outdir_confining_layer : Output directory for saving processed confining layer raster.
     perform_pca : Set to True if to  run PCA.
     skip_download : Set to False if want to download data from GEE. Default set to True.
     skip_processing : Set to False if want to process datasets.
@@ -1085,8 +1111,10 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
 
     river_distance = prepare_river_proximity_data(river_shape, outdir_sw, skip_processing=skip_processing)
 
+    confining_layers = process_global_confining_layer_data(confining_layer, outdir_confining_layer)
+
     return resampled_gee_rasters, gfsad_raster, irrigated_meier_raster, giam_gw_raster, sediment_thickness_raster, \
-           clay_thickness_raster, popdensity_raster, river_distance
+           clay_thickness_raster, popdensity_raster, river_distance, confining_layers
 
 
 def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygons, exclude_areas=None,
@@ -1250,7 +1278,7 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
 
 def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam_gw_data, irrigated_meier_data,
                                        sediment_thickness_data, clay_thickness_data, popdensity_data,
-                                       river_distance_data, subsidence_data,
+                                       river_distance_data, confining_layer_data, subsidence_data,
                                        output_dir, skip_compiling_predictor_subsidence_data=False):
     """
     Compile predictor datasets and subsidence data in a single folder (to be used for creating predictor database)
@@ -1264,6 +1292,7 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
     clay_thickness_data : Resampled clay thickness data.
     popdensity_data : Resampled population density filepath.
     river_distance_data : Resampled river distance data filepath.
+    confining_layer_data : Resampled confining layer data filepath.
     subsidence_data : Resampled subsidence filepath.
     output_dir : Output directory filepath.
     skip_predictor_subsidence_compilation : Set to True if want to skip compiling all the data again.
@@ -1285,6 +1314,7 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
         rename_copy_raster(clay_thickness_data, output_dir, rename=False)
         rename_copy_raster(popdensity_data, output_dir, rename=True, new_name='Population_Density.tif')
         rename_copy_raster(river_distance_data, output_dir, rename=False)
+        rename_copy_raster(confining_layer_data, output_dir, rename=False)
         rename_copy_raster(subsidence_data, output_dir, rename=True, new_name='Subsidence.tif')
 
     return output_dir

@@ -61,7 +61,7 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
                              'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
                              'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
                              'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                             'River_distance': 'River Distance'}
+                             'River_distance': 'River Distance', 'Confining_layers': 'Confining Layers'}
 
     if not skip_dataframe_creation:
         predictors = glob(os.path.join(input_raster_dir, search_by))
@@ -114,7 +114,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
                            'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
                            'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
                            'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                           'River_distance': 'River Distance'}
+                           'River_distance': 'River Distance', 'Confining_layers': 'Confining Layers'}
 
     input_df = input_df.rename(columns=predictor_name_dict)
     drop_columns = exclude_columns + [pred_attr]
@@ -165,8 +165,6 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
                        'max_depth': [8, 12,  13, 14],
                        'max_features': [6, 7, 9, 10],
                        'min_samples_leaf': [5e-4, 1e-5, 1e-3, 6, 12, 20, 25],
-                       # 'max_leaf_nodes': [90, 120, 150],
-                       # 'max_samples': [None, 0.9, 0.8],
                        'min_samples_split': [6, 7, 8, 10]
                        },
                   'gbdt':
@@ -175,7 +173,6 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
                        'learning_rate': [0.01, 0.05],
                        'n_estimators': [100, 200, 300],
                        'subsample': [1, 0.9],
-                       # 'colsample_bytree': [1, 0.9],
                        'min_child_samples': [20, 25, 30, 35, 50]}
                   }
 
@@ -237,8 +234,6 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
                                  'max_depth': CV.best_params_['max_depth'],
                                  'max_features': CV.best_params_['max_features'],
                                  'min_samples_leaf': CV.best_params_['min_samples_leaf'],
-                                 # 'max_leaf_nodes': CV.best_params_['max_leaf_nodes'],
-                                 # 'max_samples': CV.best_params_['max_samples'],
                                 'min_samples_split': CV.best_params_['min_samples_split']
                                 }
 
@@ -250,7 +245,6 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
                                 'learning_rate': CV.best_params_['learning_rate'],
                                 'n_estimators': CV.best_params_['n_estimators'],
                                 'subsample': CV.best_params_['subsample'],
-                                # 'colsample_bytree': CV.best_params_['colsample_bytree'],
                                 'min_child_samples': CV.best_params_['min_child_samples']}
 
         return optimized_param_dict
@@ -497,7 +491,7 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                           'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
                           'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
                           'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                          'River_distance': 'River Distance'}
+                          'River_distance': 'River Distance', 'Confining_layers': 'Confining Layers'}
         x_train_df = pd.DataFrame(x_train)
         x_train_df = x_train_df.rename(columns=predictor_dict)
         col_labels = np.array(x_train_df.columns)

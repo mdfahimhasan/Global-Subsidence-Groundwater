@@ -92,7 +92,7 @@ def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_
     stat_df.to_excel(out_excel, index=True)
 
 
-# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF125_prediction_2013_2019.tif',
+# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif',
 #                         land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif')
 
 
@@ -264,4 +264,4 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
 
 
 # area_subsidence_by_country(
-#     subsidence_prediction='../Model Run/Prediction_rasters/RF125_prediction_2013_2019.tif')
+#     subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif')
