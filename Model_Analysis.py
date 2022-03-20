@@ -240,7 +240,8 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
         save_clipped_raster_as = name + '.tif'
 
         country_arr, country_file = clip_resample_raster_cutline(subsidence_prediction, outdir_country_arr,
-                                                                 shape, naming_from_both=False, naming_from_raster=False,
+                                                                 shape, naming_from_both=False,
+                                                                 naming_from_raster=False,
                                                                  assigned_name=save_clipped_raster_as)
 
         prediction_1_to_5 = np.count_nonzero(np.where(country_arr == 5, 1, 0))
@@ -265,3 +266,46 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
 
 # area_subsidence_by_country(
 #     subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif')
+
+
+def subsidence_on_aridit(subsidence_prediction, outdir='../Model Run/Stats'):
+    """
+    Estimated area of subsidence >1cm/yr by country.
+
+    Aridity Index Value	Climate Class
+    <0.03	                 Hyper Arid
+    0.03-0.2	               Arid
+    0.2-0.5	                 Semi-Arid
+    0.5-0.65	           Dry sub-humid
+    >0.65	                   Humid
+
+    Parameters:
+    subsidence_prediction : Subsidence prediction raster path.
+    outdir : Directory path to save output excel file.
+
+    Returns : An excel file with calculated stats.
+    """
+    aridity = read_raster_arr_object('../Model Run/Predictors_2013_2019/Aridity_Index.tif', get_file=False)
+    subsidence_arr = read_raster_arr_object(subsidence_prediction, get_file=False)
+
+    subsidence_pixels = np.count_nonzero(np.where(subsidence_arr > 1, 1, 0))
+
+    hyper_arid = np.count_nonzero(np.where(((subsidence_arr > 1) & (aridity < 0.03)), 1, 0))
+    arid = np.count_nonzero(np.where(((subsidence_arr > 1) & ((0.03 <= aridity) & (aridity < 0.2))), 1, 0))
+    semi_arid = np.count_nonzero(np.where(((subsidence_arr > 1) & ((0.2 <= aridity) & (aridity < 0.5))), 1, 0))
+    dry_subhumid = np.count_nonzero(np.where(((subsidence_arr > 1) & ((0.5 <= aridity) & (aridity < 0.65))), 1, 0))
+    humid = np.count_nonzero(np.where(((subsidence_arr > 1) & (aridity > 0.65)), 1, 0))
+
+    perc_hyper_arid = hyper_arid * 100 / subsidence_pixels
+    perc_arid = arid * 100 / subsidence_pixels
+    perc_semi_arid = semi_arid * 100 / subsidence_pixels
+    perc_dry_subhumid = dry_subhumid * 100 / subsidence_pixels
+    perc_humid = humid * 100 / subsidence_pixels
+
+    aridity = ['Hyper Arid', 'Arid', 'Semi-Arid', 'Dry sub-humid', 'Humid']
+    perc_subsidence = [perc_hyper_arid, perc_arid, perc_semi_arid, perc_dry_subhumid, perc_humid]
+
+    df = pd.DataFrame(list(zip(aridity, perc_subsidence)), columns=['Aridity Class', '% Subsidence on Aridity'])
+    df.to_excel(os.path.join(outdir, 'subsidence_perc_by_aridity.xlsx'), index=False)
+
+# subsidence_on_aridit(subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif')
