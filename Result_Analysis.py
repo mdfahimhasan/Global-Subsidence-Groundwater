@@ -4,7 +4,8 @@ import pandas as pd
 from glob import glob
 import geopandas as gpd
 from System_operations import makedirs
-from Raster_operations import read_raster_arr_object, mask_by_ref_raster, clip_resample_raster_cutline
+from Raster_operations import read_raster_arr_object, write_raster, mask_by_ref_raster, clip_resample_raster_cutline, \
+     resample_reproject
 
 
 def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif',
@@ -309,3 +310,77 @@ def subsidence_on_aridit(subsidence_prediction, outdir='../Model Run/Stats'):
     df.to_excel(os.path.join(outdir, 'subsidence_perc_by_aridity.xlsx'), index=False)
 
 # subsidence_on_aridit(subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif')
+
+
+def classify_gw_depletion_data(input_raster='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr.tif',
+                               referenceraster='../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'):
+    """
+    Classify groundwater depletion data from Wada et al. 2010.
+
+    Parameters:
+    input_raster : Filepath of input raster.
+    referenceraster : Filepath of global reference raster.
+
+    Returns : Classified and resampled depletion data.
+    """
+    resampled_raster = mask_by_ref_raster(input_raster, outdir='../Data/result_comparison_Wada/georeferenced',
+                                          raster_name='gw_depletion_cmyr_resampled.tif',
+                                          ref_raster=referenceraster, resolution=0.02, nodata=-9999,
+                                          paste_on_ref_raster=False)
+
+    depletion_arr, depletion_file = read_raster_arr_object(resampled_raster)
+
+    # New_classes
+    dep_less_1cm = 1
+    dep_1cm_to_5cm = 5
+    dep_greater_5cm = 10
+    other_values = np.nan
+
+    depletion_arr = np.where(depletion_arr <= 0, other_values, depletion_arr)
+    depletion_arr = np.where(depletion_arr <= 1, dep_less_1cm, depletion_arr)
+    depletion_arr = np.where((depletion_arr > 1) & (depletion_arr <= 5), dep_1cm_to_5cm, depletion_arr)
+    depletion_arr = np.where(depletion_arr > 5, dep_greater_5cm, depletion_arr)
+
+    write_raster(depletion_arr, depletion_file, depletion_file.transform,
+                 '../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr_classified.tif')
+
+
+# classify_gw_depletion_data()
+
+
+def comparison_subsidence_depletion(
+        subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif',
+        depletion_data='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr_classified.tif'):
+    """
+    Compare model prediction with groundwater depletion data from Wada et al. 2010.
+
+    Classes:
+    1 - subsidence prediction and depletion both are >1cm/yr
+    2 - subsidence prediction is >1cm/yr, no depletion estimated.
+    3 - depletion is >1cm/yr, no subsidence predicted.
+
+    Parameters:
+    subsidence_prediction: Filepath of model subsidence prediction.
+    depletion_data: Filepath of classified depletion data.
+
+    Returns: A comparison raster with 3 classes (1, 2, 3).
+    """
+    subsidence_arr, file = read_raster_arr_object(subsidence_prediction)
+    depletion_arr = read_raster_arr_object(depletion_data, get_file=False)
+
+    shape = subsidence_arr.shape
+    subsidence_arr = subsidence_arr.flatten()
+    depletion_arr = depletion_arr.flatten()
+
+    subsidence_arr = np.where(subsidence_arr == 1, np.nan, subsidence_arr)
+    depletion_arr = np.where(depletion_arr == 1, np.nan, depletion_arr)
+
+    arr = np.where(~np.isnan(subsidence_arr), 2, np.nan)
+    arr = np.where(~np.isnan(depletion_arr), 3, arr)
+    arr = np.where(((subsidence_arr > 1) & (depletion_arr > 1)), 1, arr)
+
+    arr = arr.reshape(shape)
+    write_raster(arr, file, file.transform, '../Model Run/Stats/subsidence_depletion_comparison.tif')
+
+
+# comparison_subsidence_depletion()
