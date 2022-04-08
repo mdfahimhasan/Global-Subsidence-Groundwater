@@ -5,7 +5,7 @@ from glob import glob
 import geopandas as gpd
 from System_operations import makedirs
 from Raster_operations import read_raster_arr_object, write_raster, mask_by_ref_raster, clip_resample_raster_cutline, \
-     resample_reproject
+     paste_val_on_ref_raster
 
 
 def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif',
@@ -220,7 +220,6 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
 
     Returns : An excel file with calculated stats.
     """
-
     outdir_country_arr = outdir + '/country_predictions'
     makedirs([outdir, outdir_country_arr])
 
@@ -286,6 +285,7 @@ def subsidence_on_aridit(subsidence_prediction, outdir='../Model Run/Stats'):
 
     Returns : An excel file with calculated stats.
     """
+    makedirs([outdir])
     aridity = read_raster_arr_object('../Model Run/Predictors_2013_2019/Aridity_Index.tif', get_file=False)
     subsidence_arr = read_raster_arr_object(subsidence_prediction, get_file=False)
 
@@ -350,7 +350,8 @@ def classify_gw_depletion_data(input_raster='../Data/result_comparison_Wada/geor
 
 def comparison_subsidence_depletion(
         subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif',
-        depletion_data='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr_classified.tif'):
+        depletion_data='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr_classified.tif',
+        outdir='../Model Run/Stats/prediction_comparison'):
     """
     Compare model prediction with groundwater depletion data from Wada et al. 2010.
 
@@ -362,6 +363,7 @@ def comparison_subsidence_depletion(
     Parameters:
     subsidence_prediction: Filepath of model subsidence prediction.
     depletion_data: Filepath of classified depletion data.
+    outdir : Filepath of output directory.
 
     Returns: A comparison raster with 3 classes (1, 2, 3).
     """
@@ -380,7 +382,11 @@ def comparison_subsidence_depletion(
     arr = np.where(((subsidence_arr > 1) & (depletion_arr > 1)), 1, arr)
 
     arr = arr.reshape(shape)
-    write_raster(arr, file, file.transform, '../Model Run/Stats/subsidence_depletion_comparison.tif')
+    makedirs([outdir])
+    interim_raster = \
+        write_raster(arr, file, file.transform,
+                     '../Model Run/Stats/prediction_comparison/subsidence_depletion_comparison_interim.tif')
+    paste_val_on_ref_raster(interim_raster, outdir, 'subsidence_depletion_comparison_final.tif', value=0)
 
 
 # comparison_subsidence_depletion()

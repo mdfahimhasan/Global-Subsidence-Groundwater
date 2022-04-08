@@ -95,7 +95,7 @@ exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Dens
 # 'Tmax (°C)', 'Tmin (°C)', 'TRCLM RET (mm)', 'TRCLM ET (mm)']
 
 variables_in_pdp = ('Clay Thickness (m)', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
-                    'Soil moisture (mm)', 'TRCLM ET (mm)',  'Confining Layers', 'River Distance')
+                    'Soil moisture (mm)', 'TRCLM ET (mm)',  'River Distance', 'Confining Layers')
 
 prediction_raster_keyword = 'RF126'
 
@@ -112,7 +112,7 @@ ML_model, predictor_name_dict = \
                         predictor_importance=True,  # #
                         variables_pdp=variables_in_pdp, plot_pdp=True,  # #
                         plot_confusion_matrix=True,  # #
-                        tune_hyperparameter=True,  # #
+                        tune_hyperparameter=False,  # #
                         k_fold=5, n_iter=80,
                         random_searchCV=True)  # #
 

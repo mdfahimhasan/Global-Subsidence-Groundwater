@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score, roc_auc_score, make_scorer
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, StratifiedKFold
-from sklearn.inspection import PartialDependenceDisplay
+from sklearn.inspection import PartialDependenceDisplay, partial_dependence
 from lightgbm import LGBMClassifier
 from Raster_operations import *
 from System_operations import *
@@ -559,15 +559,15 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
 
     Returns : PDP plots.
     """
+    global vals, probability
     plt.rcParams['font.size'] = 18
 
     classes = [1, 5, 10]
 
     for each in classes:
-
         pdisp = PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=each,
-                                                        response_method='predict_proba', percentiles=(0, 1), n_jobs=-1,
-                                                        random_state=0, grid_resolution=20)
+                                                        response_method='predict_proba', percentiles=(0.05, 0.95),
+                                                        n_jobs=-1, random_state=0, grid_resolution=20)
         for row_idx in range(0, pdisp.axes_.shape[0]):
             pdisp.axes_[row_idx][0].set_ylabel('Subsidence Probability')
         fig = plt.gcf()
@@ -578,6 +578,20 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
         fig.savefig((output_dir + '/' + plot_save_keyword + '_' + pdp_plot_name[each]),
                     dpi=400, bbox_inches='tight')
         print(pdp_plot_name[each].split('.')[0], 'saved')
+
+    if 'Confining Layers' in feature_names:
+        probability, vals = partial_dependence(classifier, x_train, features='Confining Layers',
+                                               response_method='predict_proba')
+    for i in range(len(classes)):
+        y_val = list(probability[i])
+
+        plt.figure(figsize=(10, 7.5))
+        plt.bar(['0', '1'], y_val, color='tab:blue', width=0.3)
+        plt.ylim([0, 0.25])
+        plt.xticks(fontsize=30)
+        plt.yticks(fontsize=30)
+        # plt.xlabel('Confining Layers')
+        plt.savefig((output_dir + '/' + 'pdp_confining' + '_' + str(classes[i]) + '.png'), dpi=400, bbox_inches='tight')
 
 
 def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlist=(2013, 2019), search_by='*.tif',
