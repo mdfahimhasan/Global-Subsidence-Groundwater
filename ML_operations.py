@@ -590,12 +590,14 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
         plt.ylim([0, 0.25])
         plt.xticks(fontsize=30)
         plt.yticks(fontsize=30)
-        # plt.xlabel('Confining Layers')
         plt.savefig((output_dir + '/' + 'pdp_confining' + '_' + str(classes[i]) + '.png'), dpi=400, bbox_inches='tight')
 
     plt.figure(figsize=(25, 10))
     plt.subplots_adjust(bottom=0.15, top=0.96, left=0.4, right=0.99, wspace=0.2,
                         hspace=0.27)  # wspace and hspace adjust the horizontal and vertical spaces, respectively.
+
+    class_names = ['<1 cm/year', '1-5 cm/year', '>5 cm/year']
+    serial = ['(a)', '(b)', '(c)']
     for i in range(len(classes)):
         y_val = list(probability[i])
 
@@ -603,7 +605,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
         plt.bar(['0', '1'], y_val, color='tab:blue', width=0.3)
         plt.xticks(fontsize=15)
         plt.yticks(fontsize=15)
-        plt.xlabel('Confining Layers', fontsize=20)
+        plt.xlabel(f'Confining Layers\n {serial[i]} {class_names[i]}', fontsize=20)
         if i == 0:
             plt.ylabel('Subsidence Probability', fontsize=20)
     plt.tight_layout()
