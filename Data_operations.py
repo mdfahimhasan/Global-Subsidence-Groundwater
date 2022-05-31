@@ -876,7 +876,7 @@ def prepare_clay_thickness_data(clay_raster='../Data/Resampled_Data/GEE_data_201
 
 
 def prepare_river_proximity_data(input_shape='../Data/Raw_Data/Surface_Water/mrb_shp/mrb_rivers.shp',
-                                 output_dir='../Data/Resampled_Data/Surface_Water', gaussian_pixels=7,
+                                 output_dir='../Data/Resampled_Data/Surface_Water',
                                  ref_raster=referenceraster, skip_processing=True):
     """
     Prepare river proximity (distance) datasets.
@@ -884,7 +884,6 @@ def prepare_river_proximity_data(input_shape='../Data/Raw_Data/Surface_Water/mrb
     Parameters:
     input_shape : Input river shapefile filepath.
     output_dir : Output raster directory path.
-    gaussian_pixels : Number of pixels used in gaussian filtering window. Default set to 7.
     ref_raster : Reference raster. Default to to referenceraster.
     skip_processing : Set to True if want to skip processing.
 
