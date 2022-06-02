@@ -842,3 +842,4 @@ def compute_proximity(input_raster, output_dir, raster_name, target_values=(1,),
     inras_file, inras_band, dest_ds, dest_band = None, None, None, None
 
     return output_raster
+

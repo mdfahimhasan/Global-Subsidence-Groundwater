@@ -790,8 +790,10 @@ def categorize_based_on_probability(run=False):
 
         if region_name in region_subsidence_less_1cm:
             accuracy_category = 1
-            status = 'satisfactory (only <1cm/year train data)'
-
+            if 0 <= perc_pixels_greater_40_proba < 15:
+                status = 'satisfactory (only <1cm/year train data)'
+            else:
+                status = 'not satisfactory (only <1cm/year train data)'
         else:
             if pixels_greater_40_proba > number_subsidence_pixels:
                 accuracy_category = 1
@@ -873,7 +875,8 @@ exclude_predictor = ('Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area De
 
 # Set random forest parameters manually in the function from main model hyperparameter tuning. Not added in the function
 # variables for maintaining simplicity.
-run_loao_test_models(run_loao_test=False,  # Set to True to skip run and only run categorize_based_on_probability()
+run_loao_test_models(run_loao_test=False,  # Set to False to skip loao test run
+                                           # and only to run categorize_based_on_probability()
                      subsidence_data_already_prepared=True, skip_polygon_processing=True,
                      skip_dataframe_creation=True, exclude_predictors=exclude_predictor, predictor_csv_exists=True)
 

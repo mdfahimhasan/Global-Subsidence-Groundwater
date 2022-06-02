@@ -6,7 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-def country_subsidence_barplot(country_stat_excel, number_of_countries=26):
+def country_subsidence_barplot(country_stat_excel, number_of_countries=30):
     """
     Create bar plots of subsidence stats for countries.
 
@@ -16,10 +16,18 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=26):
 
     Returns: Bar plots showing countries' stats.
     """
-    stat = pd.read_excel(country_stat_excel, sheet_name=0)
+    # stat = pd.read_excel(country_stat_excel, sheet_name='countryarea_corrected')
+    # stat['area subsidence >1cm/yr'] = stat['area subsidence >1cm/yr'].astype('int')
+    # stat_1 = stat.sort_values('perc_subsidence_of_cntry_area', ascending=False)
+    # stat_highest_1 = stat_1.iloc[0: number_of_countries-1, :]
+
+    stat = pd.read_excel(country_stat_excel, sheet_name='countryarea_corrected')
+    stat = stat.dropna(axis=0, how='any')
     stat['area subsidence >1cm/yr'] = stat['area subsidence >1cm/yr'].astype('int')
+    stat = stat.drop(columns=['perc_subsidence_of_cntry_area'])
+    stat['perc_subsidence_of_cntry_area'] = round((stat['area subsidence >1cm/yr'] * 100 / stat['area_sqkm_google']), 2)
     stat_1 = stat.sort_values('perc_subsidence_of_cntry_area', ascending=False)
-    stat_highest_1 = stat_1.iloc[0: number_of_countries-1, :]
+    stat_highest_1 = stat_1.iloc[0: number_of_countries - 1, :]
 
     fig, axs = plt.subplots(2, figsize=(20, 12))
 
@@ -31,7 +39,7 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=26):
     axs[0].set_ylabel('% area of country subsiding >1cm/year', labelpad=15, fontsize=18)
 
     stat_2 = stat.sort_values('area subsidence >1cm/yr', ascending=False)
-    stat_highest_2 = stat_2.iloc[0: number_of_countries-1, :]
+    stat_highest_2 = stat_2.iloc[0: number_of_countries - 1, :]
     sns.barplot(x='country_name', y='area subsidence >1cm/yr', data=stat_highest_2, palette='Purples_r', ax=axs[1])
     axs[1].bar_label(axs[1].containers[0], fmt='%.f', fontsize=10, padding=0)
     axs[1].set_yscale('log')
@@ -45,8 +53,8 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=26):
     plot_name = '../Model Run/Stats' + '/' + 'top_subsidence_stat_by_countries.png'
     plt.savefig(plot_name, dpi=500, bbox_inches='tight')
 
+# country_subsidence_barplot(country_stat_excel='../Model Run/Stats/country_area_record_google.xlsx',
+#                            number_of_countries=30)
 
-# country_subsidence_barplot(country_stat_excel='../Model Run/Stats/subsidence_area_by_country.xlsx',
-#                            number_of_countries=26)
 
 

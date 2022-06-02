@@ -95,9 +95,9 @@ exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Dens
 # 'Tmax (°C)', 'Tmin (°C)', 'TRCLM RET (mm)', 'TRCLM ET (mm)']
 
 variables_in_pdp = ('Clay Thickness (m)', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
-                    'Soil moisture (mm)', 'TRCLM ET (mm)',  'River Distance', 'Confining Layers')
+                    'Soil moisture (mm)', 'TRCLM ET (mm)',  'River Distance (km)', 'Confining Layers')
 
-prediction_raster_keyword = 'RF126'
+prediction_raster_keyword = 'RF127'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required
@@ -128,7 +128,6 @@ create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist
                          prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns,
                          pred_attr='Subsidence', prediction_raster_keyword=prediction_raster_keyword,
                          predictor_csv_exists=False,  # #
-                         filter_by_crop_builtup=False,  # #
                          predict_probability_greater_1cm=True)  # #
 
 model_runtime = True

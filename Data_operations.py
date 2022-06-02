@@ -901,13 +901,32 @@ def prepare_river_proximity_data(input_shape='../Data/Raw_Data/Surface_Water/mrb
         modified_river_arr = np.where(river_arr == 1, river_arr, ref_arr)
         modified_river_arr = modified_river_arr.reshape(ref_file.shape)
 
-        final_river_raster = output_dir + '/River_raster_final.tif'
-        river_raster = write_raster(modified_river_arr, ref_file, ref_file.transform, final_river_raster)
+        final_river_raster = output_dir + '/River_raster_wgs4326.tif'
+        river_raster_wgs4326 = write_raster(modified_river_arr, ref_file, ref_file.transform, final_river_raster)
 
-        interm_dist_raster = compute_proximity(river_raster, output_dir, 'River_distance_interim.tif',
-                                               target_values=(1,))
-        river_distance = paste_val_on_ref_raster(interm_dist_raster, output_dir, 'River_distance.tif', value=0,
-                                                 ref_raster=ref_raster)
+        river_raster_projected = resample_reproject(river_raster_wgs4326, output_dir, 'River_raster_projected.tif',
+                                                    reference_raster=referenceraster, resample=False, reproject=True,
+                                                    change_crs_to="EPSG:4087", both=False, resample_algorithm='near',
+                                                    nodata=No_Data_Value)
+
+        river_distance_projected = compute_proximity(river_raster_projected, output_dir, 'River_distance_projected.tif',
+                                                     target_values=(1,))
+
+        river_distance_wgs4326 = resample_reproject(river_distance_projected, output_dir, 'River_distance_wgs4326.tif',
+                                                    reference_raster=referenceraster, resample=False, reproject=True,
+                                                    change_crs_to="EPSG:4326", both=False, resample_algorithm='near',
+                                                    nodata=No_Data_Value)
+        river_distance_prefinal = paste_val_on_ref_raster(river_distance_wgs4326, output_dir,
+                                                          'River_distance_prefinal.tif', value=0,
+                                                          ref_raster=referenceraster)
+
+        # converting distance values in pixel to km
+        river_distance_arr = read_raster_arr_object(river_distance_prefinal, get_file=False)
+        river_distance_arr = river_distance_arr / 1000
+
+        final_river_distance = '../Data/Resampled_Data/Surface_Water/River_distance.tif'
+        river_distance = write_raster(river_distance_arr, ref_file, ref_file.transform, final_river_distance)
+
         print('Processed River Dataset')
     else:
         river_distance = '../Data/Resampled_Data/Surface_Water/River_distance.tif'

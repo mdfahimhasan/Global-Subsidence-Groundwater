@@ -61,7 +61,7 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
                              'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
                              'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
                              'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                             'River_distance': 'River Distance', 'Confining_layers': 'Confining Layers'}
+                             'River_distance': 'River Distance (km)', 'Confining_layers': 'Confining Layers'}
 
     if not skip_dataframe_creation:
         predictors = glob(os.path.join(input_raster_dir, search_by))
@@ -114,7 +114,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
                            'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
                            'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
                            'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                           'River_distance': 'River Distance', 'Confining_layers': 'Confining Layers'}
+                           'River_distance': 'River Distance (km)', 'Confining_layers': 'Confining Layers'}
 
     input_df = input_df.rename(columns=predictor_name_dict)
     drop_columns = exclude_columns + [pred_attr]
@@ -491,7 +491,7 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                           'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
                           'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
                           'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                          'River_distance': 'River Distance', 'Confining_layers': 'Confining Layers'}
+                          'River_distance': 'River Distance (km)', 'Confining_layers': 'Confining Layers'}
         x_train_df = pd.DataFrame(x_train)
         x_train_df = x_train_df.rename(columns=predictor_dict)
         col_labels = np.array(x_train_df.columns)
@@ -617,8 +617,7 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
                              continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                              prediction_raster_dir='../Model Run/Prediction_rasters',
                              exclude_columns=(), pred_attr='Subsidence',
-                             prediction_raster_keyword='rf', filter_by_crop_builtup=False,
-                             predict_probability_greater_1cm=True):
+                             prediction_raster_keyword='rf', predict_probability_greater_1cm=True):
     """
     Create predicted raster from random forest fitted_model.
 
@@ -636,8 +635,6 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
     exclude_columns : Predictor rasters' name that will be excluded from the fitted_model. Defaults to ().
     pred_attr : Variable name which will be predicted. Defaults to 'Subsidence_G5_L5'.
     prediction_raster_keyword : Keyword added to final prediction raster name.
-    filter_by_crop_builtup : Set to True to filter prediction raster based on cropland and builtup landuse.
-                             Default set to False.
     predict_probability_greater_1cm : Set to False if probability of prediction of each classes (<1cm, 1-5cm, >5cm)
                                       is required. Default set to True to predict probability of prediction for >1cm.
 
@@ -731,13 +728,7 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
 
     raster_name = prediction_raster_keyword + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
     subsidence_arr, path = mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, raster_name,
-                                      search_by='*prediction*.tif')
-
-    if filter_by_crop_builtup:
-        final_raster_name = prediction_raster_keyword + '_prediction_filtered_' + str(yearlist[0]) + '_' + \
-                            str(yearlist[1]) + '.tif'
-        filter_subsidence_prediction(path, final_raster_name, prediction_raster_dir,
-                                     modis_lu='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif')
+                                          search_by='*prediction*.tif')
 
     print('Global prediction raster created')
 
