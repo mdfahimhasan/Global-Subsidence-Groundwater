@@ -875,7 +875,7 @@ exclude_predictor = ('Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area De
 
 # Set random forest parameters manually in the function from main model hyperparameter tuning. Not added in the function
 # variables for maintaining simplicity.
-run_loao_test_models(run_loao_test=False,  # Set to False to skip loao test run
+run_loao_test_models(run_loao_test=True,  # Set to False to skip loao test run
                                            # and only to run categorize_based_on_probability()
                      subsidence_data_already_prepared=True, skip_polygon_processing=True,
                      skip_dataframe_creation=True, exclude_predictors=exclude_predictor, predictor_csv_exists=True)

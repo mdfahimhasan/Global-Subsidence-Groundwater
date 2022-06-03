@@ -93,7 +93,7 @@ def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_
     stat_df.to_excel(out_excel, index=True)
 
 
-# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif',
+# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF127_prediction_2013_2019.tif',
 #                         land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif')
 
 
@@ -265,7 +265,7 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
 
 
 # area_subsidence_by_country(
-#     subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif')
+#     subsidence_prediction='../Model Run/Prediction_rasters/RF127_prediction_2013_2019.tif')
 
 
 def subsidence_on_aridity(subsidence_prediction, outdir='../Model Run/Stats'):
@@ -309,7 +309,7 @@ def subsidence_on_aridity(subsidence_prediction, outdir='../Model Run/Stats'):
     df = pd.DataFrame(list(zip(aridity, perc_subsidence)), columns=['Aridity Class', '% Subsidence on Aridity'])
     df.to_excel(os.path.join(outdir, 'subsidence_perc_by_aridity.xlsx'), index=False)
 
-# subsidence_on_aridity(subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif')
+# subsidence_on_aridity(subsidence_prediction='../Model Run/Prediction_rasters/RF127_prediction_2013_2019.tif')
 
 
 def classify_gw_depletion_data(input_raster='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr.tif',
@@ -349,7 +349,7 @@ def classify_gw_depletion_data(input_raster='../Data/result_comparison_Wada/geor
 
 
 def comparison_subsidence_depletion(
-        subsidence_prediction='../Model Run/Prediction_rasters/RF126_prediction_2013_2019.tif',
+        subsidence_prediction='../Model Run/Prediction_rasters/RF127_prediction_2013_2019.tif',
         depletion_data='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr_classified.tif',
         outdir='../Model Run/Stats/prediction_comparison'):
     """
