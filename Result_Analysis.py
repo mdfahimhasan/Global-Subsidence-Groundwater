@@ -535,7 +535,7 @@ def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shape
                            model_prediction='../Model Run/Prediction_rasters/RF127_prediction_2013_2019.tif',
                            outdir='../Model Run/Stats'):
     """
-    Calculates average volume of permanent groundwater storage loss in confined aquifer countrywise.
+    Calculates average volume of permanent groundwater storage loss in confined aquifer country-wise.
 
     Parameters:
     countries: filepath of global country shapefile.
@@ -554,7 +554,7 @@ def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shape
                                             invert=False)
         masked_arr = masked_arr.squeeze()
 
-        num_1_5_pixels = np.count_nonzero(np.where(masked_arr == 5, 1, 0))  # pixels between 1-5 cm/year subsidence
+        num_1_5_pixels = np.count_nonzero(np.where(masked_arr == 5, 1, 0))  # pixels with 1-5 cm/year subsidence
         num_10_pixels = np.count_nonzero(np.where(masked_arr == 10, 1, 0))  # pixels >5 cm/year subsidence
 
         return num_1_5_pixels, num_10_pixels
@@ -563,12 +563,12 @@ def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shape
         zip(*countries_df['geom_geojson'].apply(compute_num_subsidence_pixel))
 
     # Area Calculation (1 deg = ~ 111km)
-    deg_002 = 111 * 0.02  # unit km
+    deg_002 = 111 * 0.02  # unit km (1 side length of a pixel)
     area_per_002_pixel = deg_002 ** 2
 
     # Assumptions on average subsidence in moderate and high subsidence pixels
     avg_subsidence_1_5cm_yr = 3/100000  # unit in km/yr
-    avg_subsidence_greater_5cm_yr = 10/10000  # unit in km/yr
+    avg_subsidence_greater_5cm_yr = 10/100000  # unit in km/yr
 
     countries_df['vol avg gwloss in 1-5cm/yr (km3/yr)'] = countries_df['num 1-5cm/yr pixels'] * area_per_002_pixel * \
                                                avg_subsidence_1_5cm_yr

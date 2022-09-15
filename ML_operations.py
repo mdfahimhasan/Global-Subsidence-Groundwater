@@ -1,15 +1,15 @@
 # Author: Md Fahim Hasan
 # Email: mhm4b@mst.edu
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 import pickle
+import pandas as pd
+import seaborn as sns
 from pprint import pprint
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+import matplotlib.pyplot as plt
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
-    precision_score, recall_score, f1_score, roc_auc_score, make_scorer
+    precision_score, recall_score, f1_score
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, StratifiedKFold
 from sklearn.inspection import PartialDependenceDisplay, partial_dependence
 from lightgbm import LGBMClassifier
@@ -157,10 +157,6 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
     """
     global classifier
     param_dict = {'rf':
-                      # {'n_estimators': [100, 200, 300],
-                      #  'max_depth': [5, 11, 12, 13, 15, 16, 17, 18],
-                      #  'max_features': [4, 5, 6, 7, 8, 10],
-                      #  'min_samples_leaf': [5e-4, 1e-5, 1e-3, 2, 6, 12, 20, 25]},
                       {'n_estimators': [100, 200, 300],
                        'max_depth': [8, 12,  13, 14],
                        'max_features': [6, 7, 9, 10],
@@ -371,6 +367,9 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     if plot_pdp:
         pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword,
                  feature_names=variables_pdp)
+        pdp_plot_combinations(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword,
+                              feature_names=(('Irrigated Area Density', 'Clay Thickness (m)'),
+                                             ('Precipitation (mm)', 'Soil moisture (mm)')))
 
     return classifier, predictor_name_dict
 
@@ -580,10 +579,10 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
         print(pdp_plot_name[each].split('.')[0], 'saved')
 
     if 'Confining Layers' in feature_names:
-        probability, vals = partial_dependence(classifier, x_train, features='Confining Layers',
+        pdp = partial_dependence(classifier, x_train, features='Confining Layers',
                                                response_method='predict_proba')
     for i in range(len(classes)):
-        y_val = list(probability[i])
+        y_val = list(pdp['average'][i])
 
         plt.figure(figsize=(10, 7.5))
         plt.bar(['0', '1'], y_val, color='tab:blue', width=0.3)
@@ -599,7 +598,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
     class_names = ['<1 cm/year', '1-5 cm/year', '>5 cm/year']
     serial = ['(a)', '(b)', '(c)']
     for i in range(len(classes)):
-        y_val = list(probability[i])
+        y_val = list(pdp['average'][i])
 
         plt.subplot(1, 3, i+1)
         plt.bar(['0', '1'], y_val, color='tab:blue', width=0.3)
@@ -610,6 +609,75 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
             plt.ylabel('Partial Dependence', fontsize=20)
     plt.tight_layout()
     plt.savefig((output_dir + '/' + 'pdp_confining' + '_all' + '.png'), dpi=400, bbox_inches='tight')
+
+
+def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf',
+                          feature_names=(['Irrigated Area Density', 'Clay Thickness (m)'],
+                                         ['Precipitation (mm)', 'Soil moisture (mm)'])):
+    """
+    PDP of 2*2 = 4 variables. Don't include 'Confining Layers'
+
+    Parameters:
+    classifier :ML fitted_model classifier.
+    x_train : X train array.
+    output_dir : Output directory path to save the plots.
+    plot_save_keyword : Keyword to sum before saved PDP plots.
+    feature_names : Tuple of variable names to plot in pdp plot. For combined PDP of 2 variables put the variables in a
+                    tuple like ('Precipitation (mm)', 'Soil moisture (mm)').
+
+    Returns : PDP plots.
+    """
+    prediction_class = [5]
+    pdisp = PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names,
+                                                       target=prediction_class[0], response_method='predict_proba',
+                                                       percentiles=(0.05, 0.95), n_jobs=-1, random_state=0,
+                                                       grid_resolution=20)
+    plt.rcParams['font.size'] = 14
+    fig, ax = plt.subplots(1, 2, figsize=(12, 8))
+    pdisp.plot(ax=ax)
+    ax[0].set_title('(a)', y=-0.2)
+    ax[1].set_title('(b)', y=-0.2)
+    fig = plt.gcf()
+    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+    fig.subplots_adjust(wspace=0.35, hspace=0.3)
+
+    # Formatting colorbar
+    import matplotlib.ticker as tick
+    cbar = fig.colorbar((pdisp.contours_[0]), ax=ax)
+    cbar.ax.yaxis.set_major_formatter(tick.FormatStrFormatter('%.2f'))
+
+    pdp_plot_name = 'PDP 1 to 5cm Subsidence_combinations.png'
+    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + pdp_plot_name),
+                dpi=400, bbox_inches='tight')
+    print(pdp_plot_name.split('.')[0], 'saved')
+
+    # # # # # # # # # # # # # # # #
+    # # # 3D Plot (works, need to formatted properly for better visualization)
+    # plt.rcParams['font.size'] = 13
+    # fig = plt.figure()
+    #
+    # pdp = partial_dependence(classifier, x_train, features=('Irrigated Area Density', 'Clay Thickness (m)'),
+    #                          grid_resolution=20, response_method='predict_proba')
+    # XX, YY = np.meshgrid(pdp['values'][0], pdp['values'][1])
+    # Z = pdp['average'][1].T  # index 1 for class 1-5 cm (class 5)
+    # ax = fig.add_subplot(projection="3d")
+    # fig.add_axes(ax)
+    # surf = ax.plot_surface(XX, YY, Z, rstride=1, cstride=1, cmap=plt.cm.YlGnBu, edgecolor='k')
+    #
+    # ax.set_xlabel('Irrigated Area Density')
+    # ax.set_ylabel('Clay Thickness (m)')
+    # ax.zaxis.set_rotate_label(False)  # disable automatic rotation
+    # ax.set_zlabel('Partial dependence', fontsize=20, rotation=90)
+    #
+    # #  pretty init view
+    # ax.view_init(elev=22, azim=150)
+    # plt.colorbar(surf)
+    #
+    # pdp_plot_name = 'PDP 1 to 5cm Subsidence_3D.png'
+    # fig.savefig((output_dir + '/' + plot_save_keyword + '_' + pdp_plot_name),
+    #             dpi=400, bbox_inches='tight')
+    # print('3D PDP plot saved')
+    # # # # # # # # # # # # # # # #
 
 
 def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlist=(2013, 2019), search_by='*.tif',

@@ -16,7 +16,6 @@ No_Data_Value = -9999
 referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
 
 csv = '../Data/Reference_rasters_shapes/GEE_Download_coords_modified.csv'
-grid_for_gee = '../Data/Reference_rasters/world_grid_shapes_for_gee'
 os.chdir('../Codes_Global_GW')
 
 
