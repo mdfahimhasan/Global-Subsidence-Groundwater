@@ -645,6 +645,7 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
     import matplotlib.ticker as tick
     cbar = fig.colorbar((pdisp.contours_[0]), ax=ax)
     cbar.ax.yaxis.set_major_formatter(tick.FormatStrFormatter('%.2f'))
+    cbar.set_label('Probability of Subsidence between 1-5 cm/year', rotation=90, labelpad=15)
 
     pdp_plot_name = 'PDP 1 to 5cm Subsidence_combinations.png'
     fig.savefig((output_dir + '/' + plot_save_keyword + '_' + pdp_plot_name),
