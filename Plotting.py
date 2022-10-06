@@ -76,7 +76,7 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
     fig, axs = plt.subplots(2, figsize=(12, 10))
 
     stat_1 = stat.sort_values('perc_subsidence_of_cntry_area', ascending=False)
-    stat_highest_1 = stat_1.iloc[0: number_of_countries - 1, :]
+    stat_highest_1 = stat_1.iloc[0: number_of_countries, :]
     sns.barplot(x='country_name', y='perc_subsidence_of_cntry_area', data=stat_highest_1, palette='Blues_r', ax=axs[0])
     axs[0].bar_label(axs[0].containers[0], fmt='%.2f', fontsize=10, padding=0.5)
     axs[0].margins(y=0.1)  # make room for the labels
@@ -86,7 +86,7 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
     axs[0].set_ylabel('% area of country \n subsiding >1cm/year', labelpad=15, fontsize=18)
 
     stat_2 = gw_stat.sort_values('volume avg total gw loss (km3/yr)', ascending=False)
-    stat_highest_2 = stat_2.iloc[0: number_of_countries - 1, :]
+    stat_highest_2 = stat_2.iloc[0: number_of_countries, :]
     sns.barplot(x='CNTRY_NAME', y='volume avg total gw loss (km3/yr)', data=stat_highest_2, palette='Purples_r', ax=axs[1])
     axs[1].bar_label(axs[1].containers[0], fmt='%.2f', fontsize=10, padding=0.1)
     axs[1].margins(y=0.1)  # make room for the labels
@@ -102,6 +102,6 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
     plt.savefig(plot_name, dpi=500, bbox_inches='tight')
 
 
-# country_subsidence_barplot_type_02(country_stat_excel='../Model Run/Stats/country_area_record_google.xlsx',
-#                                    gw_loss_excel='../Model Run/Stats/country_gw_volume_loss.xlsx',
-#                                    number_of_countries=10)
+country_subsidence_barplot_type_02(country_stat_excel='../Model Run/Stats/country_area_record_google.xlsx',
+                                   gw_loss_excel='../Model Run/Stats/country_gw_volume_loss.xlsx',
+                                   number_of_countries=10)
