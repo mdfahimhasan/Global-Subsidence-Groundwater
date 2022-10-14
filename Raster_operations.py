@@ -1,5 +1,5 @@
 # Author: Md Fahim Hasan
-# Email: mhm4b@mst.edu
+# Email: Fahim.Hasan@colostate.edu
 
 import rasterio as rio
 from rasterio.merge import merge

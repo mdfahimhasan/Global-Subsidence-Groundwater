@@ -1,5 +1,5 @@
 # Author: Md Fahim Hasan
-# Email: mhm4b@mst.edu
+# Email: Fahim.Hasan@colostate.edu
 
 import os
 import warnings
