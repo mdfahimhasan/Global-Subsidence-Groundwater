@@ -24,14 +24,14 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=30):
     stat_1 = stat.sort_values('perc_subsidence_of_cntry_area', ascending=False)
     stat_highest_1 = stat_1.iloc[0: number_of_countries - 1, :]
 
-    fig, axs = plt.subplots(2, figsize=(20, 12))
+    fig, axs = plt.subplots(2, figsize=(16, 10))
 
     sns.barplot(x='country_name', y='perc_subsidence_of_cntry_area', data=stat_highest_1, palette='Blues_r', ax=axs[0])
     axs[0].bar_label(axs[0].containers[0], fmt='%.2f', fontsize=10, padding=0)
     axs[0].set_xticks(range(len(stat_highest_1['country_name'])), list(stat_highest_1['country_name']), rotation=90)
     axs[0].tick_params(axis='both', which='major', labelsize=20)
     axs[0].set_xlabel('(a)', fontsize=20)
-    axs[0].set_ylabel('% area of country subsiding >1cm/year', labelpad=15, fontsize=18)
+    axs[0].set_ylabel('% area of country \n subsiding >1cm/year', labelpad=15, fontsize=18)
 
     stat_2 = stat.sort_values('area subsidence >1cm/yr', ascending=False)
     stat_highest_2 = stat_2.iloc[0: number_of_countries - 1, :]
@@ -41,15 +41,15 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=30):
     axs[1].set_xticks(range(len(stat_highest_2['country_name'])), list(stat_highest_2['country_name']), rotation=90)
     axs[1].tick_params(axis='both', which='major', labelsize=20)
     axs[1].set_xlabel('(b)', fontsize=20)
-    axs[1].set_ylabel('area (sqkm) of country subsiding >1cm/year \n (log-scale)', fontsize=18)
+    axs[1].set_ylabel('area (sqkm) of country \n subsiding >1cm/year \n (log-scale)', fontsize=18)
 
     plt.tight_layout(pad=1, w_pad=1, h_pad=1)
 
     plot_name = '../Model Run/Stats' + '/' + 'top_subsidence_stat_by_countries.png'
     plt.savefig(plot_name, dpi=500, bbox_inches='tight')
 
-# country_subsidence_barplot(country_stat_excel='../Model Run/Stats/country_area_record_google.xlsx',
-#                            number_of_countries=30)
+country_subsidence_barplot(country_stat_excel='../Model Run/Stats/country_area_record_google.xlsx',
+                           number_of_countries=30)
 
 
 def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number_of_countries=10):
