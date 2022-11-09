@@ -1,10 +1,11 @@
 # Author: Md Fahim Hasan
 # Email: Fahim.Hasan@colostate.edu
 
+import timeit
+import warnings
 from Data_operations import *
 from ML_operations import *
-import warnings
-import timeit
+
 
 warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore future warning coming from pandas
 start = timeit.default_timer()
