@@ -7,6 +7,7 @@ Python scripts for a ML model to generate global map of subsidence (~2 km resoul
 
 
 **Workflow-**
+
 ![NGA Workflow](https://user-images.githubusercontent.com/77580408/195906436-0249ad09-1c7e-4f0c-966d-5b2d5fbd87eb.png)
 
 
