@@ -15,8 +15,8 @@ _**Workflow-**_
 
 _**Affiliation**_
 
-<img src="https://user-images.githubusercontent.com/77580408/216176949-71a889cd-8926-4c19-8cd4-cece55303931.png" />        
-<img src="https://user-images.githubusercontent.com/77580408/216177156-66d191fb-6c7a-4e84-ba1b-4291767864bb.png" />
+<img class=mobile-image src="https://user-images.githubusercontent.com/77580408/216176949-71a889cd-8926-4c19-8cd4-cece55303931.png" />
+<img class=mobile-image src="https://user-images.githubusercontent.com/77580408/216177156-66d191fb-6c7a-4e84-ba1b-4291767864bb.png" />
 
 <style>
   .img {
