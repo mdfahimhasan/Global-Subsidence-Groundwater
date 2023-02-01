@@ -13,3 +13,9 @@ _**Workflow-**_
 ![NGA Workflow](https://user-images.githubusercontent.com/77580408/195906436-0249ad09-1c7e-4f0c-966d-5b2d5fbd87eb.png)
 
 
+_**Affiliation**_
+![image](https://user-images.githubusercontent.com/77580408/216176949-71a889cd-8926-4c19-8cd4-cece55303931.png) 
+![Missouri-S T_PrimaryLogo_MinerGreen](https://user-images.githubusercontent.com/77580408/216177156-66d191fb-6c7a-4e84-ba1b-4291767864bb.png)
+
+_**Funding Agency**_
+
