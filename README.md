@@ -21,4 +21,4 @@ _**Affiliation**_
 
 _**Funding Agency**_
 
-<img src="![image](https://user-images.githubusercontent.com/77580408/216178574-1ab9be62-a46c-4f8a-92b0-1250a440bffe.png)" width="10%" height="10%" />
+<img src="https://user-images.githubusercontent.com/77580408/216178574-1ab9be62-a46c-4f8a-92b0-1250a440bffe.png" width="10%" height="10%" />
