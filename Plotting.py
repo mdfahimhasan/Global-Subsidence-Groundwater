@@ -114,8 +114,7 @@ def variable_correlation_plot(variables_to_include,
     """
     Makes correlation heatmap of variables (predictors) used in the model.
 
-    Parameters
-    ----------
+    Parameters:
     variables_to_include: A list  of variables. Variables are those what were used in the final model.
     training_data_csv: Filepath of training data csv.
     output_dir: Filepath of output dir to save the plot.
@@ -130,12 +129,17 @@ def variable_correlation_plot(variables_to_include,
     plt.figure(figsize=(10, 8))
     sns.heatmap(corr_coef, cmap='coolwarm', annot=True)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'variable_corr.jpeg'), dpi=200)
+    plt.savefig(os.path.join(output_dir, 'variable_correlation.jpeg'), dpi=200)
+
+    # Calculating total value of absolute
+    corr_coef = round(training_df.corr(method='pearson').abs(), 2)
+    corr_coef['sum'] = corr_coef.sum() - 1  # deleting 1 to remove self correlation
+    corr_coef.to_csv('../Model Run/Stats/variable_correlation.csv')
 
 
 # # Give list of predictors used in the model
 # columns_to_plot = ['% Slope', 'Aridity Index', 'Clay Thickness (m)', 'Confining Layers',
-#                    'EVI', 'Grace', 'Irrigated Area Density', 'NDWI', 'Population Density',
+#                    'EVI', 'Irrigated Area Density', 'NDWI', 'Population Density',
 #                    'Precipitation (mm)', 'River Distance (km)', 'Soil moisture (mm)',
 #                    'TRCLM ET (mm)', 'TRCLM RET (mm)', 'Tmax (°C)']
 #

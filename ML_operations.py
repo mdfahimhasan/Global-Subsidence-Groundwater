@@ -762,6 +762,7 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
             predictor_df = pd.DataFrame(predictor_dict)
             predictor_df = predictor_df.dropna(axis=0)
             predictor_df = reindex_df(predictor_df)
+            # this predictor df consists all input variables including the ones to drop
             predictor_df.to_csv(predictor_csv, index=False)
 
         else:
@@ -774,10 +775,11 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
                                                                    naming_from_raster=True, assigned_name=None)
             raster_shape = raster_arr.shape
 
+        # selecting only variables for which the model was trained for
+        predictor_df = predictor_df.drop(columns=drop_columns)
         y_pred = model.predict(predictor_df)
 
         for variable_name, nan_pos in nan_position_dict.items():
-            print(variable_name)
             if variable_name not in drop_columns:
                 y_pred[nan_pos] = raster_file.nodata
 
@@ -793,8 +795,10 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
             y_pred_proba = model.predict_proba(predictor_df)
             y_pred_proba = y_pred_proba[:, 1] + y_pred_proba[:, 2]
 
-            for nan_pos in nan_position_dict.values():
-                y_pred_proba[nan_pos] = raster_file.nodata
+            for variable_name, nan_pos in nan_position_dict.items():
+                if variable_name not in drop_columns:
+                    y_pred[nan_pos] = raster_file.nodata
+
             y_pred_proba_arr = y_pred_proba.reshape(raster_shape)
 
             probability_raster_name = continent_name + '_proba_greater_1cm_' + str(yearlist[0]) + '_' + \
