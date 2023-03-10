@@ -1,6 +1,7 @@
 # Author: Md Fahim Hasan
 # Email: Fahim.Hasan@colostate.edu
 
+import os
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -105,3 +106,39 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
 # country_subsidence_barplot_type_02(country_stat_excel='../Model Run/Stats/country_area_record_google.xlsx',
 #                                    gw_loss_excel='../Model Run/Stats/country_gw_volume_loss.xlsx',
 #                                    number_of_countries=10)
+
+
+def variable_correlation_plot(variables_to_include,
+                              training_data_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
+                              output_dir='../Model Run/Stats'):
+    """
+    Makes correlation heatmap of variables (predictors) used in the model.
+
+    Parameters
+    ----------
+    variables_to_include: A list  of variables. Variables are those what were used in the final model.
+    training_data_csv: Filepath of training data csv.
+    output_dir: Filepath of output dir to save the plot.
+
+    Returns: A heatmap of correlation between variables.
+    """
+    training_df = pd.read_csv(training_data_csv)
+
+    training_df = training_df[variables_to_include]
+    corr_coef = round(training_df.corr(method='pearson'), 2)
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr_coef, cmap='coolwarm', annot=True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'variable_corr.jpeg'), dpi=200)
+
+
+# # Give list of predictors used in the model
+# columns_to_plot = ['% Slope', 'Aridity Index', 'Clay Thickness (m)', 'Confining Layers',
+#                    'EVI', 'Grace', 'Irrigated Area Density', 'NDWI', 'Population Density',
+#                    'Precipitation (mm)', 'River Distance (km)', 'Soil moisture (mm)',
+#                    'TRCLM ET (mm)', 'TRCLM RET (mm)', 'Tmax (°C)']
+#
+# variable_correlation_plot(variables_to_include=columns_to_plot,
+#                               training_data_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
+#                               output_dir='../Model Run/Stats')

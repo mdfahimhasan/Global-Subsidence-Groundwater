@@ -338,11 +338,12 @@ def download_clay_data(yearlist, output_dir, dataname, shapecsv=csv, gee_scale=2
 
 
 # #Download GRACE ensemble data gradient over the year
-def download_grace_gradient(yearlist, start_month, end_month, output_dir, shapecsv=csv, gee_scale=2000):
+def download_grace_gradient(yearlist, start_month, end_month, output_dir, shapecsv=csv, gee_scale=2000,
+                            grace_mascon_cri=True):
     """
     Download ensembled Grace data gradient from Google Earth Engine 
     ----------
-    yearlist : List of years for which data will be downloaded, i.e., [2010,2017]
+    yearlist : list: Year for which data will be downloaded, i.e., [2010,2020]
     start_month : Start month of data.
     end_month : End month of data.
     output_dir : File directory path to downloaded data.
@@ -354,7 +355,10 @@ def download_grace_gradient(yearlist, start_month, end_month, output_dir, shapec
     ee.Initialize()
 
     # Getting download url for ensembled grace data
-    Grace = ee.ImageCollection("NASA/GRACE/MASS_GRIDS/LAND")
+    if not grace_mascon_cri:
+        Grace = ee.ImageCollection("NASA/GRACE/MASS_GRIDS/LAND")
+    else:  # Grace mascon
+        Grace = ee.ImageCollection("NASA/GRACE/MASS_GRIDS/MASCON_CRI")
 
     # Date Range Creation
     start_date = ee.Date.fromYMD(yearlist[0], start_month, 1)
@@ -372,51 +376,90 @@ def download_grace_gradient(yearlist, start_month, end_month, output_dir, shapec
         """
         return image.addBands(image.metadata('system:time_start').divide(1000 * 3600 * 24 * 365))
 
-    # Reducing ImageColeection
-    grace_csr = Grace.select("lwe_thickness_csr").filterDate(start_date, end_date).map(addTime)
-    grace_csr_trend = grace_csr.select(['system:time_start', 'lwe_thickness_csr']) \
-        .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
+    # Reducing ImageCollection
+    if not grace_mascon_cri:
+        grace_csr = Grace.select("lwe_thickness_csr").filterDate(start_date, end_date).map(addTime)
+        grace_csr_trend = grace_csr.select(['system:time_start', 'lwe_thickness_csr']) \
+            .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
 
-    grace_gfz = Grace.select("lwe_thickness_gfz").filterDate(start_date, end_date).map(addTime)
-    grace_gfz_trend = grace_gfz.select(['system:time_start', 'lwe_thickness_gfz']) \
-        .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
+        grace_gfz = Grace.select("lwe_thickness_gfz").filterDate(start_date, end_date).map(addTime)
+        grace_gfz_trend = grace_gfz.select(['system:time_start', 'lwe_thickness_gfz']) \
+            .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
 
-    grace_jpl = Grace.select("lwe_thickness_jpl").filterDate(start_date, end_date).map(addTime)
-    grace_jpl_trend = grace_jpl.select(['system:time_start', 'lwe_thickness_jpl']) \
-        .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
+        grace_jpl = Grace.select("lwe_thickness_jpl").filterDate(start_date, end_date).map(addTime)
+        grace_jpl_trend = grace_jpl.select(['system:time_start', 'lwe_thickness_jpl']) \
+            .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
 
-    # Ensembling
-    grace_ensemble_avg = grace_csr_trend.select(0).add(grace_gfz_trend.select(0)).select(0) \
-        .add(grace_jpl_trend.select(0)).select(0).divide(3)
+        # Ensembling
+        grace_ensemble_avg = grace_csr_trend.select(0).add(grace_gfz_trend.select(0)).select(0) \
+            .add(grace_jpl_trend.select(0)).select(0).divide(3)
 
-    makedirs([output_dir])
-    coords_df = pd.read_csv(shapecsv)
-    for index, row in coords_df.iterrows():
-        # Define Extent
-        minx = row['minx']
-        miny = row['miny']
-        maxx = row['maxx']
-        maxy = row['maxy']
-        gee_extent = ee.Geometry.Rectangle((minx, miny, maxx, maxy))
+        # Loading coords
+        makedirs([output_dir])
+        coords_df = pd.read_csv(shapecsv)
+        for index, row in coords_df.iterrows():
+            # Define Extent
+            minx = row['minx']
+            miny = row['miny']
+            maxx = row['maxx']
+            maxy = row['maxy']
+            gee_extent = ee.Geometry.Rectangle((minx, miny, maxx, maxy))
 
-        download_url = grace_ensemble_avg.getDownloadURL({'name': 'Grace',
-                                                          'crs': "EPSG:4326",
-                                                          'scale': gee_scale,
-                                                          'region': gee_extent})
-        # dowloading the data
-        key_word = row['shape'] + 'Grace_'
-        local_file_name = os.path.join(output_dir, key_word + str(yearlist[0]) + '_' + str(yearlist[1]) + '.zip')
-        print('Downloading', local_file_name, '.....')
-        r = requests.get(download_url, allow_redirects=True)
-        open(local_file_name, 'wb').write(r.content)
+            download_url = grace_ensemble_avg.getDownloadURL({'name': 'Grace',
+                                                              'crs': "EPSG:4326",
+                                                              'scale': gee_scale,
+                                                              'region': gee_extent})
 
-        if index == coords_df.index[-1]:
-            extract_data(zip_dir=output_dir, out_dir=output_dir, rename_file=True)
-            mosaic_dir = makedirs([os.path.join(output_dir, 'merged_rasters')])
-            mosaic_name = 'Grace' + '_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
-            mosaic_rasters(input_dir=output_dir, output_dir=mosaic_dir, raster_name=mosaic_name,
-                           ref_raster=referenceraster, search_by='*.tif', resolution=0.02,
-                           no_data=No_Data_Value)
+            # downloading the data
+            key_word = row['shape'] + 'Grace_'
+            local_file_name = os.path.join(output_dir, key_word + str(yearlist[0]) + '_' + str(yearlist[1]) + '.zip')
+            print('Downloading', local_file_name, '.....')
+            r = requests.get(download_url, allow_redirects=True)
+            open(local_file_name, 'wb').write(r.content)
+
+            if index == coords_df.index[-1]:
+                extract_data(zip_dir=output_dir, out_dir=output_dir, rename_file=True)
+                mosaic_dir = makedirs([os.path.join(output_dir, 'merged_rasters')])
+                mosaic_name = 'Grace' + '_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
+                mosaic_rasters(input_dir=output_dir, output_dir=mosaic_dir, raster_name=mosaic_name,
+                               ref_raster=referenceraster, search_by='*.tif', resolution=0.02,
+                               no_data=No_Data_Value)
+
+    else:
+        grace_jpl = Grace.select("lwe_thickness").filterDate(start_date, end_date).map(addTime)
+        grace_jpl_trend = grace_jpl.select(['system:time_start', 'lwe_thickness']) \
+            .reduce(ee.Reducer.linearFit()).select('scale').toFloat()
+
+        # Loading coords
+        makedirs([output_dir])
+        coords_df = pd.read_csv(shapecsv)
+        for index, row in coords_df.iterrows():
+            # Define Extent
+            minx = row['minx']
+            miny = row['miny']
+            maxx = row['maxx']
+            maxy = row['maxy']
+            gee_extent = ee.Geometry.Rectangle((minx, miny, maxx, maxy))
+
+            download_url = grace_jpl_trend.getDownloadURL({'name': 'Grace',
+                                                           'crs': "EPSG:4326",
+                                                           'scale': gee_scale,
+                                                           'region': gee_extent})
+
+            # downloading the data
+            key_word = row['shape'] + 'Grace_'
+            local_file_name = os.path.join(output_dir, key_word + str(yearlist[0]) + '_' + str(yearlist[1]) + '.zip')
+            print('Downloading', local_file_name, '.....')
+            r = requests.get(download_url, allow_redirects=True)
+            open(local_file_name, 'wb').write(r.content)
+
+            if index == coords_df.index[-1]:
+                extract_data(zip_dir=output_dir, out_dir=output_dir, rename_file=True)
+                mosaic_dir = makedirs([os.path.join(output_dir, 'merged_rasters')])
+                mosaic_name = 'Grace' + '_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
+                mosaic_rasters(input_dir=output_dir, output_dir=mosaic_dir, raster_name=mosaic_name,
+                               ref_raster=referenceraster, search_by='*.tif', resolution=0.02,
+                               no_data=No_Data_Value)
 
 
 # #Stationary Single Image Download

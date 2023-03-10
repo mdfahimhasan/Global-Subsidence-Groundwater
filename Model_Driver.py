@@ -13,7 +13,7 @@ start = timeit.default_timer()
 gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
                  'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'Aridity_Index', 'Grace',
                  'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
-                 'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use', 'TRCLM_ET']
+                 'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use', 'TRCLM_ET', 'Grace']
 
 yearlist = [2013, 2019]
 start_month = 1
@@ -88,17 +88,16 @@ modeldir = '../Model Run/Model'
 model = 'rf'
 
 # change for fitted_model run
-
-exclude_columns = ['Alexi ET', 'Grace', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+exclude_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                    'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
-                   'Clay % 200cm', 'MODIS Land Use', 'Sediment Thickness (m)']
+                   'Clay % 200cm', 'MODIS Land Use', 'Sediment Thickness (m)', 'Tmin (°C)', 'Grace']
 # 'EVI', 'NDWI', 'Soil moisture (mm)', '% Slope', 'Precipitation (mm)',
 # 'Tmax (°C)', 'Tmin (°C)', 'TRCLM RET (mm)', 'TRCLM ET (mm)']
 
 variables_in_pdp = ('Clay Thickness (m)', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
                     'Soil moisture (mm)', 'TRCLM ET (mm)',  'River Distance (km)', 'Confining Layers')
 
-prediction_raster_keyword = 'RF127'
+prediction_raster_keyword = 'RF130'
 
 # predictor_importance = False if predictor importance plot is not required
 # plot_pdp = False if partial dependence plots are not required

@@ -507,8 +507,8 @@ def country_subsidence_on_aridity_stats(countries='../shapefiles/Country_contine
         return hyper_arid, arid, semi_arid, dry_subhumid, humid
 
     countries_df['hyperarid_pixels'], countries_df['arid_pixels'], \
-        countries_df['semiarid_pixels'], countries_df['drysubhumid_pixels'], countries_df['humid_pixels'] = \
-         zip(*countries_df['geom_geojson'].apply(compute_num_cells_in_aridity))
+    countries_df['semiarid_pixels'], countries_df['drysubhumid_pixels'], countries_df['humid_pixels'] = \
+        zip(*countries_df['geom_geojson'].apply(compute_num_cells_in_aridity))
 
     area_country_df = pd.read_excel('../Model Run/Stats/country_area_record_google.xlsx',
                                     sheet_name='countryarea_corrected')
@@ -524,7 +524,8 @@ def country_subsidence_on_aridity_stats(countries='../shapefiles/Country_contine
     new_df['perc_hyperarid_area'] = new_df['hyperarid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
     new_df['perc_arid_area'] = new_df['arid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
     new_df['perc_semiarid_area'] = new_df['semiarid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
-    new_df['perc_drysubhumid_area'] = new_df['drysubhumid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
+    new_df['perc_drysubhumid_area'] = new_df['drysubhumid_pixels'] * area_per_002_pixel * 100 / new_df[
+        'area_sqkm_google']
     new_df['perc_humid_area'] = new_df['humid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
 
     new_df = new_df.sort_values(by='perc_semiarid_area', axis=0, ascending=False)
@@ -570,13 +571,13 @@ def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shape
     area_per_002_pixel = deg_002 ** 2
 
     # Assumptions on average subsidence in moderate and high subsidence pixels
-    avg_subsidence_1_5cm_yr = 3/100000  # unit in km/yr
-    avg_subsidence_greater_5cm_yr = 10/100000  # unit in km/yr
+    avg_subsidence_1_5cm_yr = 3 / 100000  # unit in km/yr
+    avg_subsidence_greater_5cm_yr = 10 / 100000  # unit in km/yr
 
     countries_df['vol avg gwloss in 1-5cm/yr (km3/yr)'] = countries_df['num 1-5cm/yr pixels'] * area_per_002_pixel * \
-                                               avg_subsidence_1_5cm_yr
+                                                          avg_subsidence_1_5cm_yr
     countries_df['vol avg gwloss in >5cm/yr (km3/yr)'] = countries_df['num >5cm/yr pixels'] * area_per_002_pixel * \
-                                               avg_subsidence_greater_5cm_yr
+                                                         avg_subsidence_greater_5cm_yr
     countries_df['volume avg total gw loss (km3/yr)'] = countries_df['vol avg gwloss in 1-5cm/yr (km3/yr)'] + \
                                                         countries_df['vol avg gwloss in >5cm/yr (km3/yr)']
 
@@ -584,3 +585,42 @@ def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shape
 
 
 # compute_volume_gw_loss()
+
+
+def subsidence_on_TWS(subsidence_train_data='../Model Run/Predictors_2013_2019/Subsidence.tif',
+                      grace_data='../Model Run/Predictors_2013_2019/Grace.tif',
+                      output_file='../Model Run/Stats/Subsidence_on_TWS.xlsx'):
+    """
+    Calculates the number of subsidence training pixels on positive and negative TWS (Grace) values.
+
+    Parameters:
+    subsidence_train_data: Filepath of subsidence training data.
+    grace_data: Filepath of grace TWS change data.
+    output_file: Filepath of output excel.
+
+    Returns: An excel consisting counts of subsidence pixels of positive and negative TWS values.
+    """
+    subsidence_arr = read_raster_arr_object(subsidence_train_data, get_file=False)
+    grace_tws = read_raster_arr_object(grace_data, get_file=False)
+
+    analysis_dict = {}
+
+    analysis_dict['total_subsidence_pixel'] = np.count_nonzero(np.where(~np.isnan(subsidence_arr), 1, 0))
+
+    # Subsidence training data on negative TWS
+    analysis_dict['subsidence_negative_TWS'] = np.count_nonzero(~np.isnan(subsidence_arr) & (grace_tws < 0))
+    analysis_dict['less_1_negative_TWS'] = np.count_nonzero((subsidence_arr == 1) & (grace_tws < 0))
+    analysis_dict['one_five_negative_TWS'] = np.count_nonzero((subsidence_arr == 5) & (grace_tws < 0))
+    analysis_dict['greater_five_negative_TWS'] = np.count_nonzero((subsidence_arr == 10) & (grace_tws < 0))
+
+    # Subsidence training data on negative TWS
+    analysis_dict['subsidence_positive_TWS'] = np.count_nonzero(~np.isnan(subsidence_arr) & (grace_tws >= 0))
+    analysis_dict['less_1_positive_TWS'] = np.count_nonzero((subsidence_arr == 1) & (grace_tws >= 0))
+    analysis_dict['one_five_positive_TWS'] = np.count_nonzero((subsidence_arr == 5) & (grace_tws >= 0))
+    analysis_dict['greater_five_positive_TWS'] = np.count_nonzero((subsidence_arr == 10) & (grace_tws >= 0))
+
+    analysis_df = pd.DataFrame(analysis_dict, index=[0])
+    analysis_df.to_excel(output_file)
+
+
+# subsidence_on_TWS()

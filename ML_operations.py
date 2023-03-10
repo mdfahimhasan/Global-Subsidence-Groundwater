@@ -5,6 +5,7 @@ import pickle
 import pandas as pd
 import seaborn as sns
 from pprint import pprint
+import dask.dataframe as ddf
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -74,7 +75,13 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
             predictor_dict[variable_name] = raster_arr
 
         predictor_df = pd.DataFrame(predictor_dict)
-        predictor_df = predictor_df.dropna(axis=0)
+
+        # converting to dask dataframe as this is huge data and might throw memory error
+        predictor_df = ddf.from_pandas(predictor_df, npartitions=60)
+        predictor_df = predictor_df.dropna()  # drops nan by rows by default (axis=0 throws error in dask dataframe)
+
+        # converting to pandas dataframe again for applying reindex function
+        predictor_df = predictor_df.compute()
         predictor_df = predictor_df.rename(columns=predictor_rename_dict)
         predictor_df = reindex_df(predictor_df)
         predictor_df.to_csv(output_csv, index=False)
@@ -741,15 +748,14 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
                 variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind('.')]
                 variable_name = predictor_name_dict[variable_name]
 
-                if variable_name not in drop_columns:
-                    raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
-                                                                           naming_from_both=False,
-                                                                           naming_from_raster=True, assigned_name=None)
-                    raster_shape = raster_arr.shape
-                    raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
-                    nan_position_dict[variable_name] = np.isnan(raster_arr)
-                    raster_arr[nan_position_dict[variable_name]] = 0
-                    predictor_dict[variable_name] = raster_arr
+                raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, continent,
+                                                                       naming_from_both=False,
+                                                                       naming_from_raster=True, assigned_name=None)
+                raster_shape = raster_arr.shape
+                raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
+                nan_position_dict[variable_name] = np.isnan(raster_arr)
+                raster_arr[nan_position_dict[variable_name]] = 0
+                predictor_dict[variable_name] = raster_arr
 
             pickle.dump(nan_position_dict, open(dict_name, mode='wb+'))
 
@@ -770,8 +776,11 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
 
         y_pred = model.predict(predictor_df)
 
-        for nan_pos in nan_position_dict.values():
-            y_pred[nan_pos] = raster_file.nodata
+        for variable_name, nan_pos in nan_position_dict.items():
+            print(variable_name)
+            if variable_name not in drop_columns:
+                y_pred[nan_pos] = raster_file.nodata
+
         y_pred_arr = y_pred.reshape(raster_shape)
 
         prediction_raster_name = continent_name + '_prediction_' + str(yearlist[0]) + '_' + str(yearlist[1]) + '.tif'
