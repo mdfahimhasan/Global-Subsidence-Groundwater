@@ -10,11 +10,10 @@ from ML_operations import *
 warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore future warning coming from pandas
 start = timeit.default_timer()
 
-gee_data_list = ['Grace']
-    # ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
-    #              'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'Aridity_Index', 'Grace',
-    #              'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
-    #              'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use', 'TRCLM_ET', 'Grace']
+gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
+                 'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'Aridity_Index', 'Grace',
+                 'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
+                 'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use', 'TRCLM_ET', 'Grace']
 
 yearlist = [2013, 2019]
 start_month = 1
@@ -36,7 +35,8 @@ outdir_confining_layers = '../Data/Resampled_Data/Global_confining_layers'
 # # skip_download = False if new data needs to be downloaded from google earth engine
 # # skip_processing = False if processing of already downloaded data (secondary processing) is required
 gee_raster_dict, gfsad_raster, irrigated_meier_raster, giam_gw_raster, \
-    sediment_thickness_raster, clay_thickness_raster, popdensity_raster, river_distance, confining_layers = \
+    sediment_thickness_raster, clay_thickness_raster, normalized_clay_indicator, popdensity_raster, \
+    river_distance, confining_layers = \
     download_process_predictor_datasets(yearlist, start_month, end_month, resampled_dir,
                                         gfsad_lu, giam_lu, irrigated_meier, intermediate_dir,
                                         outdir_lu, sediment_thickness, outdir_sed_thickness,
@@ -52,7 +52,7 @@ interim_dir = '../InSAR_Data/Merged_subsidence_data/interim_working_dir'
 training_insar_dir = '../InSAR_Data/Merged_subsidence_data/final_subsidence_raster'
 
 # # skip_polygon_merge = False if new georeferenced subsidence polygons needs to be added
-# # already prepared = False if new georeferenced subsidence polygons needs to be added or new InSAR processed subsidence
+# # already prepared = False if new georeferenced subsidence polygons needs to be added/new InSAR processed subsidence
 # # data has o be integrated
 exclude_areas = None  # if all areas are to be included, set None.
 include_insar_areas = ('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin', 'China_Hebei', 'China_Hefei',
@@ -73,7 +73,7 @@ predictor_dir = '../Model Run/Predictors_2013_2019'
 # # skip_compiling_predictor_subsidence_data = False if any change in predictors or subsidence data are made
 predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster, giam_gw_raster,
                                                    irrigated_meier_raster, sediment_thickness_raster,
-                                                   clay_thickness_raster, popdensity_raster,
+                                                   clay_thickness_raster, normalized_clay_indicator, popdensity_raster,
                                                    river_distance, confining_layers, subsidence_raster, predictor_dir,
                                                    skip_compiling_predictor_subsidence_data=True)  # #
 
@@ -83,7 +83,7 @@ train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 
 # # skip_dataframe_creation = False if any change occur in predictors or subsidence data
 predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif',
-                                skip_dataframe_creation=True)  # #
+                                skip_dataframe_creation=False)  # #
 
 modeldir = '../Model Run/Model'
 model = 'rf'
@@ -92,15 +92,15 @@ model = 'rf'
 exclude_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                    'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
                    'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
-                   'Tmin (°C)', 'TRCLM RET (mm)']
+                   'Tmin (°C)', 'TRCLM RET (mm)', 'Clay Thickness (m)']
 # 'EVI', 'NDWI', 'Soil moisture (mm)', '% Slope', 'Precipitation (mm)',
 # 'Tmax (°C)', 'TRCLM RET (mm)', 'TRCLM ET (mm)']
 
-variables_in_pdp = ('Clay Thickness (m)', 'Irrigated Area Density', 'Population Density',
+variables_in_pdp = ('Normalized Clay Indicator', 'Irrigated Area Density', 'Population Density',
                     'Precipitation (mm)', 'Soil moisture (mm)', 'River Distance (km)',
                     'TRCLM ET (mm)', 'Confining Layers')
 
-prediction_raster_keyword = 'RF132'
+prediction_raster_keyword = 'RF133'
 
 # # predictor_importance = False if predictor importance plot is not required
 # # plot_pdp = False if partial dependence plots are not required
@@ -131,7 +131,7 @@ create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist
                          continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                          prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns,
                          pred_attr='Subsidence', prediction_raster_keyword=prediction_raster_keyword,
-                         predictor_csv_exists=True,  # #
+                         predictor_csv_exists=False,  # #
                          predict_probability_greater_1cm=True)  # #
 
 model_runtime = True

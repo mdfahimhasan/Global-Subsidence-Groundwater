@@ -161,8 +161,8 @@ def plot_permutation_importance(train_test_csv='../Model Run/Predictors_csv/trai
                                 exclude_columns=('Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                                                  'GW Irrigation Density giam', 'MODIS PET (kg/m2)',
                                                  'Clay content PCA', 'MODIS Land Use', 'Sediment Thickness (m)',
-                                                 'Grace', 'Clay % 200cm', 'Tmin (°C)', 'TRCLM RET (mm)')
-                                ):
+                                                 'Grace', 'Clay % 200cm', 'Tmin (°C)', 'TRCLM RET (mm)'),
+                                plot_keyword='RF'):
     """
     Plot permutation importance for model predictors.
 
@@ -177,6 +177,7 @@ def plot_permutation_importance(train_test_csv='../Model Run/Predictors_csv/trai
     output_dir: Filepath of output directory to save results/plots.
     exclude_columns: Tuple of columns to exclude from training dataset. Use the same excluded columns that were dropped
                      during model training.
+    plot_keyword: keyword to add in saved plot. Default set to 'RF'.
 
     Returns: None.
     """
@@ -214,7 +215,7 @@ def plot_permutation_importance(train_test_csv='../Model Run/Predictors_csv/trai
     ax.axvline(x=0, color="k", linestyle="--")
     ax.set_xlabel("Relative change in accuracy")
     ax.figure.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'permutation_imp_test.jpeg'), dpi=200)
+    plt.savefig(os.path.join(output_dir, f'{plot_keyword}_permutation_imp_test.jpeg'), dpi=200)
 
     # Permutation importance on train set
     result_train = permutation_importance(
@@ -229,15 +230,15 @@ def plot_permutation_importance(train_test_csv='../Model Run/Predictors_csv/trai
     ax.axvline(x=0, color="k", linestyle="--")
     ax.set_xlabel("Relative change in accuracy")
     ax.figure.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'permutation_imp_train.jpeg'), dpi=200)
+    plt.savefig(os.path.join(output_dir, f'{plot_keyword}_permutation_imp_train.jpeg'), dpi=200)
+
 
 # # Plot permutation importance
 # # change for fitted_model run
-# drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
-#                 'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
-#                 'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
-#                 'Tmin (°C)', 'TRCLM RET (mm)']
-# plot_permutation_importance(exclude_columns=drop_columns)
+# drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)', 'GW Irrigation Density giam',
+#                 'MODIS PET (kg/m2)', 'Clay content PCA', 'MODIS Land Use', 'Grace', 'Sediment Thickness (m)',
+#                 'Clay % 200cm', 'Tmin (°C)', 'TRCLM RET (mm)']
+# plot_permutation_importance(exclude_columns=drop_columns, plot_keyword='RF_132')
 
 
 def plot_soil_pdp_combinations(train_test_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
@@ -245,7 +246,8 @@ def plot_soil_pdp_combinations(train_test_csv='../Model Run/Predictors_csv/train
                                exclude_columns=('Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                                                 'GW Irrigation Density giam', 'MODIS PET (kg/m2)',
                                                 'Clay content PCA', 'MODIS Land Use', 'Grace',
-                                                'Sediment Thickness (m)', 'Clay % 200cm', 'Tmin (°C)', 'TRCLM RET (mm)'),
+                                                'Sediment Thickness (m)', 'Clay % 200cm', 'Tmin (°C)',
+                                                'TRCLM RET (mm)'),
                                plot_combinations=(('TRCLM ET (mm)', 'Soil moisture (mm)'),
                                                   ('Precipitation (mm)', 'Soil moisture (mm)'),
                                                   ('Irrigated Area Density', 'Soil moisture (mm)')),

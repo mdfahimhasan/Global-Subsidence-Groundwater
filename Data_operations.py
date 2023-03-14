@@ -5,6 +5,8 @@ import ee
 import pickle
 import shutil
 import zipfile
+
+import numpy as np
 import requests
 from Raster_operations import *
 from PCA import *
@@ -890,11 +892,10 @@ def prepare_sediment_thickness_data(input_raster='../Data/Raw_Data/Global_Sedime
     return sediment_raster
 
 
-def prepare_clay_thickness_data(clay_raster='../Data/Resampled_Data/GEE_data_2013_2019/'
-                                            'clay_content_200cm_2013_2019.tif',
-                                sediment_thickness_raster='../Data/Resampled_Data/Sediment_Thickness/'
+def prepare_clay_data(clay_raster='../Data/Resampled_Data/GEE_data_2013_2019/clay_content_200cm_2013_2019.tif',
+                      sediment_thickness_raster='../Data/Resampled_Data/Sediment_Thickness/'
                                                           'Global_Sediment_Thickness.tif',
-                                output_dir='../Data/Resampled_Data/Clay_Thickness', skip_processing=True):
+                      output_dir='../Data/Resampled_Data/Sediment_Thickness', skip_processing=True):
     """
     Prepare clay thickness data.
 
@@ -904,17 +905,27 @@ def prepare_clay_thickness_data(clay_raster='../Data/Resampled_Data/GEE_data_201
     output_dir : Output raster directory path.
     skip_processing : Set to True if want to skip processing.
 
-    Returns : Clay thickness raster dataset.
+    Returns : Clay thickness and normalized clay indicator raster dataset.
     """
     if not skip_processing:
         print('Processing Clay Thickness Dataset...')
         clay_thickness_raster = array_multiply(clay_raster, sediment_thickness_raster, outdir=output_dir,
                                                raster_name='Clay_Thickness.tif', scale=0.01)
-        print('Processed Clay Thickness Dataset')
+
+        # Creating normalized Clay Indicator dataset
+        clay_arr, clay_file = read_raster_arr_object(clay_thickness_raster)
+        clay_min = np.nanmin(clay_arr)
+        clay_max = np.nanmax(clay_arr)
+        clay_score = np.where(~np.isnan(clay_arr), ((clay_arr - clay_min) / (clay_max - clay_min)), clay_arr)
+        normalized_clay_indicator = os.path.join(output_dir, 'Normalized_clay_indicator.tif')
+        write_raster(raster_arr=clay_score, raster_file=clay_file, transform=clay_file.transform,
+                     outfile_path=normalized_clay_indicator)
+
+        print('Processed Clay Thickness and Normalized Clay Indicator Dataset')
     else:
         clay_thickness_raster = '../Data/Resampled_Data/Sediment_Thickness/Clay_Thickness.tif'
-
-    return clay_thickness_raster
+        normalized_clay_indicator = '../Data/Resampled_Data/Sediment_Thickness/Normalized_clay_indicator.tif'
+    return clay_thickness_raster, normalized_clay_indicator
 
 
 def prepare_river_proximity_data(input_shape='../Data/Raw_Data/Surface_Water/mrb_shp/mrb_rivers.shp',
@@ -1164,8 +1175,8 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
                                                                 outdir_sed_thickness, 'Global_Sediment_Thickness.tif',
                                                                 skip_processing)
 
-    clay_thickness_raster = prepare_clay_thickness_data(Clay_200cm, sediment_thickness_raster, outdir_sed_thickness,
-                                                        skip_processing)
+    clay_thickness_raster, normalized_clay_indicator = prepare_clay_data(Clay_200cm, sediment_thickness_raster,
+                                                                         outdir_sed_thickness, skip_processing)
 
     popdensity_raster = prepare_popdensity_data(PopDensity_GPW, outdir_pop, skip_processing)
 
@@ -1174,7 +1185,7 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
     confining_layers = process_global_confining_layer_data(confining_layer, outdir_confining_layer)
 
     return resampled_gee_rasters, gfsad_raster, irrigated_meier_raster, giam_gw_raster, sediment_thickness_raster, \
-           clay_thickness_raster, popdensity_raster, river_distance, confining_layers
+           clay_thickness_raster, normalized_clay_indicator, popdensity_raster, river_distance, confining_layers
 
 
 def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygons, exclude_areas=None,
@@ -1337,8 +1348,8 @@ def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_su
 
 
 def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam_gw_data, irrigated_meier_data,
-                                       sediment_thickness_data, clay_thickness_data, popdensity_data,
-                                       river_distance_data, confining_layer_data, subsidence_data,
+                                       sediment_thickness_data, clay_thickness_data, normalized_clay_indicator,
+                                       popdensity_data, river_distance_data, confining_layer_data, subsidence_data,
                                        output_dir, skip_compiling_predictor_subsidence_data=False):
     """
     Compile predictor datasets and subsidence data in a single folder (to be used for creating predictor database)
@@ -1350,6 +1361,7 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
     irrigated_meier_data: Resampled Irrigated area by meier filepath.
     sediment_thickness_data : Resampled sediment thickness filepath.
     clay_thickness_data : Resampled clay thickness data.
+    normalized_clay_indicator: Resampled normalized clay indicator data.
     popdensity_data : Resampled population density filepath.
     river_distance_data : Resampled river distance data filepath.
     confining_layer_data : Resampled confining layer data filepath.
@@ -1372,6 +1384,7 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
         rename_copy_raster(irrigated_meier_data, output_dir, rename=True, new_name='Irrigated_Area_Density2.tif')
         rename_copy_raster(sediment_thickness_data, output_dir, rename=False)
         rename_copy_raster(clay_thickness_data, output_dir, rename=False)
+        rename_copy_raster(normalized_clay_indicator, output_dir, rename=False)
         rename_copy_raster(popdensity_data, output_dir, rename=True, new_name='Population_Density.tif')
         rename_copy_raster(river_distance_data, output_dir, rename=False)
         rename_copy_raster(confining_layer_data, output_dir, rename=False)

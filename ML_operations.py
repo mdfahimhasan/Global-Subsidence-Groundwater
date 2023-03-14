@@ -60,9 +60,10 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
                              'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
                              'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                              'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                             'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
-                             'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                             'River_distance': 'River Distance (km)', 'Confining_layers': 'Confining Layers'}
+                             'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                             'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
+                             'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
+                             'Confining_layers': 'Confining Layers'}
 
     if not skip_dataframe_creation:
         predictors = glob(os.path.join(input_raster_dir, search_by))
@@ -116,13 +117,15 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
                            'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
                            'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)',
                            'MODIS_ET': 'MODIS ET (kg/m2)', 'Irrigated_Area_Density2': 'Irrigated Area Density',
-                           'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI', 'Population_Density': 'Population Density',
-                           'SRTM_Slope': '% Slope', 'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
+                           'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
+                           'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
+                           'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
                            'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                            'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                           'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
-                           'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                           'River_distance': 'River Distance (km)', 'Confining_layers': 'Confining Layers'}
+                           'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                           'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
+                           'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
+                           'Confining_layers': 'Confining Layers'}
 
     input_df = input_df.rename(columns=predictor_name_dict)
     drop_columns = exclude_columns + [pred_attr]
@@ -379,7 +382,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
         pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword,
                  feature_names=variables_pdp)
         pdp_plot_combinations(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword,
-                              feature_names=(('Irrigated Area Density', 'Clay Thickness (m)'),
+                              feature_names=(('Irrigated Area Density', 'Normalized Clay Indicator'),
                                              ('Precipitation (mm)', 'Soil moisture (mm)')))
 
     return classifier, predictor_name_dict
@@ -493,15 +496,17 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                           'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                           'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                           'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                          'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)', 'MODIS_ET': 'MODIS ET (kg/m2)',
-                          'Irrigated_Area_Density2': 'Irrigated Area Density', 'MODIS_PET': 'MODIS PET (kg/m2)',
-                          'NDWI': 'NDWI', 'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
+                          'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)',
+                          'MODIS_ET': 'MODIS ET (kg/m2)', 'Irrigated_Area_Density2': 'Irrigated Area Density',
+                          'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
+                          'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
                           'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
                           'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                           'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                          'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_200cm': 'Clay % 200cm',
-                          'Clay_Thickness': 'Clay Thickness (m)', 'River_gaussian': 'River Gaussian',
-                          'River_distance': 'River Distance (km)', 'Confining_layers': 'Confining Layers'}
+                          'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                          'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
+                          'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
+                          'Confining_layers': 'Confining Layers'}
         x_train_df = pd.DataFrame(x_train)
         x_train_df = x_train_df.rename(columns=predictor_dict)
         col_labels = np.array(x_train_df.columns)
@@ -623,7 +628,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
 
 
 def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf',
-                          feature_names=(['Irrigated Area Density', 'Clay Thickness (m)'],
+                          feature_names=(['Irrigated Area Density', 'Normalized Clay Indicator'],
                                          ['Precipitation (mm)', 'Soil moisture (mm)'])):
     """
     PDP of 2*2 = 4 variables. Don't include 'Confining Layers'
