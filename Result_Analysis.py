@@ -5,12 +5,17 @@ import os
 import numpy as np
 import pandas as pd
 from glob import glob
+import rasterio as rio
 import geopandas as gpd
 from rasterio.mask import mask
 from shapely.geometry import mapping
 from System_operations import makedirs
 from Raster_operations import read_raster_arr_object, write_raster, mask_by_ref_raster, clip_resample_raster_cutline, \
     paste_val_on_ref_raster
+
+No_Data_Value = -9999
+
+referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
 
 
 def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif',
@@ -587,11 +592,62 @@ def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shape
 # compute_volume_gw_loss()
 
 
+def process_TWS_GFA(input_file='../Data/Raw_Data/TWS_trend_GFA/41586_2018_123_MOESM1_ESM.txt',
+                    outdir='../Data/Raw_Data/TWS_trend_GFA', raster_name='TWS_2002_2016.tif',
+                    skiprows=0, separator='\t', nrows=360, ncols=720,
+                    datatype=np.float32, cellsize=0.5, first_x=-180, first_y=90, nodata=-9999):
+    """
+    Processes (Converts from .txt to geotiff) TWS data from Rodell et al. 2018.
+    *** https://www.nature.com/articles/s41586-018-0123-1#MOESM3
+
+    Params:
+    input_file : Input .txt file.
+    outdir : Output raster directory.
+    raster_name : Output raster name.
+    skiprows : Number of starting rows to Skip. Defaults to 0.
+    separator : Separator. Defaults to '\t' (tab delimiter).
+    nrows : Number of rows to read. Defaults to 360.
+    ncols : Number of rows to read. Defaults to 720.
+    datatype : Datatype. Defaults to np.float32.
+    cellsize : Pixel size. Default is 0.5 degree for GCS WGS 1984.
+    first_x : X coordinate of first cell at top left corner.
+    first_y : Y coordinate of first cell at top left corner.
+    nodata: No data value in the final raster. Defaults to -9999.
+
+    Returns:None.
+    """
+
+    data = np.loadtxt(fname=input_file, skiprows=skiprows, dtype=datatype, delimiter=separator)
+    arr = data.reshape((nrows, ncols))
+    arr = np.flipud(arr)
+
+    makedirs([outdir])
+    original_raster = os.path.join(outdir, 'TWS_original.tif')
+
+    with rio.open(original_raster, 'w',
+                       driver='GTiff',
+                       height=arr.shape[0],
+                       width=arr.shape[1],
+                       dtype=arr.dtype,
+                       crs='EPSG:4326',
+                       transform=(cellsize, 0.0, first_x, 0.0, -cellsize, first_y),
+                       nodata=nodata,
+                       count=1) as dest:
+        dest.write(arr, 1)
+
+    mask_by_ref_raster(input_raster=original_raster, outdir=outdir, raster_name='TWS_interim.tif',
+                       paste_on_ref_raster=True, pasted_outdir=outdir, pasted_raster_name=raster_name)
+
+
+# process_TWS_GFA()
+
+
 def subsidence_on_TWS(subsidence_train_data='../Model Run/Predictors_2013_2019/Subsidence.tif',
                       grace_data='../Model Run/Predictors_2013_2019/Grace.tif',
                       output_file='../Model Run/Stats/Subsidence_on_TWS.xlsx'):
     """
     Calculates the number of subsidence training pixels on positive and negative TWS (Grace) values.
+    **Used Grace TWS Anomaly data (mean of 2013-2019) from Global Drought Observatory (GDO) Copernicus.
 
     Parameters:
     subsidence_train_data: Filepath of subsidence training data.
@@ -603,24 +659,20 @@ def subsidence_on_TWS(subsidence_train_data='../Model Run/Predictors_2013_2019/S
     subsidence_arr = read_raster_arr_object(subsidence_train_data, get_file=False)
     grace_tws = read_raster_arr_object(grace_data, get_file=False)
 
-    analysis_dict = {}
-
-    analysis_dict['total_subsidence_pixel'] = np.count_nonzero(np.where(~np.isnan(subsidence_arr), 1, 0))
-
-    # Subsidence training data on negative TWS
-    analysis_dict['subsidence_negative_TWS'] = np.count_nonzero(~np.isnan(subsidence_arr) & (grace_tws < 0))
-    analysis_dict['less_1_negative_TWS'] = np.count_nonzero((subsidence_arr == 1) & (grace_tws < 0))
-    analysis_dict['one_five_negative_TWS'] = np.count_nonzero((subsidence_arr == 5) & (grace_tws < 0))
-    analysis_dict['greater_five_negative_TWS'] = np.count_nonzero((subsidence_arr == 10) & (grace_tws < 0))
-
-    # Subsidence training data on negative TWS
-    analysis_dict['subsidence_positive_TWS'] = np.count_nonzero(~np.isnan(subsidence_arr) & (grace_tws >= 0))
-    analysis_dict['less_1_positive_TWS'] = np.count_nonzero((subsidence_arr == 1) & (grace_tws >= 0))
-    analysis_dict['one_five_positive_TWS'] = np.count_nonzero((subsidence_arr == 5) & (grace_tws >= 0))
-    analysis_dict['greater_five_positive_TWS'] = np.count_nonzero((subsidence_arr == 10) & (grace_tws >= 0))
+    analysis_dict = {'total_subsidence_pixel': np.count_nonzero((~np.isnan(subsidence_arr) & ~np.isnan(grace_tws))),
+                     # Subsidence training data on negative TWS
+                     'subsidence_negative_TWS': np.count_nonzero(~np.isnan(subsidence_arr) & (grace_tws < 0)),
+                     'less_1_negative_TWS': np.count_nonzero((subsidence_arr == 1) & (grace_tws < 0)),
+                     'one_five_negative_TWS': np.count_nonzero((subsidence_arr == 5) & (grace_tws < 0)),
+                     'greater_five_negative_TWS': np.count_nonzero((subsidence_arr == 10) & (grace_tws < 0)),
+                     # Subsidence training data on negative TWS
+                     'subsidence_positive_TWS': np.count_nonzero(~np.isnan(subsidence_arr) & (grace_tws >= 0)),
+                     'less_1_positive_TWS': np.count_nonzero((subsidence_arr == 1) & (grace_tws >= 0)),
+                     'one_five_positive_TWS': np.count_nonzero((subsidence_arr == 5) & (grace_tws >= 0)),
+                     'greater_five_positive_TWS': np.count_nonzero((subsidence_arr == 10) & (grace_tws >= 0))}
 
     analysis_df = pd.DataFrame(analysis_dict, index=[0])
-    analysis_df.to_excel(output_file)
+    analysis_df.to_excel(output_file, index=False)
 
 
 # subsidence_on_TWS()

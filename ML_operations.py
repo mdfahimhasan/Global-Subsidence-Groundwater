@@ -94,7 +94,7 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
 
 
 def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subsidence', test_size=0.3, random_state=0,
-                           outdir=None):
+                           outdir=None, verbose=True):
     """
     Split dataset into train and test data based on a ratio
 
@@ -105,6 +105,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     test_size : The percentage of test dataset. Defaults to 0.3.
     random_state : Seed value. Defaults to 0.
     output_dir : Set a output directory if training and test dataset need to be saved. Defaults to None.
+    verbose : Set to True if want to print which columns are being dropped and which will be included in the model.
 
     Returns: X_train, X_test, y_train, y_test
     """
@@ -125,10 +126,11 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
     input_df = input_df.rename(columns=predictor_name_dict)
     drop_columns = exclude_columns + [pred_attr]
-    print('Dropping Columns-', exclude_columns)
     x = input_df.drop(columns=drop_columns)
     y = input_df[pred_attr]
-    print('Predictors:', x.columns)
+    if verbose:
+        print('Dropping Columns-', exclude_columns)
+        print('Predictors:', x.columns)
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state,
                                                         shuffle=True, stratify=y)
@@ -149,7 +151,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     return x_train, x_test, y_train, y_test, predictor_name_dict
 
 
-def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50, random_search=True):
+def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=70, random_search=True):
     """
     Hyperparameter optimization using RandomizedSearchCV/GridSearchCV.
 
@@ -256,17 +258,17 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=5, n_iter=50
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf', load_model=False,
                         pred_attr='Subsidence', test_size=0., random_state=0, output_dir=None,
                         n_estimators=300, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
-                        max_samples = None, max_leaf_nodes=None,  ##
+                        max_samples=None, max_leaf_nodes=None,  ##
                         bootstrap=True, oob_score=True, n_jobs=-1, class_weight='balanced',
                         num_leaves=31, max_depth_gbdt=-1, learning_rate=0.01, n_estimators_gbdt=200, subsample=0.9,
                         colsample_bytree=1, min_child_samples=20,
-                        accuracy_dir=r'../Model Run/Accuracy_score', cm_name='cmatrix.csv',
+                        estimate_accuracy=True, accuracy_dir=r'../Model Run/Accuracy_score',
                         predictor_importance=False, predictor_imp_keyword='RF',
-                        plot_pdp=False, variables_pdp=('Clay content PCA', 'Irrigated Area Density',
-                                                       'Population Density', 'Precipitation (mm)',
-                                                       'Sediment Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)'),
-                        plot_confusion_matrix=True,
-                        tune_hyperparameter=False, k_fold=5, n_iter=70, random_searchCV=True):
+                        plot_pdp=False, variables_pdp=('Irrigated Area Density', 'Population Density',
+                                                       'Precipitation (mm)', 'Sediment Thickness (m)',
+                                                       'Soil moisture (mm)', 'TRCLM ET (mm)'),
+                        plot_confusion_matrix=True, cm_name='cmatrix.csv',
+                        tune_hyperparameter=False, k_fold=10, n_iter=70, random_searchCV=True):
     """
     Build Machine Learning Classifier. Can run 'Random Forest', 'Gradient Boosting Decision Tree'.
 
@@ -297,14 +299,15 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     subsample (gbdt param): Subsample ratio of the training instance. Default set to 0.9.
     colsample_bytree (gbdt param): Subsample ratio of columns when constructing each tree. Default set to 1.
     min_child_samples (gbdt param):  Minimum number of data needed in a child (leaf). Default set to 20.
+    estimate_accuracy : Set to True if want to estimate model accuracy metrices.
     accuracy_dir : Confusion matrix directory. If save=True must need a accuracy_dir.
-    cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
     predictor_imp_keyword : Keyword to save predictor important plot.
     plot_save_keyword : Keyword to sum before saved PDP plots.
     plot_pdp : Set to True if want to plot PDP.
     variables_pdp : Tuple of variable names to plot in pdp plot.
     plot_confusion_matrix : Set to True if want to plot confusion matrix.
+    cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     tune_hyperparameter : Set to True to tune hyperparameter. Default set to False.
     k_fold : number of folds in K-fold CV. Default set to 5.
     n_iter : Number of parameter combinations to be tested in RandomizedSearchCV. Default set to 70.
@@ -369,8 +372,9 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     else:
         classifier = pickle.load(open(model_file, mode='rb'))
 
-    classification_accuracy(x_train, x_test, y_train, y_test, classifier, accuracy_dir, cm_name,
-                            predictor_importance, predictor_imp_keyword, plot_confusion_matrix)
+    if estimate_accuracy:
+        classification_accuracy(x_train, x_test, y_train, y_test, classifier, accuracy_dir, cm_name,
+                                predictor_importance, predictor_imp_keyword, plot_confusion_matrix)
     if plot_pdp:
         pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword,
                  feature_names=variables_pdp)
@@ -551,8 +555,8 @@ def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
 
 
 def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
-             feature_names=('Clay Thickness (m)', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
-                            'Sediment Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)')):
+             feature_names=('Sediment Thickness (m)', 'Irrigated Area Density', 'Population Density',
+                            'Precipitation (mm)', 'Clay Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)')):
     """
     Plot Partial Dependence Plot for the fitted_model.
 

@@ -10,10 +10,11 @@ from ML_operations import *
 warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore future warning coming from pandas
 start = timeit.default_timer()
 
-gee_data_list = ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
-                 'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'Aridity_Index', 'Grace',
-                 'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
-                 'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use', 'TRCLM_ET', 'Grace']
+gee_data_list = ['Grace']
+    # ['TRCLM_precp', 'TRCLM_tmmx', 'TRCLM_tmmn', 'TRCLM_soil', 'TRCLM_RET', 'MODIS_ET', 'MODIS_EVI',
+    #              'MODIS_NDWI', 'MODIS_PET', 'GPW_pop', 'SRTM_DEM', 'Aridity_Index', 'Grace',
+    #              'clay_content_0cm', 'clay_content_10cm', 'clay_content_30cm', 'clay_content_60cm',
+    #              'clay_content_100cm', 'clay_content_200cm', 'MODIS_Land_Use', 'TRCLM_ET', 'Grace']
 
 yearlist = [2013, 2019]
 start_month = 1
@@ -90,14 +91,16 @@ model = 'rf'
 # change for fitted_model run
 exclude_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                    'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
-                   'Clay % 200cm', 'MODIS Land Use', 'Sediment Thickness (m)', 'Tmin (°C)', 'Grace']
+                   'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
+                   'Tmin (°C)', 'TRCLM RET (mm)']
 # 'EVI', 'NDWI', 'Soil moisture (mm)', '% Slope', 'Precipitation (mm)',
-# 'Tmax (°C)', 'Tmin (°C)', 'TRCLM RET (mm)', 'TRCLM ET (mm)']
+# 'Tmax (°C)', 'TRCLM RET (mm)', 'TRCLM ET (mm)']
 
-variables_in_pdp = ('Clay Thickness (m)', 'Irrigated Area Density', 'Population Density', 'Precipitation (mm)',
-                    'Soil moisture (mm)', 'TRCLM ET (mm)',  'River Distance (km)', 'Confining Layers')
+variables_in_pdp = ('Clay Thickness (m)', 'Irrigated Area Density', 'Population Density',
+                    'Precipitation (mm)', 'Soil moisture (mm)', 'River Distance (km)',
+                    'TRCLM ET (mm)', 'Confining Layers')
 
-prediction_raster_keyword = 'RF130'
+prediction_raster_keyword = 'RF132'
 
 # # predictor_importance = False if predictor importance plot is not required
 # # plot_pdp = False if partial dependence plots are not required
@@ -108,12 +111,13 @@ ML_model, predictor_name_dict = \
                         n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14,
                         max_features=7, class_weight='balanced',
                         max_samples=None, max_leaf_nodes=None,
+                        estimate_accuracy=True,
                         predictor_imp_keyword=prediction_raster_keyword,
                         predictor_importance=True,  # #
                         variables_pdp=variables_in_pdp, plot_pdp=True,  # #
                         plot_confusion_matrix=True,  # #
                         tune_hyperparameter=False,  # #
-                        k_fold=5, n_iter=80,
+                        k_fold=10, n_iter=80,
                         random_searchCV=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'

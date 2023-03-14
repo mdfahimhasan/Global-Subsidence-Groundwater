@@ -339,7 +339,7 @@ def download_clay_data(yearlist, output_dir, dataname, shapecsv=csv, gee_scale=2
 
 # #Download GRACE ensemble data gradient over the year
 def download_grace_gradient(yearlist, start_month, end_month, output_dir, shapecsv=csv, gee_scale=2000,
-                            grace_mascon_cri=True):
+                            grace_mascon_cri=False):
     """
     Download ensembled Grace data gradient from Google Earth Engine 
     ----------
@@ -687,7 +687,7 @@ def download_data(data_list, yearlist, start_month, end_month, shape_csv=csv, ge
                                   gee_scale=gee_scale)
             elif data == 'Grace':
                 download_grace_gradient(yearlist, start_month, end_month, downdir_Grace, shape_csv,
-                                        gee_scale=gee_scale)
+                                        gee_scale=gee_scale, grace_mascon_cri=False)
             elif data == 'TRCLM_precp':
                 download_gee_data(yearlist, start_month, end_month, downdir_TRCLM_precp, 'TRCLM_precp', shape_csv,
                                   gee_scale=gee_scale)
