@@ -125,7 +125,7 @@ ML_model, predictor_name_dict = \
                         pdp_combinations=pdp_combinations,
                         plot_confusion_matrix=True,  # #
                         tune_hyperparameter=True,  # #
-                        k_fold=10, n_iter=40,
+                        k_fold=10, n_iter=10,
                         random_searchCV=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'

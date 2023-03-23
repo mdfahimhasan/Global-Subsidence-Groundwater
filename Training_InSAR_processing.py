@@ -221,6 +221,19 @@ def process_EGMS_insar(insar_data_dir='../InSAR_Data/Europe_EGMS/Interim_process
                        output_dir='../InSAR_Data/Europe_EGMS', nodata=No_Data_Value,
                        copy_dir='../InSAR_Data/Final_subsidence_data/interim_working_dir',
                        already_prepared=False, ref_raster=referenceraster):
+    """
+    Processes InSAR devided subsidence data from EGMS portal for Europe.
+
+    Parameters:
+    insar_data_dir: Directory path of EGMS InSAR data.
+    output_dir: Directory path of output folder.
+    nodata: Default set to -9999.
+    copy_dir: Directory path to copy the final (mosaiced + resampled + classified) subsidence Data for Europe.
+    already_prepared: Set to True if want to use already processed data. Default set to False.
+    ref_raster: Reference raster (global) filepath.
+
+    Returns: Filepath of final processed subsidence raster for Europe.
+    """
     if not already_prepared:
         _, ref_file = read_raster_arr_object(ref_raster)
 
