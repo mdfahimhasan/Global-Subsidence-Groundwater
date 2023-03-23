@@ -6,7 +6,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from System_operations import makedirs
-from ML_operations import split_train_test_ratio, build_ml_classifier
+from ML_operations import split_train_test_ratio, \
+    build_ml_classifier
+from sklearn.metrics import f1_score, make_scorer
 from sklearn.inspection import permutation_importance, PartialDependenceDisplay
 
 
@@ -202,9 +204,12 @@ def plot_permutation_importance(train_test_csv='../Model Run/Predictors_csv/trai
 
     predictor_cols = pd.read_csv('../Model Run/permutation_importance/X_test.csv').columns
 
+    # Setting up scoring function for permutation_importance
+    f1_macro = make_scorer(f1_score, average='macro')
+
     # Permutation importance on test set
     result_test = permutation_importance(
-        trained_rf, x_test, y_test, n_repeats=30, random_state=0, n_jobs=-1)
+        trained_rf, x_test, y_test, n_repeats=30, random_state=0, n_jobs=-1, scoring=f1_macro)
 
     sorted_importances_idx = result_test.importances_mean.argsort()
     importances = pd.DataFrame(result_test.importances[sorted_importances_idx].T,
@@ -219,7 +224,7 @@ def plot_permutation_importance(train_test_csv='../Model Run/Predictors_csv/trai
 
     # Permutation importance on train set
     result_train = permutation_importance(
-        trained_rf, x_train, y_train, n_repeats=30, random_state=0, n_jobs=-1)
+        trained_rf, x_train, y_train, n_repeats=30, random_state=0, n_jobs=-1, scoring=f1_macro)
 
     sorted_importances_idx = result_train.importances_mean.argsort()
     importances = pd.DataFrame(result_train.importances[sorted_importances_idx].T,
@@ -233,35 +238,36 @@ def plot_permutation_importance(train_test_csv='../Model Run/Predictors_csv/trai
     plt.savefig(os.path.join(output_dir, f'{plot_keyword}_permutation_imp_train.jpeg'), dpi=200)
 
 
-# # Plot permutation importance
-# # change for fitted_model run
-# drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)', 'GW Irrigation Density giam',
-#                 'MODIS PET (kg/m2)', 'Clay content PCA', 'MODIS Land Use', 'Grace', 'Sediment Thickness (m)',
-#                 'Clay % 200cm', 'Tmin (°C)', 'TRCLM RET (mm)']
-# plot_permutation_importance(exclude_columns=drop_columns, plot_keyword='RF_132')
+# Plot permutation importance
+# change for fitted_model run
+drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+                'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
+                'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
+                'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)']
+# plot_permutation_importance(exclude_columns=drop_columns, plot_keyword='RF_134')
 
 
-def plot_soil_pdp_combinations(train_test_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
+def plot_soil_pdp_combinations(plot_combinations=(('Irrigated Area Density', 'Soil moisture (mm)'),
+                                                  ('ET (mm)', 'Soil moisture (mm)'),
+                                                  ('Precipitation (mm)', 'Soil moisture (mm)')),
+                               plot_keyword='soil',
+                               train_test_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
                                output_dir='../Model Run/PDP_combinations',
                                exclude_columns=('Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                                                 'GW Irrigation Density giam', 'MODIS PET (kg/m2)',
                                                 'Clay content PCA', 'MODIS Land Use', 'Grace',
-                                                'Sediment Thickness (m)', 'Clay % 200cm', 'Tmin (°C)',
-                                                'TRCLM RET (mm)'),
-                               plot_combinations=(('TRCLM ET (mm)', 'Soil moisture (mm)'),
-                                                  ('Precipitation (mm)', 'Soil moisture (mm)'),
-                                                  ('Irrigated Area Density', 'Soil moisture (mm)')),
-                               plot_keyword='soil'):
+                                                'Sediment Thickness (m)', 'Clay % 200cm', 'Tmin (°C)', 'TRCLM RET (mm)')
+                               ):
     """
-    Plots partial dependence plot for combinations of soil mistures and related variables.
+    Plots partial dependence plot for combinations of variables and soil moisture.
 
     Parameters:
+    plot_combinations: Tuple of tuples of predictor combinations.
+    plot_keyword: Keyword to use in saving plot. Default set to 'soil'.
     train_test_csv: Filepath of training data csv.
     output_dir: Filepath of output directory to save results/plots.
     exclude_columns: Tuple of columns to exclude from training dataset. Use the same excluded columns that were dropped
                      during model training.
-    plot_combinations: Tuple of tuples of predictor combinations.
-    plot_keyword: Keyword to use in saving plot. Default set to 'soil'.
 
     Returns: None
     """
@@ -287,7 +293,7 @@ def plot_soil_pdp_combinations(train_test_csv='../Model Run/Predictors_csv/train
     prediction_class = [5]
     pdisp = PartialDependenceDisplay.from_estimator(trained_rf, x_train, features=plot_combinations,
                                                     target=prediction_class[0], response_method='predict_proba',
-                                                    percentiles=(0.05, 0.95), n_jobs=-1, random_state=0,
+                                                    percentiles=(0, 0.999), n_jobs=-1, random_state=0,
                                                     grid_resolution=20)
     plt.rcParams['font.size'] = 14
     fig, ax = plt.subplots(1, 3, figsize=(16, 8))
@@ -309,8 +315,83 @@ def plot_soil_pdp_combinations(train_test_csv='../Model Run/Predictors_csv/train
     fig.savefig((os.path.join(output_dir, f'{plot_keyword}_PDP_{pdp_plot_name}')), dpi=400, bbox_inches='tight')
     print(pdp_plot_name.split('.')[0], 'saved')
 
+
+def plot_river_pdp_combinations(plot_combinations=(('Irrigated Area Density', 'River Distance (km)'),
+                                                   ('Population Density', 'River Distance (km)')),
+                                plot_keyword='river',
+                                train_test_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
+                                output_dir='../Model Run/PDP_combinations',
+                                exclude_columns=('Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+                                                 'GW Irrigation Density giam', 'MODIS PET (kg/m2)',
+                                                 'Clay content PCA', 'MODIS Land Use', 'Grace',
+                                                 'Sediment Thickness (m)', 'Clay % 200cm', 'Tmin (°C)',
+                                                 'TRCLM RET (mm)')
+                                ):
+    """
+    Plots partial dependence plot for combinations of variables and river distance.
+
+    Parameters:
+    plot_combinations: Tuple of tuples of predictor combinations.
+    plot_keyword: Keyword to use in saving plot. Default set to 'river'.
+    train_test_csv: Filepath of training data csv.
+    output_dir: Filepath of output directory to save results/plots.
+    exclude_columns: Tuple of columns to exclude from training dataset. Use the same excluded columns that were dropped
+                     during model training.
+
+    Returns: None
+    """
+    modeldir = '../Model Run/Model'
+    makedirs([output_dir])
+    model = 'rf'
+
+    x_train, x_test, y_train, y_test, _ = \
+        split_train_test_ratio(predictor_csv=train_test_csv, exclude_columns=exclude_columns,
+                               pred_attr='Subsidence', test_size=0.3, random_state=0,
+                               outdir=output_dir, verbose=False)
+
+    trained_rf, predictor_name_dict = \
+        build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
+                            pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=output_dir,
+                            n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14,
+                            max_features=7, class_weight='balanced',
+                            max_samples=None, max_leaf_nodes=None,
+                            estimate_accuracy=False, predictor_imp_keyword=None, predictor_importance=False,
+                            variables_pdp=None, plot_pdp=False,
+                            plot_confusion_matrix=True)
+
+    prediction_class = [5]
+    pdisp = PartialDependenceDisplay.from_estimator(trained_rf, x_train, features=plot_combinations,
+                                                    target=prediction_class[0], response_method='predict_proba',
+                                                    percentiles=(0, 0.999), n_jobs=-1, random_state=0,
+                                                    grid_resolution=20)
+    plt.rcParams['font.size'] = 14
+    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+    pdisp.plot(ax=ax)
+    ax[0].set_title('(a)', y=-0.2)
+    ax[1].set_title('(b)', y=-0.2)
+    fig = plt.gcf()
+    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+    fig.subplots_adjust(wspace=0.35, hspace=0.3)
+
+    # Formatting colorbar
+    import matplotlib.ticker as tick
+    cbar = fig.colorbar((pdisp.contours_[0]), ax=ax)
+    cbar.ax.yaxis.set_major_formatter(tick.FormatStrFormatter('%.2f'))
+    cbar.set_label('Probability of Subsidence between 1-5 cm/year', rotation=90, labelpad=15)
+
+    pdp_plot_name = '1_5cm_subsidence_proba.png'
+    fig.savefig((os.path.join(output_dir, f'{plot_keyword}_PDP_{pdp_plot_name}')), dpi=400, bbox_inches='tight')
+    print(pdp_plot_name.split('.')[0], 'saved')
+
+
+# Plot PDP combinations for soil moisture and river distance
+drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+                'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
+                'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
+                'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)']
+
 # # Plot PDP combinations for soil moisture
-# drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)', 'GW Irrigation Density giam',
-#                 'MODIS PET (kg/m2)', 'Clay content PCA', 'MODIS Land Use', 'Grace', 'Sediment Thickness (m)',
-#                 'Clay % 200cm', 'Tmin (°C)', 'TRCLM RET (mm)']
-# plot_soil_pdp_combinations(exclude_columns=drop_columns)
+# plot_soil_pdp_combinations(plot_combinations=(exclude_columns=drop_columns)
+
+# # Plot PDP combinations for river distance
+# plot_river_pdp_combinations(exclude_columns=drop_columns, plot_keyword='river_distance')

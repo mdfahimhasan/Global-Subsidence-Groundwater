@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report, \
     precision_score, recall_score, f1_score
-from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, StratifiedKFold
+from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, StratifiedKFold, RepeatedStratifiedKFold
 from sklearn.inspection import PartialDependenceDisplay, partial_dependence
 from lightgbm import LGBMClassifier
 from Raster_operations import *
@@ -53,14 +53,14 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
                              'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                              'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                              'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                             'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)',
-                             'MODIS_ET': 'MODIS ET (kg/m2)', 'Irrigated_Area_Density2': 'Irrigated Area Density',
-                             'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
-                             'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
-                             'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
+                             'Irrigated_Area_Density_gfsad': 'Irrigated Area Density (gfsad)',
+                             'MODIS_ET': 'MODIS ET (kg/m2)', 'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
+                             'Irrigated_Area_Density_meier': 'Normalized Irrigated Area Density',
+                             'Population_Density': 'Normalized Population Density', 'SRTM_Slope': '% Slope',
+                             'Subsidence': 'Subsidence', 'TRCLM_RET': 'RET (mm)',
                              'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                              'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                             'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                             'TRCLM_ET': 'ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
                              'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
                              'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
                              'Confining_layers': 'Confining Layers'}
@@ -115,14 +115,14 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
                            'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                            'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                            'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                           'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)',
-                           'MODIS_ET': 'MODIS ET (kg/m2)', 'Irrigated_Area_Density2': 'Irrigated Area Density',
-                           'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
-                           'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
-                           'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
+                           'Irrigated_Area_Density_gfsad': 'Irrigated Area Density (gfsad)',
+                           'MODIS_ET': 'MODIS ET (kg/m2)', 'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
+                           'Irrigated_Area_Density_meier': 'Normalized Irrigated Area Density',
+                           'Population_Density': 'Normalized Population Density', 'SRTM_Slope': '% Slope',
+                           'Subsidence': 'Subsidence', 'TRCLM_RET': 'RET (mm)',
                            'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                            'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                           'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                           'TRCLM_ET': 'ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
                            'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
                            'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
                            'Confining_layers': 'Confining Layers'}
@@ -154,7 +154,8 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     return x_train, x_test, y_train, y_test, predictor_name_dict
 
 
-def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=70, random_search=True):
+def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=70, random_search=True,
+                                repeatedstratified=True):
     """
     Hyperparameter optimization using RandomizedSearchCV/GridSearchCV.
 
@@ -164,6 +165,7 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=7
     folds : Number of folds in K Fold CV. Default set to 5.
     n_iter : Number of parameter combinations to be tested in RandomizedSearchCV.
     random_search : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
+    repeatedstratified : Set to False to perform Stratified CV.
 
     Returns : Optimized Hyperparameters.
     """
@@ -219,7 +221,11 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=7
     #     else:
     #         return {'macro_f1_score': 0}
 
-    kfold = StratifiedKFold(n_splits=folds, shuffle=True, random_state=0)
+    if repeatedstratified:
+        kfold = RepeatedStratifiedKFold(n_splits=folds, n_repeats=10, random_state=0)
+    else:
+        kfold = StratifiedKFold(n_splits=folds, shuffle=True, random_state=0)
+
     if random_search:
         CV = RandomizedSearchCV(estimator=classifier, param_distributions=param_dict[model], n_iter=n_iter,
                                 cv=kfold, verbose=1, random_state=0, n_jobs=-1,
@@ -261,15 +267,18 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=7
 def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf', load_model=False,
                         pred_attr='Subsidence', test_size=0., random_state=0, output_dir=None,
                         n_estimators=300, min_samples_leaf=1, min_samples_split=2, max_depth=20, max_features='auto',
-                        max_samples=None, max_leaf_nodes=None,  ##
+                        max_samples=None, max_leaf_nodes=None,  # #
                         bootstrap=True, oob_score=True, n_jobs=-1, class_weight='balanced',
                         num_leaves=31, max_depth_gbdt=-1, learning_rate=0.01, n_estimators_gbdt=200, subsample=0.9,
                         colsample_bytree=1, min_child_samples=20,
                         estimate_accuracy=True, accuracy_dir=r'../Model Run/Accuracy_score',
                         predictor_importance=False, predictor_imp_keyword='RF',
-                        plot_pdp=False, variables_pdp=('Irrigated Area Density', 'Population Density',
+                        plot_pdp=False, variables_pdp=('Normalized Irrigated Area Density',
+                                                       'Normalized Population Density',
                                                        'Precipitation (mm)', 'Sediment Thickness (m)',
                                                        'Soil moisture (mm)', 'TRCLM ET (mm)'),
+                        pdp_combinations=(('Normalized Irrigated Area Density', 'Normalized Clay Indicator'),
+                                          ('Normalized Irrigated Area Density', 'Soil moisture (mm)')),
                         plot_confusion_matrix=True, cm_name='cmatrix.csv',
                         tune_hyperparameter=False, k_fold=10, n_iter=70, random_searchCV=True):
     """
@@ -382,8 +391,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
         pdp_plot(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword,
                  feature_names=variables_pdp)
         pdp_plot_combinations(classifier, x_train, accuracy_dir, plot_save_keyword=predictor_imp_keyword,
-                              feature_names=(('Irrigated Area Density', 'Normalized Clay Indicator'),
-                                             ('Precipitation (mm)', 'Soil moisture (mm)')))
+                              feature_names=pdp_combinations)
 
     return classifier, predictor_name_dict
 
@@ -496,14 +504,14 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                           'Clay_content_PCA': 'Clay content PCA', 'EVI': 'EVI', 'Grace': 'Grace',
                           'Global_Sediment_Thickness': 'Sediment Thickness (m)',
                           'GW_Irrigation_Density_giam': 'GW Irrigation Density giam',
-                          'Irrigated_Area_Density': 'Irrigated Area Density (gfsad)',
-                          'MODIS_ET': 'MODIS ET (kg/m2)', 'Irrigated_Area_Density2': 'Irrigated Area Density',
-                          'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
-                          'Population_Density': 'Population Density', 'SRTM_Slope': '% Slope',
-                          'Subsidence': 'Subsidence', 'TRCLM_RET': 'TRCLM RET (mm)',
+                          'Irrigated_Area_Density_gfsad': 'Irrigated Area Density (gfsad)',
+                          'MODIS_ET': 'MODIS ET (kg/m2)', 'MODIS_PET': 'MODIS PET (kg/m2)', 'NDWI': 'NDWI',
+                          'Irrigated_Area_Density_meier': 'Normalized Irrigated Area Density',
+                          'Population_Density': 'Normalized Population Density', 'SRTM_Slope': '% Slope',
+                          'Subsidence': 'Subsidence', 'TRCLM_RET': 'RET (mm)',
                           'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                           'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                          'TRCLM_ET': 'TRCLM ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                          'TRCLM_ET': 'ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
                           'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
                           'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
                           'Confining_layers': 'Confining Layers'}
@@ -560,8 +568,9 @@ def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
 
 
 def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
-             feature_names=('Sediment Thickness (m)', 'Irrigated Area Density', 'Population Density',
-                            'Precipitation (mm)', 'Clay Thickness (m)', 'Soil moisture (mm)', 'TRCLM ET (mm)')):
+             feature_names=('Sediment Thickness (m)', 'Normalized Irrigated Area Density',
+                            'Normalized Population Density', 'Precipitation (mm)', 'Clay Thickness (m)',
+                            'Soil moisture (mm)', 'TRCLM ET (mm)')):
     """
     Plot Partial Dependence Plot for the fitted_model.
 
@@ -581,7 +590,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
 
     for each in classes:
         pdisp = PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=each,
-                                                        response_method='predict_proba', percentiles=(0.05, 0.95),
+                                                        response_method='predict_proba', percentiles=(0.05, 1),
                                                         n_jobs=-1, random_state=0, grid_resolution=20)
         for row_idx in range(0, pdisp.axes_.shape[0]):
             pdisp.axes_[row_idx][0].set_ylabel('Partial Dependence')
@@ -591,7 +600,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
         pdp_plot_name = {1: 'PDP less 1cm Subsidence.png', 5: 'PDP 1 to 5cm Subsidence.png',
                          10: 'PDP greater 5cm Subsidence.png'}
         fig.savefig((output_dir + '/' + plot_save_keyword + '_' + pdp_plot_name[each]),
-                    dpi=400, bbox_inches='tight')
+                    dpi=300, bbox_inches='tight')
         print(pdp_plot_name[each].split('.')[0], 'saved')
 
     if 'Confining Layers' in feature_names:
@@ -605,7 +614,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
         plt.ylim([0, 0.25])
         plt.xticks(fontsize=30)
         plt.yticks(fontsize=30)
-        plt.savefig((output_dir + '/' + 'pdp_confining' + '_' + str(classes[i]) + '.png'), dpi=400, bbox_inches='tight')
+        plt.savefig((output_dir + '/' + 'pdp_confining' + '_' + str(classes[i]) + '.png'), dpi=300, bbox_inches='tight')
 
     plt.figure(figsize=(25, 10))
     plt.subplots_adjust(bottom=0.15, top=0.96, left=0.4, right=0.99, wspace=0.2,
@@ -624,11 +633,11 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
         if i == 0:
             plt.ylabel('Partial Dependence', fontsize=20)
     plt.tight_layout()
-    plt.savefig((output_dir + '/' + 'pdp_confining' + '_all' + '.png'), dpi=400, bbox_inches='tight')
+    plt.savefig((output_dir + '/' + 'pdp_confining' + '_all' + '.png'), dpi=300, bbox_inches='tight')
 
 
 def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf',
-                          feature_names=(['Irrigated Area Density', 'Normalized Clay Indicator'],
+                          feature_names=(['Normalized Irrigated Area Density', 'Normalized Clay Indicator'],
                                          ['Precipitation (mm)', 'Soil moisture (mm)'])):
     """
     PDP of 2*2 = 4 variables. Don't include 'Confining Layers'
@@ -646,7 +655,7 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
     prediction_class = [5]
     pdisp = PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names,
                                                        target=prediction_class[0], response_method='predict_proba',
-                                                       percentiles=(0.05, 0.95), n_jobs=-1, random_state=0,
+                                                       percentiles=(0, 0.999), n_jobs=-1, random_state=0,
                                                        grid_resolution=20)
     plt.rcParams['font.size'] = 14
     fig, ax = plt.subplots(1, 2, figsize=(12, 8))

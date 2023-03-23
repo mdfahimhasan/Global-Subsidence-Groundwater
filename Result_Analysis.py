@@ -14,7 +14,6 @@ from Raster_operations import read_raster_arr_object, write_raster, mask_by_ref_
     paste_val_on_ref_raster
 
 No_Data_Value = -9999
-
 referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
 
 

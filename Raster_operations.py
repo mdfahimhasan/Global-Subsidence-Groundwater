@@ -18,7 +18,6 @@ import subprocess
 
 
 No_Data_Value = -9999
-
 referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
 
 

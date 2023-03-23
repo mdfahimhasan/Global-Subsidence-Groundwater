@@ -5,16 +5,12 @@ import ee
 import pickle
 import shutil
 import zipfile
-
-import numpy as np
 import requests
 from Raster_operations import *
 from PCA import *
 from datetime import datetime
-from Training_InSAR_processing import process_primary_insar_data, rasterize_coastal_subsidence
 
 No_Data_Value = -9999
-
 referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
 
 csv = '../Data/Reference_rasters_shapes/GEE_Download_coords_modified.csv'
@@ -787,7 +783,7 @@ def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Sec
                                                      new_value=True, value_new=1, paste_on_ref_raster=True,
                                                      ref_raster=referenceraster)
             gfsad_raster = apply_gaussian_filter(input_raster=filtered_raster, outdir=output_dir,
-                                                 raster_name='Irrigated_Area_Density.tif', ignore_nan=True,
+                                                 raster_name='Irrigated_Area_Density_gfsad.tif', ignore_nan=True,
                                                  normalize=True)
             print('Processed GFSAD1KCM Dataset...')
 
@@ -820,7 +816,7 @@ def prepare_lu_data(gfsad_lu='../Data/Raw_Data/Land_Use_Data/Raw/Global Food Sec
             print('Processed GIAM_GW Dataset')
 
     else:
-        gfsad_raster = '../Data/Resampled_Data/Land_Use/Irrigated_Area_Density.tif'
+        gfsad_raster = '../Data/Resampled_Data/Land_Use/Irrigated_Area_Density_gfsad.tif'
         irrigated_meier_raster = '../Data/Resampled_Data/Land_Use/Irrigated_Area_Density_meier.tif'
         giam_gw_raster = '../Data/Resampled_Data/Land_Use/GW_Irrigation_Density_giam.tif'
 
@@ -1188,165 +1184,6 @@ def download_process_predictor_datasets(yearlist, start_month, end_month, resamp
            clay_thickness_raster, normalized_clay_indicator, popdensity_raster, river_distance, confining_layers
 
 
-def join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygons, exclude_areas=None,
-                                           search_criteria='*Subsidence*.shp'):
-    """
-    Joining georeferenced subsidence polygons.
-
-    Area processed -'Australia_Perth', 'Bangladesh_GBDelta', 'China_Beijing', 'China_Shanghai', 'China_Tianjin',
-    'China_Wuhan', 'China_Xian', 'China_YellowRiverDelta', 'Egypt_NileDelta', 'England_London', 'India_Delhi',
-    'Indonesia_Bandung', 'Indonesia_Semarang', 'Iran_MarandPlain', 'Iran_Tehran', 'Iraq_TigrisEuphratesBasin',
-    'Italy_PoDelta', 'Italy_VeniceLagoon', 'Mexico_MexicoCity', 'Nigeria_Lagos', 'Spain_Murcia', 'Taiwan_Yunlin',
-    'Turkey_Bursa', 'Turkey_Karapinar', 'US_Huston', 'Vietnam_Hanoi', 'Vietnam_HoChiMinh'
-
-    Parameters:
-    input_polygons_dir : Input subsidence polygons' directory.
-    joined_subsidence_polygons : Output joined subsidence polygon filepath.
-    exclude_areas : Tuple of area names to be excluded from processing. Default set to None.
-                    For excluding single area follow tuple pattern ('Bangladesh_GBDelta',)
-    search_criteria : Search criteria for input polygons.
-
-    Returns : Joined subsidence polygon.
-    """
-    # global df
-    subsidence_polygons = glob(os.path.join(input_polygons_dir, search_criteria))
-
-    sep = joined_subsidence_polygons.rfind(os.sep)
-    makedirs([joined_subsidence_polygons[:sep]])  # creating directory for the prepare_subsidence_raster function
-
-    for each in range(0, len(subsidence_polygons)):
-        if each == 0:
-            gdf = gpd.read_file(subsidence_polygons[each])
-            df = pd.DataFrame(gdf)
-
-        gdf_new = gpd.read_file(subsidence_polygons[each])
-        df_new = pd.DataFrame(gdf_new)
-        add_to_df = pd.concat([df, df_new], ignore_index=True)
-        df = add_to_df
-        df['Class_name'] = pd.to_numeric(df['Class_name'], downcast='float')
-
-    if exclude_areas is not None:
-        exclude_areas = list(exclude_areas)
-        areas = list(df['Area_name'].unique())
-        keep_areas = [area for area in areas if area not in exclude_areas]
-        df = df.loc[df['Area_name'].isin(keep_areas)]
-    gdf = gpd.GeoDataFrame(df, geometry='geometry')
-    gdf.to_file(joined_subsidence_polygons)
-    return joined_subsidence_polygons
-
-
-def prepare_subsidence_raster(input_polygons_dir='../InSAR_Data/Georeferenced_subsidence_data',
-                              joined_subsidence_polygon='../InSAR_Data/Merged_subsidence_data'
-                                                        '/interim_working_dir/georef_subsidence_polygons.shp',
-                              insar_data_dir='../InSAR_Data/Merged_subsidence_data/resampled_insar_data',
-                              interim_dir='../InSAR_Data/Merged_subsidence_data/interim_working_dir',
-                              output_dir='../InSAR_Data/Merged_subsidence_data/final_subsidence_raster',
-                              skip_polygon_merge=False, subsidence_column='Class_name', resample_algorithm='near',
-                              final_subsidence_raster='Subsidence_training.tif', exclude_georeferenced_areas=None,
-                              process_insar_areas=('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin',
-                                                   'China_Hebei', 'China_Hefei', 'Colorado'),
-                              polygon_search_criteria='*Subsidence*.shp',
-                              insar_search_criteria='*reclass_resampled*.tif', already_prepared=False,
-                              refraster=referenceraster, merge_coastal_subsidence_data=False):
-    """
-    Prepare subsidence raster for training data by joining georeferenced polygons and insar data.
-
-    Parameters:
-    input_polygons_dir : Input subsidence polygons' directory.
-    joined_subsidence_polygons : Output joined subsidence polygon filepath.
-    insar_data_dir : InSAR data directory.
-    interim_dir : Intermediate working directory for storing interdim data.
-    output_dir : Output raster directory.
-    skip_polygon_merge : Set to True if polygon merge is not required.
-    subsidence_column : Subsidence value column in joined subsidence polygon. Default set to 'Class_name'.
-    resample_algorithm : Algorithm for resampling polygon subsidence data. Default set to 'near'.
-    final_subsidence_raster : Final subsidence raster including georeferenced and insar data.
-    exclude_georeferenced_areas : Tuple of area names to be excluded from processing. Default set to None to include all
-                                  gereferenced areas. For excluding single area follow
-                                  tuple pattern ('Bangladesh_GBDelta',)
-    polygon_search_criteria : Input subsidence polygon search criteria.
-    process_insar_areas : Tuple of insar data regions to be included in the model.
-                          Default set to ('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin', 'China_Hebei',
-                                          'China_Hefei', 'Colorado')
-    insar_search_criteria : InSAR data search criteria.
-    already_prepared : Set to True if subsidence raster is already prepared.
-    refraster : Global Reference raster.
-
-    Returns : Final subsidence raster to be used as training data.
-    """
-
-    if not already_prepared:
-        makedirs([interim_dir, output_dir])
-        if not skip_polygon_merge:
-            print('Processing Subsidence Polygons...')
-            subsidene_polygons = join_georeferenced_subsidence_polygons(input_polygons_dir, joined_subsidence_polygon,
-                                                                        exclude_georeferenced_areas,
-                                                                        polygon_search_criteria)
-        else:
-            subsidene_polygons = joined_subsidence_polygon
-
-        interim_georeferenced_subsidence = \
-            shapefile_to_raster(subsidene_polygons, interim_dir, resolution=0.005,
-                                raster_name='interim_subsidence_raster_0005.tif', use_attr=True,
-                                attribute=subsidence_column, ref_raster=refraster, alltouched=False)
-        georeferenced_subsidence = resample_reproject(interim_georeferenced_subsidence, interim_dir,
-                                                      raster_name='interim_subsidence_raster.tif', resample=True,
-                                                      reproject=False, both=False,
-                                                      resample_algorithm=resample_algorithm)
-
-        print('Processed Subsidence Polygons')
-
-        print('Processing InSAR Data...')
-
-        process_primary_insar_data(processing_areas=process_insar_areas, output_dir=insar_data_dir)
-        insar_arr, merged_insar = mosaic_rasters(insar_data_dir, interim_dir, raster_name='joined_insar_data.tif',
-                                                 ref_raster=refraster, search_by=insar_search_criteria, resolution=0.02)
-
-        final_subsidence_arr, subsidence_data = mosaic_two_rasters(merged_insar, georeferenced_subsidence, output_dir,
-                                                                   final_subsidence_raster, resolution=0.02)
-
-        if merge_coastal_subsidence_data:
-            coastal_raster = rasterize_coastal_subsidence(mean_output_points='../InSAR_Data/Coastal_Subsidence'
-                                                                             '/filtered_mean_point.shp',
-                                                          output_dir='../InSAR_Data/Coastal_Subsidence',
-                                                          input_csv='../InSAR_Data/Coastal_Subsidence/Fig3_data.csv')
-            coastal_arr = read_raster_arr_object(coastal_raster, get_file=False)
-            ref_arr, ref_file = read_raster_arr_object(refraster)
-
-            # New_classes
-            sub_less_1cm = 1
-            sub_1cm_to_5cm = 5
-            sub_greater_5cm = 10
-            other_values = np.nan
-
-            coastal_arr = np.where(coastal_arr >= 0, other_values, coastal_arr)
-            coastal_arr = np.where(coastal_arr >= -1, sub_less_1cm, coastal_arr)
-            coastal_arr = np.where((coastal_arr < -1) & (coastal_arr >= -5), sub_1cm_to_5cm, coastal_arr)
-            coastal_arr = np.where(coastal_arr < -5, sub_greater_5cm, coastal_arr)
-            coastal_arr = coastal_arr.flatten()
-
-            final_subsidence_arr = final_subsidence_arr.flatten()
-            final_subsidence_arr = np.where(final_subsidence_arr > 0, final_subsidence_arr, coastal_arr)
-
-            # filtering pixels of coastal subsidence that has been added to final subsidence raster
-            coastal_arr_used = np.where(np.logical_and(coastal_arr > 0, coastal_arr == final_subsidence_arr),
-                                        coastal_arr, np.nan)
-            coastal_arr_used = coastal_arr_used.reshape(ref_file.shape[0], ref_file.shape[1])
-            coastal_subsidence_raster = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data' \
-                                        '/Coastal_subsidence.tif'
-            write_raster(coastal_arr_used, ref_file, ref_file.transform, coastal_subsidence_raster, ref_file=refraster)
-
-            final_subsidence_arr = final_subsidence_arr.reshape(ref_file.shape[0], ref_file.shape[1])
-            write_raster(final_subsidence_arr, ref_file, ref_file.transform, subsidence_data, ref_file=refraster)
-
-        print('Created Final Subsidence Raster')
-        return subsidence_data
-
-    else:
-        subsidence_data = os.path.join(output_dir, final_subsidence_raster)
-        return subsidence_data
-
-
 def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam_gw_data, irrigated_meier_data,
                                        sediment_thickness_data, clay_thickness_data, normalized_clay_indicator,
                                        popdensity_data, river_distance_data, confining_layer_data, subsidence_data,
@@ -1381,7 +1218,7 @@ def compile_predictors_subsidence_data(gee_data_dict, gfsad_irrigated_area, giam
         rename_copy_raster(gfsad_irrigated_area, output_dir, rename=False)
         rename_copy_raster(gfsad_irrigated_area, output_dir, rename=False)
         rename_copy_raster(giam_gw_data, output_dir, rename=False)
-        rename_copy_raster(irrigated_meier_data, output_dir, rename=True, new_name='Irrigated_Area_Density2.tif')
+        rename_copy_raster(irrigated_meier_data, output_dir, rename=True, new_name='Irrigated_Area_Density_meier.tif')
         rename_copy_raster(sediment_thickness_data, output_dir, rename=False)
         rename_copy_raster(clay_thickness_data, output_dir, rename=False)
         rename_copy_raster(normalized_clay_indicator, output_dir, rename=False)

@@ -3,8 +3,9 @@
 
 import timeit
 import warnings
-from Data_operations import *
 from ML_operations import *
+from Data_operations import *
+from Training_InSAR_processing import prepare_subsidence_raster
 
 
 warnings.simplefilter(action='ignore', category=FutureWarning)  # to ignore future warning coming from pandas
@@ -46,10 +47,11 @@ gee_raster_dict, gfsad_raster, irrigated_meier_raster, giam_gw_raster, \
                                         geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
 
 input_polygons_dir = '../InSAR_Data/Georeferenced_subsidence_data'
-joined_subsidence_polygon = '../InSAR_Data/Merged_subsidence_data/interim_working_dir/georef_subsidence_polygons.shp'
-insar_data_dir = '../InSAR_Data/Merged_subsidence_data/resampled_insar_data'
-interim_dir = '../InSAR_Data/Merged_subsidence_data/interim_working_dir'
-training_insar_dir = '../InSAR_Data/Merged_subsidence_data/final_subsidence_raster'
+joined_subsidence_polygon = '../InSAR_Data/Final_subsidence_data/interim_working_dir/georef_subsidence_polygons.shp'
+insar_data_dir = '../InSAR_Data/Final_subsidence_data/resampled_insar_data'
+EGMS_insar_dir = '../InSAR_Data/Europe_EGMS/Interim_processing'
+interim_dir = '../InSAR_Data/Final_subsidence_data/interim_working_dir'
+training_insar_dir = '../InSAR_Data/Final_subsidence_data/final_subsidence_raster'
 
 # # skip_polygon_merge = False if new georeferenced subsidence polygons needs to be added
 # # already prepared = False if new georeferenced subsidence polygons needs to be added/new InSAR processed subsidence
@@ -57,16 +59,20 @@ training_insar_dir = '../InSAR_Data/Merged_subsidence_data/final_subsidence_rast
 exclude_areas = None  # if all areas are to be included, set None.
 include_insar_areas = ('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin', 'China_Hebei', 'China_Hefei',
                        'Colorado')
-subsidence_raster = prepare_subsidence_raster(input_polygons_dir, joined_subsidence_polygon,
-                                              insar_data_dir, interim_dir, training_insar_dir,
-                                              subsidence_column='Class_name', resample_algorithm='near',
-                                              polygon_search_criteria='*Subsidence*.shp',
-                                              insar_search_criteria='*reclass_resampled*.tif',
-                                              exclude_georeferenced_areas=exclude_areas,
-                                              process_insar_areas=include_insar_areas,
-                                              skip_polygon_merge=True,  # #
-                                              already_prepared=True,  # #
-                                              merge_coastal_subsidence_data=True)
+
+subsidence_raster =\
+    prepare_subsidence_raster(input_polygons_dir=input_polygons_dir, joined_subsidence_polygon=joined_subsidence_polygon,
+                              insar_data_dir=insar_data_dir, EGMS_insar_dir=EGMS_insar_dir, interim_dir=interim_dir,
+                              output_dir=training_insar_dir, subsidence_column='Class_name',
+                              resample_algorithm='near', final_subsidence_raster='Subsidence_training.tif',
+                              exclude_georeferenced_areas=None,
+                              process_insar_areas=('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin',
+                                                   'China_Hebei', 'China_Hefei', 'Colorado'),
+                              polygon_search_criteria='*Subsidence*.shp',
+                              insar_search_criteria='*reclass_resampled*.tif',
+                              skip_polygon_merge=False,  # #
+                              already_prepared=True,  # #
+                              merge_coastal_subsidence_data=True)
 
 predictor_dir = '../Model Run/Predictors_2013_2019'
 
@@ -83,7 +89,7 @@ train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 
 # # skip_dataframe_creation = False if any change occur in predictors or subsidence data
 predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif',
-                                skip_dataframe_creation=False)  # #
+                                skip_dataframe_creation=True)  # #
 
 modeldir = '../Model Run/Model'
 model = 'rf'
@@ -92,15 +98,16 @@ model = 'rf'
 exclude_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                    'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
                    'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
-                   'Tmin (°C)', 'TRCLM RET (mm)', 'Clay Thickness (m)']
+                   'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)']
 # 'EVI', 'NDWI', 'Soil moisture (mm)', '% Slope', 'Precipitation (mm)',
-# 'Tmax (°C)', 'TRCLM RET (mm)', 'TRCLM ET (mm)']
+# 'Tmax (°C)', 'ET (mm)']
 
-variables_in_pdp = ('Normalized Clay Indicator', 'Irrigated Area Density', 'Population Density',
-                    'Precipitation (mm)', 'Soil moisture (mm)', 'River Distance (km)',
-                    'TRCLM ET (mm)', 'Confining Layers')
-
-prediction_raster_keyword = 'RF133'
+variables_in_pdp = ('Soil moisture (mm)', 'River Distance (km)', 'Normalized Clay Indicator',
+                    'Normalized Irrigated Area Density', 'Normalized Population Density', 'Tmax (°C)',
+                    'Precipitation (mm)', 'ET (mm)', 'Confining Layers')
+pdp_combinations = (('Normalized Irrigated Area Density', 'Normalized Clay Indicator'),
+                    ('Precipitation (mm)', 'Soil moisture (mm)'))
+prediction_raster_keyword = 'RF134'
 
 # # predictor_importance = False if predictor importance plot is not required
 # # plot_pdp = False if partial dependence plots are not required
@@ -115,9 +122,10 @@ ML_model, predictor_name_dict = \
                         predictor_imp_keyword=prediction_raster_keyword,
                         predictor_importance=True,  # #
                         variables_pdp=variables_in_pdp, plot_pdp=True,  # #
+                        pdp_combinations=pdp_combinations,
                         plot_confusion_matrix=True,  # #
-                        tune_hyperparameter=False,  # #
-                        k_fold=10, n_iter=80,
+                        tune_hyperparameter=True,  # #
+                        k_fold=10, n_iter=40,
                         random_searchCV=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
@@ -131,7 +139,7 @@ create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist
                          continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                          prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns,
                          pred_attr='Subsidence', prediction_raster_keyword=prediction_raster_keyword,
-                         predictor_csv_exists=False,  # #
+                         predictor_csv_exists=True,  # #
                          predict_probability_greater_1cm=True)  # #
 
 model_runtime = True
