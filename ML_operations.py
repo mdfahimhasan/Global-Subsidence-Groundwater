@@ -155,7 +155,7 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
 
 
 def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=70, random_search=True,
-                                repeatedstratified=True):
+                                repeatedstratified=False):
     """
     Hyperparameter optimization using RandomizedSearchCV/GridSearchCV.
 
@@ -171,7 +171,7 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=7
     """
     global classifier
     param_dict = {'rf':
-                      {'n_estimators': [100, 200, 300],
+                      {'n_estimators': [100, 200, 300, 400, 500],
                        'max_depth': [8, 12,  13, 14],
                        'max_features': [6, 7, 9, 10],
                        'min_samples_leaf': [5e-4, 1e-5, 1e-3, 6, 12, 20, 25],
@@ -280,7 +280,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
                         pdp_combinations=(('Normalized Irrigated Area Density', 'Normalized Clay Indicator'),
                                           ('Normalized Irrigated Area Density', 'Soil moisture (mm)')),
                         plot_confusion_matrix=True, cm_name='cmatrix.csv',
-                        tune_hyperparameter=False, k_fold=10, n_iter=70, random_searchCV=True):
+                        tune_hyperparameter=False, repeatedstratified=False, k_fold=10, n_iter=70, random_searchCV=True):
     """
     Build Machine Learning Classifier. Can run 'Random Forest', 'Gradient Boosting Decision Tree'.
 
@@ -321,6 +321,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     plot_confusion_matrix : Set to True if want to plot confusion matrix.
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     tune_hyperparameter : Set to True to tune hyperparameter. Default set to False.
+    repeatedstratified : Set to False to perform Stratified CV. Default set to False.
     k_fold : number of folds in K-fold CV. Default set to 5.
     n_iter : Number of parameter combinations to be tested in RandomizedSearchCV. Default set to 70.
     random_searchCV : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
@@ -341,7 +342,8 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     # Hyperparamter Tuning
     if tune_hyperparameter:
         optimized_param_dict = hyperparameter_optimization(x_train, y_train, model=model, folds=k_fold, n_iter=n_iter,
-                                                           random_search=random_searchCV)
+                                                           random_search=random_searchCV,
+                                                           repeatedstratified=repeatedstratified)
         if model == 'rf':
             n_estimators = optimized_param_dict['n_estimators']
             max_depth = optimized_param_dict['max_depth']

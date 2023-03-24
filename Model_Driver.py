@@ -107,7 +107,7 @@ variables_in_pdp = ('Soil moisture (mm)', 'River Distance (km)', 'Normalized Cla
                     'Precipitation (mm)', 'ET (mm)', 'Confining Layers')
 pdp_combinations = (('Normalized Irrigated Area Density', 'Normalized Clay Indicator'),
                     ('Precipitation (mm)', 'Soil moisture (mm)'))
-prediction_raster_keyword = 'RF134'
+prediction_raster_keyword = 'RF136'
 
 # # predictor_importance = False if predictor importance plot is not required
 # # plot_pdp = False if partial dependence plots are not required
@@ -115,8 +115,8 @@ prediction_raster_keyword = 'RF134'
 ML_model, predictor_name_dict = \
     build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                         pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                        n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14,
-                        max_features=7, class_weight='balanced',
+                        n_estimators=300, min_samples_leaf=1e-05, min_samples_split=6, max_depth=14,
+                        max_features=9, class_weight='balanced',
                         max_samples=None, max_leaf_nodes=None,
                         estimate_accuracy=True,
                         predictor_imp_keyword=prediction_raster_keyword,
@@ -124,8 +124,9 @@ ML_model, predictor_name_dict = \
                         variables_pdp=variables_in_pdp, plot_pdp=True,  # #
                         pdp_combinations=pdp_combinations,
                         plot_confusion_matrix=True,  # #
-                        tune_hyperparameter=True,  # #
-                        k_fold=10, n_iter=10,
+                        tune_hyperparameter=False,  # #
+                        k_fold=10, n_iter=80,
+                        repeatedstratified=False,  # #  if False performs StratifiedKFold
                         random_searchCV=True)  # #
 
 predictors_dir = '../Model Run/Predictors_2013_2019'
