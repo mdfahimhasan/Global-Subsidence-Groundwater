@@ -104,7 +104,7 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
     axs[1].set_xlabel('(b)', fontsize=18)
     axs[1].set_ylabel('Groundwater Storage Loss \n due to Consolidation \n (km$^{3}$/year) (log-scale)', fontsize=18)
 
-    fig.tight_layout(pad=1, w_pad=1, h_pad=1)
+    fig.tight_layout(pad=1.2, w_pad=1, h_pad=1)
 
     plot_name = '../Model Run/Stats' + '/' + 'top_subsidence_stat_by_countries_type_02.png'
     plt.savefig(plot_name, dpi=500, bbox_inches='tight')
@@ -274,12 +274,11 @@ def plot_soil_pdp_combinations(plot_combinations=(('Normalized Irrigated Area De
     trained_rf, predictor_name_dict = \
         build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                             pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=output_dir,
-                            n_estimators=300, min_samples_leaf=1e-05, min_samples_split=6, max_depth=14,
-                            max_features=9, class_weight='balanced',
-                            max_samples=None, max_leaf_nodes=None,
+                            n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14, max_features=7,
+                            max_samples=None, max_leaf_nodes=None, class_weight='balanced',
                             estimate_accuracy=False, predictor_imp_keyword=None, predictor_importance=False,
                             variables_pdp=None, plot_pdp=False,
-                            plot_confusion_matrix=True)
+                            plot_confusion_matrix=False)
 
     prediction_class = [5]
     pdisp = PartialDependenceDisplay.from_estimator(trained_rf, x_train, features=plot_combinations,
@@ -343,12 +342,11 @@ def plot_river_pdp_combinations(plot_combinations=(('Normalized Irrigated Area D
     trained_rf, predictor_name_dict = \
         build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                             pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=output_dir,
-                            n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14,
-                            max_features=7, class_weight='balanced',
-                            max_samples=None, max_leaf_nodes=None,
+                            n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14, max_features=7,
+                            max_samples=None, max_leaf_nodes=None, class_weight='balanced',
                             estimate_accuracy=False, predictor_imp_keyword=None, predictor_importance=False,
                             variables_pdp=None, plot_pdp=False,
-                            plot_confusion_matrix=True)
+                            plot_confusion_matrix=False)
 
     prediction_class = [5]
     pdisp = PartialDependenceDisplay.from_estimator(trained_rf, x_train, features=plot_combinations,
@@ -375,19 +373,18 @@ def plot_river_pdp_combinations(plot_combinations=(('Normalized Irrigated Area D
     print(pdp_plot_name.split('.')[0], 'saved')
 
 
-
 # change for fitted_model run
 drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                 'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
                 'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
                 'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)']
-
+#
 # # Plot permutation importance
-# plot_permutation_importance(exclude_columns=drop_columns, plot_keyword='RF_136')
-#
-# # # Plot PDP combinations for soil moisture and river distance
+# plot_permutation_importance(exclude_columns=drop_columns, plot_keyword='RF_137')
+
+# # Plot PDP combinations for soil moisture and river distance
 # # Plot PDP combinations for soil moisture
-# plot_soil_pdp_combinations(exclude_columns=drop_columns)
-#
+plot_soil_pdp_combinations(exclude_columns=drop_columns)
+
 # # Plot PDP combinations for river distance
-# plot_river_pdp_combinations(exclude_columns=drop_columns, plot_keyword='river_distance')
+plot_river_pdp_combinations(exclude_columns=drop_columns, plot_keyword='river_distance')

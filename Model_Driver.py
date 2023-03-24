@@ -107,7 +107,7 @@ variables_in_pdp = ('Soil moisture (mm)', 'River Distance (km)', 'Normalized Cla
                     'Precipitation (mm)', 'ET (mm)', 'Confining Layers')
 pdp_combinations = (('Normalized Irrigated Area Density', 'Normalized Clay Indicator'),
                     ('Precipitation (mm)', 'Soil moisture (mm)'))
-prediction_raster_keyword = 'RF136'
+prediction_raster_keyword = 'RF137'
 
 # # predictor_importance = False if predictor importance plot is not required
 # # plot_pdp = False if partial dependence plots are not required
@@ -115,9 +115,8 @@ prediction_raster_keyword = 'RF136'
 ML_model, predictor_name_dict = \
     build_ml_classifier(train_test_csv, modeldir, exclude_columns, model, load_model=False,
                         pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=csv_dir,
-                        n_estimators=300, min_samples_leaf=1e-05, min_samples_split=6, max_depth=14,
-                        max_features=9, class_weight='balanced',
-                        max_samples=None, max_leaf_nodes=None,
+                        n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14, max_features=7,
+                        max_samples=None, max_leaf_nodes=None, class_weight='balanced',
                         estimate_accuracy=True,
                         predictor_imp_keyword=prediction_raster_keyword,
                         predictor_importance=True,  # #

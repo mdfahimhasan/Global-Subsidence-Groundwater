@@ -23,10 +23,8 @@ referenceraster = '../Data/Reference_rasters_shapes/Global_continents_ref_raster
 def reindex_df(df):
     """
     Reindex dataframe based on column names.
-
     Parameters:
     df : Pandas dataframe.
-
     Returns: Reindexed dataframe.
     """
     sorted_columns = sorted(df.columns)
@@ -38,13 +36,11 @@ def reindex_df(df):
 def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataframe_creation=False):
     """
     create dataframe from predictor rasters.
-
     Parameters:
     input_raster_dir : Input rasters directory.
     output_csv : Output csv file with filepath.
     search_by : Input raster search criteria. Defaults to '*.tif'.
     skip_predictor_subsidence_compilation : Set to True if want to skip processing.
-
     Returns: predictor_df dataframe created from predictor rasters.
     """
     print('Creating Predictors csv...')
@@ -98,7 +94,6 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
                            outdir=None, verbose=True):
     """
     Split dataset into train and test data based on a ratio
-
     parameters:
     input_csv : Input csv (with filepath) containing all the predictors.
     exclude_columns : Tuple of columns not included in training the fitted_model.
@@ -107,7 +102,6 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
     random_state : Seed value. Defaults to 0.
     output_dir : Set a output directory if training and test dataset need to be saved. Defaults to None.
     verbose : Set to True if want to print which columns are being dropped and which will be included in the model.
-
     Returns: X_train, X_test, y_train, y_test
     """
     input_df = pd.read_csv(predictor_csv)
@@ -158,7 +152,6 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=7
                                 repeatedstratified=False):
     """
     Hyperparameter optimization using RandomizedSearchCV/GridSearchCV.
-
     Parameters:
     x_train, y_train : x_train (predictor) and y_train (target) arrays from split_train_test_ratio function.
     mode : Model for which hyperparameters will be tuned. Should be 'rf'/'gbdt'. Default set to 'rf'.
@@ -166,7 +159,6 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=7
     n_iter : Number of parameter combinations to be tested in RandomizedSearchCV.
     random_search : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
     repeatedstratified : Set to False to perform Stratified CV.
-
     Returns : Optimized Hyperparameters.
     """
     global classifier
@@ -283,7 +275,6 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
                         tune_hyperparameter=False, repeatedstratified=False, k_fold=10, n_iter=70, random_searchCV=True):
     """
     Build Machine Learning Classifier. Can run 'Random Forest', 'Gradient Boosting Decision Tree'.
-
     Parameters:
     predictor_dataframe_csv : Predictor csv (with filepath) containing all the predictors.
     modeldir : Model directory to store/load fitted_model.
@@ -325,7 +316,6 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
     k_fold : number of folds in K-fold CV. Default set to 5.
     n_iter : Number of parameter combinations to be tested in RandomizedSearchCV. Default set to 70.
     random_searchCV : Set to False if want to perform GridSearchCV. Default set to True to perform RandomizedSearchCV.
-
     Returns: rf_classifier (A fitted random forest fitted_model)
     """
 
@@ -403,7 +393,6 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                             predictor_importance=False, predictor_imp_keyword='RF', plot_confusion_matrix=True):
     """
     Classification accuracy assessment.
-
     Parameters:
     x_train : x_train from 'split_train_test_ratio' function.
     x_test :  x_test from 'split_train_test_ratio' function.
@@ -414,7 +403,6 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
     cm_name : Confusion matrix name. Defaults to 'cmatrix.csv'.
     predictor_importance : Set True if predictor importance plot is needed. Defaults to False.
     predictor_imp_keyword : Keyword to save predictor important plot.
-
     Returns: Confusion matrix, score and predictor importance graph.
     """
     makedirs([accuracy_dir])
@@ -540,12 +528,10 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
 def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
     """
     Save fitted_model accuracy parameters as csv.
-
     Parameters:
     cm_df_test : Confusion matrix dataframe (input from 'classification_accuracy' function).
     overall_accuracy : Overall accuracy value (input from 'classification_accuracy' function).
     accuracy_csv_name : Name of the csv file to save.
-
     Returns : Saved csv with fitted_model accuracy values.
     """
     from operator import truediv
@@ -575,14 +561,12 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
                             'Soil moisture (mm)', 'TRCLM ET (mm)')):
     """
     Plot Partial Dependence Plot for the fitted_model.
-
     Parameters:
     classifier :ML fitted_model classifier.
     x_train : X train array.
     output_dir : Output directory path to save the plots.
     plot_save_keyword : Keyword to sum before saved PDP plots.
     feature_names : Tuple of variable names to plot in pdp plot.
-
     Returns : PDP plots.
     """
     global vals, probability
@@ -643,7 +627,6 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
                                          ['Precipitation (mm)', 'Soil moisture (mm)'])):
     """
     PDP of 2*2 = 4 variables. Don't include 'Confining Layers'
-
     Parameters:
     classifier :ML fitted_model classifier.
     x_train : X train array.
@@ -651,7 +634,6 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
     plot_save_keyword : Keyword to sum before saved PDP plots.
     feature_names : Tuple of variable names to plot in pdp plot. For combined PDP of 2 variables put the variables in a
                     tuple like ('Precipitation (mm)', 'Soil moisture (mm)').
-
     Returns : PDP plots.
     """
     prediction_class = [5]
@@ -716,7 +698,6 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
                              prediction_raster_keyword='rf', predict_probability_greater_1cm=True):
     """
     Create predicted raster from random forest fitted_model.
-
     Parameters:
     predictors_dir : Predictor rasters' directory.
     fitted_model : A fitted fitted_model obtained from random_forest_classifier function.
@@ -733,7 +714,6 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
     prediction_raster_keyword : Keyword added to final prediction raster name.
     predict_probability_greater_1cm : Set to False if probability of prediction of each classes (<1cm, 1-5cm, >5cm)
                                       is required. Default set to True to predict probability of prediction for >1cm.
-
     Returns: Subsidence prediction raster and
              Subsidence prediction probability raster (if prediction_probability=True).
     """

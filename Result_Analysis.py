@@ -102,7 +102,7 @@ def prediction_landuse_stat(model_prediction, land_use='../Model Run/Predictors_
     stat_df.to_excel(out_excel, index=True)
 
 
-# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF136_prediction_2013_2019.tif',
+# prediction_landuse_stat(model_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019.tif',
 #                         land_use='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif')
 
 
@@ -275,7 +275,7 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
 
 
 # area_subsidence_by_country(
-#     subsidence_prediction='../Model Run/Prediction_rasters/RF136_prediction_2013_2019.tif')
+#     subsidence_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019.tif')
 
 
 def subsidence_on_aridity(subsidence_prediction, outdir='../Model Run/Stats'):
@@ -320,7 +320,7 @@ def subsidence_on_aridity(subsidence_prediction, outdir='../Model Run/Stats'):
     df.to_excel(os.path.join(outdir, 'subsidence_perc_by_aridity.xlsx'), index=False)
 
 
-# subsidence_on_aridity(subsidence_prediction='../Model Run/Prediction_rasters/RF136_prediction_2013_2019.tif')
+# subsidence_on_aridity(subsidence_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019.tif')
 
 
 def classify_gw_depletion_data(input_raster='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr.tif',
@@ -360,7 +360,7 @@ def classify_gw_depletion_data(input_raster='../Data/result_comparison_Wada/geor
 
 
 def comparison_subsidence_depletion(
-        subsidence_prediction='../Model Run/Prediction_rasters/RF127_prediction_2013_2019.tif',
+        subsidence_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019.tif',
         depletion_data='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr_classified.tif',
         outdir='../Model Run/Stats/prediction_comparison'):
     """
@@ -405,7 +405,7 @@ def comparison_subsidence_depletion(
 
 def country_landuse_subsiding_stats(countries='../shapefiles/Country_continent_full_shapes/World_countries.shp',
                                     landuse='../Model Run/Predictors_2013_2019/MODIS_Land_Use.tif',
-                                    model_prediction='../Model Run/Prediction_rasters/RF136_prediction_2013_2019.tif',
+                                    model_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019.tif',
                                     outdir='../Model Run/Stats'):
     """
     calculate % of country's crop and urban areas subsiding. Used MODIS Land Use data where cropland=3 and urban=4.
@@ -413,7 +413,7 @@ def country_landuse_subsiding_stats(countries='../shapefiles/Country_continent_f
     Parameters:
     countries: filepath of global country shapefile.
     landuse: filepath of land use raster data. Default set to MODIS Land Use data.
-    model_prediction: filepath of model predicted subsidence. Default set to model 1367.
+    model_prediction: filepath of model predicted subsidence. Default set to model 137.
     outdir: filepath of output directory.
 
     Returns: An excel file with country level subsidence stats on cropland and urban areas.
@@ -467,7 +467,7 @@ def country_landuse_subsiding_stats(countries='../shapefiles/Country_continent_f
 
 def country_subsidence_on_aridity_stats(countries='../shapefiles/Country_continent_full_shapes/World_countries.shp',
                                         aridity='../Model Run/Predictors_2013_2019/Aridity_Index.tif',
-                                        model_prediction='../Model Run/Prediction_rasters/RF136_prediction_2013_2019'
+                                        model_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019'
                                                          '.tif',
                                         outdir='../Model Run/Stats'):
     """
@@ -483,7 +483,7 @@ def country_subsidence_on_aridity_stats(countries='../shapefiles/Country_contine
     Parameters:
     countries: filepath of global country shapefile.
     aridity: filepath of aridity raster data.
-    model_prediction: filepath of model predicted subsidence. Default set to model 136.
+    model_prediction: filepath of model predicted subsidence. Default set to model 137.
     outdir: filepath of output directory.
 
     Returns: An excel file with country level aridity stats.
@@ -540,14 +540,14 @@ def country_subsidence_on_aridity_stats(countries='../shapefiles/Country_contine
 
 
 def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shapes/World_countries.shp',
-                           model_prediction='../Model Run/Prediction_rasters/RF136_prediction_2013_2019.tif',
+                           model_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019.tif',
                            outdir='../Model Run/Stats'):
     """
     Calculates average volume of permanent groundwater storage loss in confined aquifer country-wise.
 
     Parameters:
     countries: filepath of global country shapefile.
-    model_prediction: filepath of model predicted subsidence. Default set to model 136.
+    model_prediction: filepath of model predicted subsidence. Default set to model 137.
     outdir: filepath of output directory.
 
     Returns: An excel file with country level average gw storage loss stats.
