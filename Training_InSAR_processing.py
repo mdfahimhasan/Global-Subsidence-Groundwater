@@ -238,7 +238,7 @@ def process_EGMS_insar(insar_data_dir='../InSAR_Data/Europe_EGMS/Interim_process
         _, ref_file = read_raster_arr_object(ref_raster)
 
         makedirs(insar_data_dir)
-        EGMS_insar_data = glob(os.path.join(insar_data_dir, '*[Clipped-Merged]*.tif'))
+        EGMS_insar_data = glob(os.path.join(insar_data_dir, '*[Clipped-Merged].tif'))
 
         # Removing positive (uplift) values
         for data in EGMS_insar_data:

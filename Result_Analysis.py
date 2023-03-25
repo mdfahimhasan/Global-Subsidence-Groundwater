@@ -624,14 +624,14 @@ def process_TWS_GFA(input_file='../Data/Raw_Data/TWS_trend_GFA/41586_2018_123_MO
     original_raster = os.path.join(outdir, 'TWS_original.tif')
 
     with rio.open(original_raster, 'w',
-                       driver='GTiff',
-                       height=arr.shape[0],
-                       width=arr.shape[1],
-                       dtype=arr.dtype,
-                       crs='EPSG:4326',
-                       transform=(cellsize, 0.0, first_x, 0.0, -cellsize, first_y),
-                       nodata=nodata,
-                       count=1) as dest:
+                  driver='GTiff',
+                  height=arr.shape[0],
+                  width=arr.shape[1],
+                  dtype=arr.dtype,
+                  crs='EPSG:4326',
+                  transform=(cellsize, 0.0, first_x, 0.0, -cellsize, first_y),
+                  nodata=nodata,
+                  count=1) as dest:
         dest.write(arr, 1)
 
     mask_by_ref_raster(input_raster=original_raster, outdir=outdir, raster_name='TWS_interim.tif',
@@ -672,6 +672,5 @@ def subsidence_on_TWS(subsidence_train_data='../Model Run/Predictors_2013_2019/S
 
     analysis_df = pd.DataFrame(analysis_dict, index=[0])
     analysis_df.to_excel(output_file, index=False)
-
 
 # subsidence_on_TWS()
