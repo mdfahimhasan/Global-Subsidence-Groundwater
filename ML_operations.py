@@ -164,7 +164,7 @@ def hyperparameter_optimization(x_train, y_train, model='rf', folds=10, n_iter=7
     global classifier
     param_dict = {'rf':
                       {'n_estimators': [100, 200, 300, 400, 500],
-                       'max_depth': [8, 12,  13, 14],
+                       'max_depth': [8, 12, 13, 14],
                        'max_features': [6, 7, 9, 10],
                        'min_samples_leaf': [5e-4, 1e-5, 1e-3, 6, 12, 20, 25],
                        'min_samples_split': [6, 7, 8, 10]
