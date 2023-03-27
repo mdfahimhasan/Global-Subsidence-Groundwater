@@ -797,7 +797,7 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
 
             for variable_name, nan_pos in nan_position_dict.items():
                 if variable_name not in drop_columns:
-                    y_pred[nan_pos] = raster_file.nodata
+                    y_pred_proba[nan_pos] = raster_file.nodata
 
             y_pred_proba_arr = y_pred_proba.reshape(raster_shape)
 
