@@ -673,4 +673,27 @@ def subsidence_on_TWS(subsidence_train_data='../Model Run/Predictors_2013_2019/S
     analysis_df = pd.DataFrame(analysis_dict, index=[0])
     analysis_df.to_excel(output_file, index=False)
 
+
 # subsidence_on_TWS()
+
+
+def count_subsidence_pixels_EGMS_data(
+        EGMS_reclass_resampled_data='../InSAR_Data/Europe_EGMS/Europe_Subsidence_reclass_resampled.tif'):
+    """
+    Counts number of pixels in each model subsidence class in EGMS subsidence training data. Generates an excel.
+
+    Parameters:
+    EGMS_reclass_resampled_data: Filepath of reclass-resampled EGMS subsidence training data.
+
+    Returns: None.
+    """
+    egms_arr = read_raster_arr_object(EGMS_reclass_resampled_data, get_file=False)
+
+    pixel_count_dict = {'pixels_less_1_cm': np.count_nonzero(np.where(egms_arr == 1, 1, 0)),
+                        'pixels_1_to_5_cm': np.count_nonzero(np.where(egms_arr == 5, 1, 0)),
+                        'pixels_greater_5_cm': np.count_nonzero(np.where(egms_arr == 10, 1, 0))}
+    pixel_count_df = pd.DataFrame(pixel_count_dict, index=[0])
+    pixel_count_df.to_excel('../Model Run/Stats/EGMS_total_subsidence_pixel_count.xlsx')
+
+
+# count_subsidence_pixels_EGMS_data()

@@ -269,7 +269,6 @@ def process_EGMS_insar(insar_data_dir='../InSAR_Data/Europe_EGMS/Interim_process
         sub_1cm_to_5cm = 5
         sub_greater_5cm = 10
 
-        # classified_arr = np.where(~np.isnan(mosaiced_arr), mosaiced_arr, np.nan)
         classified_arr = np.where(mosaiced_arr_cm >= -1, sub_less_1cm, mosaiced_arr_cm)
         classified_arr = np.where((classified_arr < -1) & (classified_arr >= -5), sub_1cm_to_5cm, classified_arr)
         classified_arr = np.where((classified_arr > nodata) & (classified_arr < -5), sub_greater_5cm, classified_arr)

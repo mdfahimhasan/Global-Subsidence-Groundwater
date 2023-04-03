@@ -57,7 +57,7 @@ training_insar_dir = '../InSAR_Data/Final_subsidence_data/final_subsidence_raste
 # # already prepared = False if new georeferenced subsidence polygons needs to be added/new InSAR processed subsidence
 # # data has o be integrated
 exclude_areas = None  # if all areas are to be included, set None.
-include_insar_areas = ('California', 'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin', 'China_Hebei', 'China_Hefei',
+include_insar_areas = ('California',  'Arizona', 'Pakistan_Quetta', 'Iran_Qazvin', 'China_Hebei', 'China_Hefei',
                        'Colorado')
 
 subsidence_raster =\
@@ -70,7 +70,7 @@ subsidence_raster =\
                                                    'China_Hebei', 'China_Hefei', 'Colorado'),
                               polygon_search_criteria='*Subsidence*.shp',
                               insar_search_criteria='*reclass_resampled*.tif',
-                              skip_polygon_merge=False,  # #
+                              skip_polygon_merge=True,  # #
                               already_prepared=True,  # #
                               merge_coastal_subsidence_data=True)
 
@@ -107,7 +107,7 @@ variables_in_pdp = ('Soil moisture (mm)', 'River Distance (km)', 'Normalized Cla
                     'Precipitation (mm)', 'ET (mm)', 'Confining Layers')
 pdp_combinations = (('Normalized Irrigated Area Density', 'Normalized Clay Indicator'),
                     ('Precipitation (mm)', 'Soil moisture (mm)'))
-prediction_raster_keyword = 'RF137'
+prediction_raster_keyword = 'RF 137'
 
 # # predictor_importance = False if predictor importance plot is not required
 # # plot_pdp = False if partial dependence plots are not required
