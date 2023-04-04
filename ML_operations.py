@@ -659,6 +659,11 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
     pdp_plot_name = 'PDP 1 to 5cm Subsidence_combinations.png'
     fig.savefig((output_dir + '/' + plot_save_keyword + '_' + pdp_plot_name),
                 dpi=400, bbox_inches='tight')
+
+    pdp_plot_name_pdf = 'PDP 1 to 5cm Subsidence_combinations.pdf'
+    fig.savefig((output_dir + '/' + plot_save_keyword + '_' + pdp_plot_name),
+                dpi=400, bbox_inches='tight')
+
     print(pdp_plot_name.split('.')[0], 'saved')
 
     # # # # # # # # # # # # # # # #
