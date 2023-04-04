@@ -3,7 +3,8 @@ Python scripts for a ML model to generate global map of subsidence (~2 km resoul
 **Datasets available at:** http://www.hydroshare.org/resource/f25fc4c9b1224314a6a037e85052bcbb
 
 _**Model Prediction-**_
-![prediction_map_single (2)](https://user-images.githubusercontent.com/77580408/201692366-5145fbfa-b61c-4b34-9502-8365e9bd7657.jpg)
+![prediction_map_single (2)](![prediction_map_single](https://user-images.githubusercontent.com/77580408/229737364-a1fee237-70d4-4f6d-9f7f-8b51549a4774.png)
+)
 
 
 
