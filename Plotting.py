@@ -112,9 +112,9 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
     plt.savefig(plot_name2, dpi=500, bbox_inches='tight')
 
 
-country_subsidence_barplot_type_02(country_stat_excel='../Model Run/Stats/country_area_record_google.xlsx',
-                                   gw_loss_excel='../Model Run/Stats/country_gw_volume_loss.xlsx',
-                                   number_of_countries=10)
+# country_subsidence_barplot_type_02(country_stat_excel='../Model Run/Stats/country_area_record_google.xlsx',
+#                                    gw_loss_excel='../Model Run/Stats/country_gw_volume_loss.xlsx',
+#                                    number_of_countries=10)
 
 
 def variable_correlation_plot(variables_to_include, method='spearman',
