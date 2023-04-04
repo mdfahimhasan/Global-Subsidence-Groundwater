@@ -2,8 +2,10 @@ Python scripts for a ML model to generate global map of subsidence (~2 km resoul
 
 **Datasets available at:** http://www.hydroshare.org/resource/f25fc4c9b1224314a6a037e85052bcbb
 
+
 _**Model Prediction-**_
-![prediction_map_single] (https://user-images.githubusercontent.com/77580408/229737364-a1fee237-70d4-4f6d-9f7f-8b51549a4774.png)
+
+![prediction_map_single](https://user-images.githubusercontent.com/77580408/229737364-a1fee237-70d4-4f6d-9f7f-8b51549a4774.png)
 
 
 
@@ -11,7 +13,8 @@ _**Model Prediction-**_
 
 _**Workflow-**_
 
-![NGA Workflow](https://user-images.githubusercontent.com/77580408/195906436-0249ad09-1c7e-4f0c-966d-5b2d5fbd87eb.png)
+![Nature Global GW Workflow](https://user-images.githubusercontent.com/77580408/229738011-070d6c82-8cfe-4960-9239-f2464b2845b3.png)
+
 
 
 _**Affiliation**_
@@ -21,4 +24,4 @@ _**Affiliation**_
 
 _**Funding Agency**_
 
-<img src="https://user-images.githubusercontent.com/77580408/216178574-1ab9be62-a46c-4f8a-92b0-1250a440bffe.png" width="10%" height="10%" />
+<img src="https://engineering.ucsb.edu/sites/default/files/styles/large/public/images/events/NGIALogo-277siiq.png?itok=c0wrYb1A" width="15%" height="15%" />
