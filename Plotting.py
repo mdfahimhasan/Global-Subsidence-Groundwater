@@ -285,7 +285,7 @@ def plot_soil_pdp_combinations(plot_combinations=(('Normalized Irrigated Area De
     prediction_class = [5]
     pdisp = PartialDependenceDisplay.from_estimator(trained_rf, x_train, features=plot_combinations,
                                                     target=prediction_class[0], response_method='predict_proba',
-                                                    percentiles=(0, 0.999), n_jobs=-1, random_state=0,
+                                                    percentiles=(0.01, 0.999), n_jobs=-1, random_state=0,
                                                     grid_resolution=20)
     plt.rcParams['font.size'] = 14
     fig, ax = plt.subplots(1, 3, figsize=(16, 8))
@@ -353,7 +353,7 @@ def plot_river_pdp_combinations(plot_combinations=(('Normalized Irrigated Area D
     prediction_class = [5]
     pdisp = PartialDependenceDisplay.from_estimator(trained_rf, x_train, features=plot_combinations,
                                                     target=prediction_class[0], response_method='predict_proba',
-                                                    percentiles=(0, 0.999), n_jobs=-1, random_state=0,
+                                                    percentiles=(0.01, 0.999), n_jobs=-1, random_state=0,
                                                     grid_resolution=20)
     plt.rcParams['font.size'] = 14
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
@@ -386,7 +386,7 @@ drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)'
 
 # # Plot PDP combinations for soil moisture and river distance
 # # Plot PDP combinations for soil moisture
-# plot_soil_pdp_combinations(exclude_columns=drop_columns)
+plot_soil_pdp_combinations(exclude_columns=drop_columns)
 
 # # Plot PDP combinations for river distance
-# plot_river_pdp_combinations(exclude_columns=drop_columns, plot_keyword='river_distance')
+plot_river_pdp_combinations(exclude_columns=drop_columns, plot_keyword='river_distance')

@@ -639,7 +639,7 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
     prediction_class = [5]
     pdisp = PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names,
                                                        target=prediction_class[0], response_method='predict_proba',
-                                                       percentiles=(0, 0.999), n_jobs=-1, random_state=0,
+                                                       percentiles=(0.01, 0.999), n_jobs=-1, random_state=0,
                                                        grid_resolution=20)
     plt.rcParams['font.size'] = 14
     fig, ax = plt.subplots(1, 2, figsize=(12, 8))
