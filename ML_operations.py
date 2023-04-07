@@ -576,7 +576,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
 
     for each in classes:
         pdisp = PartialDependenceDisplay.from_estimator(classifier, x_train, features=feature_names, target=each,
-                                                        response_method='predict_proba', percentiles=(0.05, 1),
+                                                        response_method='predict_proba', percentiles=(0, 1),
                                                         n_jobs=-1, random_state=0, grid_resolution=20)
         for row_idx in range(0, pdisp.axes_.shape[0]):
             pdisp.axes_[row_idx][0].set_ylabel('Partial Dependence')
