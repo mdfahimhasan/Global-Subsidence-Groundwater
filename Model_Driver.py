@@ -99,15 +99,15 @@ exclude_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsa
                    'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
                    'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
                    'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)']
-# 'EVI', 'NDWI', 'Soil moisture (mm)', '% Slope', 'Precipitation (mm)',
-# 'Tmax (°C)', 'ET (mm)']
+# 'EVI', 'NDWI', 'Soil moisture (mm)', '% Slope', 'Precipitation (average monthly) (mm)',
+# 'Tmax (°C)', 'ET (average monthly) (mm)']
 
 variables_in_pdp = ('Soil moisture (mm)', 'River Distance (km)', 'Normalized Clay Indicator',
                     'Normalized Irrigated Area Density', 'Normalized Population Density', 'Tmax (°C)',
-                    'Precipitation (mm)', 'ET (mm)', 'Confining Layers')
+                    'Precipitation (average monthly) (mm)', 'ET (average monthly) (mm)', 'Confining Layers')
 pdp_combinations = (('Normalized Irrigated Area Density', 'Normalized Clay Indicator'),
-                    ('Precipitation (mm)', 'Soil moisture (mm)'))
-prediction_raster_keyword = 'RF 137'
+                    ('Precipitation (average monthly) (mm)', 'Soil moisture (mm)'))
+prediction_raster_keyword = 'RF137'
 
 # # predictor_importance = False if predictor importance plot is not required
 # # plot_pdp = False if partial dependence plots are not required

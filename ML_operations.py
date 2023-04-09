@@ -54,9 +54,9 @@ def create_dataframe(input_raster_dir, output_csv, search_by='*.tif', skip_dataf
                              'Irrigated_Area_Density_meier': 'Normalized Irrigated Area Density',
                              'Population_Density': 'Normalized Population Density', 'SRTM_Slope': '% Slope',
                              'Subsidence': 'Subsidence', 'TRCLM_RET': 'RET (mm)',
-                             'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
+                             'TRCLM_precp': 'Precipitation (average monthly) (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                              'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                             'TRCLM_ET': 'ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                             'TRCLM_ET': 'ET (average monthly) (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
                              'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
                              'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
                              'Confining_layers': 'Confining Layers'}
@@ -114,9 +114,9 @@ def split_train_test_ratio(predictor_csv, exclude_columns=[], pred_attr='Subside
                            'Irrigated_Area_Density_meier': 'Normalized Irrigated Area Density',
                            'Population_Density': 'Normalized Population Density', 'SRTM_Slope': '% Slope',
                            'Subsidence': 'Subsidence', 'TRCLM_RET': 'RET (mm)',
-                           'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
+                           'TRCLM_precp': 'Precipitation (average monthly) (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                            'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                           'TRCLM_ET': 'ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                           'TRCLM_ET': 'ET (average monthly) (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
                            'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
                            'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
                            'Confining_layers': 'Confining Layers'}
@@ -267,7 +267,7 @@ def build_ml_classifier(predictor_csv, modeldir, exclude_columns=(), model='rf',
                         predictor_importance=False, predictor_imp_keyword='RF',
                         plot_pdp=False, variables_pdp=('Normalized Irrigated Area Density',
                                                        'Normalized Population Density',
-                                                       'Precipitation (mm)', 'Sediment Thickness (m)',
+                                                       'Precipitation (average monthly) (mm)', 'Sediment Thickness (m)',
                                                        'Soil moisture (mm)', 'TRCLM ET (mm)'),
                         pdp_combinations=(('Normalized Irrigated Area Density', 'Normalized Clay Indicator'),
                                           ('Normalized Irrigated Area Density', 'Soil moisture (mm)')),
@@ -499,9 +499,9 @@ def classification_accuracy(x_train, x_test, y_train, y_test, classifier,
                           'Irrigated_Area_Density_meier': 'Normalized Irrigated Area Density',
                           'Population_Density': 'Normalized Population Density', 'SRTM_Slope': '% Slope',
                           'Subsidence': 'Subsidence', 'TRCLM_RET': 'RET (mm)',
-                          'TRCLM_precp': 'Precipitation (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
+                          'TRCLM_precp': 'Precipitation (average monthly) (mm)', 'TRCLM_soil': 'Soil moisture (mm)',
                           'TRCLM_Tmax': 'Tmax (°C)', 'TRCLM_Tmin': 'Tmin (°C)', 'MODIS_Land_Use': 'MODIS Land Use',
-                          'TRCLM_ET': 'ET (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
+                          'TRCLM_ET': 'ET (average monthly) (mm)', 'Clay_Thickness': 'Clay Thickness (m)',
                           'Normalized_clay_indicator': 'Normalized Clay Indicator', 'Clay_200cm': 'Clay % 200cm',
                           'River_gaussian': 'River Gaussian', 'River_distance': 'River Distance (km)',
                           'Confining_layers': 'Confining Layers'}
@@ -557,7 +557,7 @@ def save_model_accuracy(cm_df_test, overall_accuracy, accuracy_csv_name):
 
 def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
              feature_names=('Sediment Thickness (m)', 'Normalized Irrigated Area Density',
-                            'Normalized Population Density', 'Precipitation (mm)', 'Clay Thickness (m)',
+                            'Normalized Population Density', 'Precipitation (average monthly) (mm)', 'Clay Thickness (m)',
                             'Soil moisture (mm)', 'TRCLM ET (mm)')):
     """
     Plot Partial Dependence Plot for the fitted_model.
@@ -624,7 +624,7 @@ def pdp_plot(classifier, x_train, output_dir, plot_save_keyword='rf',
 
 def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf',
                           feature_names=(['Normalized Irrigated Area Density', 'Normalized Clay Indicator'],
-                                         ['Precipitation (mm)', 'Soil moisture (mm)'])):
+                                         ['Precipitation (average monthly) (mm)', 'Soil moisture (mm)'])):
     """
     PDP of 2*2 = 4 variables. Don't include 'Confining Layers'
     Parameters:
@@ -633,7 +633,7 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
     output_dir : Output directory path to save the plots.
     plot_save_keyword : Keyword to sum before saved PDP plots.
     feature_names : Tuple of variable names to plot in pdp plot. For combined PDP of 2 variables put the variables in a
-                    tuple like ('Precipitation (mm)', 'Soil moisture (mm)').
+                    tuple like ('Precipitation (average monthly) (mm)', 'Soil moisture (mm)').
     Returns : PDP plots.
     """
     prediction_class = [5]
@@ -641,9 +641,9 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
                                                        target=prediction_class[0], response_method='predict_proba',
                                                        percentiles=(0.01, 0.999), n_jobs=-1, random_state=0,
                                                        grid_resolution=20)
-    plt.rcParams['font.size'] = 14
-    fig, ax = plt.subplots(1, 2, figsize=(12, 8))
-    pdisp.plot(ax=ax)
+    plt.rcParams['font.size'] = 9
+    fig, ax = plt.subplots(1, 2, figsize=(7, 4.5))
+    pdps = pdisp.plot(ax=ax)
     ax[0].set_title('(a)', y=-0.2)
     ax[1].set_title('(b)', y=-0.2)
     fig = plt.gcf()
@@ -668,6 +668,8 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
 
     # # # # # # # # # # # # # # # #
     # # # 3D Plot (works, need to formatted properly for better visualization)
+    # # This link might have want I wanted
+    # # (https://scikit-learn.org/stable/auto_examples/inspection/plot_partial_dependence.html)
     # plt.rcParams['font.size'] = 13
     # fig = plt.figure()
     #

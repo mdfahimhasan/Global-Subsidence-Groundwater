@@ -33,7 +33,7 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=30):
     fig, axs = plt.subplots(2, figsize=(16, 10))
 
     sns.barplot(x='country_name', y='perc_subsidence_of_cntry_area', data=stat_highest_1, palette='Blues_r', ax=axs[0])
-    axs[0].bar_label(axs[0].containers[0], fmt='%.2f', fontsize=10, padding=0)
+    axs[0].bar_label(axs[0].containers[0], fmt='%.2f', fontsize=10, padding=0.1)
     axs[0].set_xticks(range(len(stat_highest_1['country_name'])), list(stat_highest_1['country_name']), rotation=90)
     axs[0].tick_params(axis='both', which='major', labelsize=20)
     axs[0].set_xlabel('(a)', fontsize=20)
@@ -42,7 +42,7 @@ def country_subsidence_barplot(country_stat_excel, number_of_countries=30):
     stat_2 = stat.sort_values('area subsidence >1cm/yr', ascending=False)
     stat_highest_2 = stat_2.iloc[0: number_of_countries - 1, :]
     sns.barplot(x='country_name', y='area subsidence >1cm/yr', data=stat_highest_2, palette='Purples_r', ax=axs[1])
-    axs[1].bar_label(axs[1].containers[0], fmt='%.f', fontsize=10, padding=0)
+    axs[1].bar_label(axs[1].containers[0], fmt='%.f', fontsize=10, padding=0.1)
     axs[1].set_yscale('log')
     axs[1].set_xticks(range(len(stat_highest_2['country_name'])), list(stat_highest_2['country_name']), rotation=90)
     axs[1].tick_params(axis='both', which='major', labelsize=20)
@@ -80,29 +80,29 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
     gw_stat = pd.read_excel(gw_loss_excel, sheet_name='Sheet1')
     gw_stat = gw_stat.dropna(axis=0, how='any')
 
-    fig, axs = plt.subplots(2, figsize=(12, 10))
+    fig, axs = plt.subplots(2, figsize=(7, 5))
 
     stat_1 = stat.sort_values('perc_subsidence_of_cntry_area', ascending=False)
     stat_highest_1 = stat_1.iloc[0: number_of_countries, :]
     sns.barplot(x='country_name', y='perc_subsidence_of_cntry_area', data=stat_highest_1, palette='Blues_r', ax=axs[0])
-    axs[0].bar_label(axs[0].containers[0], fmt='%.2f', fontsize=10, padding=0.5)
+    axs[0].bar_label(axs[0].containers[0], fmt='%.2f', fontsize=6, padding=0)
     axs[0].margins(y=0.1)  # make room for the labels
     axs[0].set_xticks(range(len(stat_highest_1['country_name'])), list(stat_highest_1['country_name']), rotation=90)
-    axs[0].tick_params(axis='both', which='major', labelsize=18)
-    axs[0].set_xlabel('(a)', fontsize=18)
-    axs[0].set_ylabel('% area of country \n subsiding >1cm/year', labelpad=15, fontsize=18)
+    axs[0].tick_params(axis='both', which='major', labelsize=9)
+    axs[0].set_xlabel('(a)', fontsize=8)
+    axs[0].set_ylabel('% area of country \n subsiding >1cm/year', labelpad=15, fontsize=9)
 
     stat_2 = gw_stat.sort_values('volume avg total gw loss (km3/yr)', ascending=False)
     stat_highest_2 = stat_2.iloc[0: number_of_countries, :]
     sns.barplot(x='CNTRY_NAME', y='volume avg total gw loss (km3/yr)', data=stat_highest_2, palette='Purples_r',
                 ax=axs[1])
-    axs[1].bar_label(axs[1].containers[0], fmt='%.2f', fontsize=10, padding=0.1)
+    axs[1].bar_label(axs[1].containers[0], fmt='%.2f', fontsize=6, padding=0)
     axs[1].margins(y=0.1)  # make room for the labels
     axs[1].set_yscale('log')
     axs[1].set_xticks(range(len(stat_highest_2['CNTRY_NAME'])), list(stat_highest_2['CNTRY_NAME']), rotation=90)
-    axs[1].tick_params(axis='both', which='major', labelsize=18)
-    axs[1].set_xlabel('(b)', fontsize=18)
-    axs[1].set_ylabel('Groundwater Storage Loss \n due to Consolidation \n (km$^{3}$/year) (log-scale)', fontsize=18)
+    axs[1].tick_params(axis='both', which='major', labelsize=9)
+    axs[1].set_xlabel('(b)', fontsize=9)
+    axs[1].set_ylabel('Groundwater Storage Loss \n due to Consolidation \n (km$^{3}$/year) (log-scale)', fontsize=9)
 
     fig.tight_layout(pad=1.2, w_pad=1, h_pad=1)
 
@@ -150,10 +150,10 @@ def variable_correlation_plot(variables_to_include, method='spearman',
 
 
 # # Give list of predictors used in the model
-# columns_to_plot = ['% Slope', 'Aridity Index', 'Clay Thickness (m)', 'Confining Layers',
-#                    'EVI', 'Irrigated Area Density', 'NDWI', 'Population Density',
-#                    'Precipitation (mm)', 'River Distance (km)', 'Soil moisture (mm)',
-#                    'TRCLM ET (mm)', 'Tmax (°C)']
+# columns_to_plot = ['% Slope', 'Aridity Index', 'Normalized Clay Indicator', 'Confining Layers',
+#                    'EVI', 'Normalized Irrigated Area Density', 'NDWI', 'Normalized Population Density',
+#                    'Precipitation (average monthly) (mm)', 'River Distance (km)', 'Soil moisture (mm)',
+#                    'ET (average monthly) (mm)', 'Tmax (°C)']
 
 # variable_correlation_plot(variables_to_include=columns_to_plot,
 #                           training_data_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
@@ -241,8 +241,7 @@ def plot_permutation_importance(train_test_csv='../Model Run/Predictors_csv/trai
 
 
 def plot_soil_pdp_combinations(plot_combinations=(('Normalized Irrigated Area Density', 'Soil moisture (mm)'),
-                                                  ('ET (mm)', 'Soil moisture (mm)'),
-                                                  ('Precipitation (mm)', 'Soil moisture (mm)')),
+                                                  ('Precipitation (average monthly) (mm)', 'Soil moisture (mm)')),
                                plot_keyword='soil',
                                train_test_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
                                output_dir='../Model Run/PDP_combinations',
@@ -288,11 +287,10 @@ def plot_soil_pdp_combinations(plot_combinations=(('Normalized Irrigated Area De
                                                     percentiles=(0.01, 0.999), n_jobs=-1, random_state=0,
                                                     grid_resolution=20)
     plt.rcParams['font.size'] = 14
-    fig, ax = plt.subplots(1, 3, figsize=(16, 8))
+    fig, ax = plt.subplots(1, 2, figsize=(12, 8))
     pdisp.plot(ax=ax)
     ax[0].set_title('(a)', y=-0.2)
     ax[1].set_title('(b)', y=-0.2)
-    ax[2].set_title('(c)', y=-0.2)
     fig = plt.gcf()
     fig.tight_layout(rect=[0, 0.05, 1, 0.95])
     fig.subplots_adjust(wspace=0.35, hspace=0.3)
@@ -356,7 +354,7 @@ def plot_river_pdp_combinations(plot_combinations=(('Normalized Irrigated Area D
                                                     percentiles=(0.01, 0.999), n_jobs=-1, random_state=0,
                                                     grid_resolution=20)
     plt.rcParams['font.size'] = 14
-    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+    fig, ax = plt.subplots(1, 2, figsize=(12, 8))
     pdisp.plot(ax=ax)
     ax[0].set_title('(a)', y=-0.2)
     ax[1].set_title('(b)', y=-0.2)
@@ -386,7 +384,7 @@ drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)'
 
 # # Plot PDP combinations for soil moisture and river distance
 # # Plot PDP combinations for soil moisture
-plot_soil_pdp_combinations(exclude_columns=drop_columns)
+# plot_soil_pdp_combinations(exclude_columns=drop_columns)
 
 # # Plot PDP combinations for river distance
-plot_river_pdp_combinations(exclude_columns=drop_columns, plot_keyword='river_distance')
+# plot_river_pdp_combinations(exclude_columns=drop_columns, plot_keyword='river_distance')
