@@ -1,6 +1,6 @@
 # Introduction
 
-This project employs a Random Forest Machine Learning model to map land subsidence globally at high resolution (~2 km resoultion) that is induced by groundwater pumping. The datasets used in the model are publicly available remote sensing and model-based data. The datasets are available at the HydroShare repository: http://www.hydroshare.org/resource/f25fc4c9b1224314a6a037e85052bcbb 
+This project employs a Random Forest Machine Learning model to map land subsidence globally at high resolution (~2 km resolution) that is induced by groundwater pumping. The datasets used in the model are publicly available remote sensing and model-based data. The datasets are available at the HydroShare repository: http://www.hydroshare.org/resource/f25fc4c9b1224314a6a037e85052bcbb 
 
 The python scripts include codes for automatic data downloading & preprocessing (Data_operations), raster processing (Raster_operations), machine learning model (ML_operations), training data processing (Training_InSAR_processing), result analysis (Result_Analysis), etc. The Model_Driver scripts runs the entire model. Some scripts like Training_InSAR_processing, Result_Analysis, Plotting have to be run separately. High resolution maps are provided in the Maps folder.
 
