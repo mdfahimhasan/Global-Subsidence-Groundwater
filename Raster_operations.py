@@ -319,7 +319,7 @@ def crop_raster_by_extent(input_raster, ref_file, output_dir, raster_name, inver
     raster_arr, input_file = read_raster_arr_object(input_raster)
 
     if '.shp' in ref_file:
-        ref_extent = gpd.read_File(ref_file)
+        ref_extent = gpd.read_file(ref_file)
     else:
         ref_raster = rio.open(ref_file)
         minx, miny, maxx, maxy = ref_raster.bounds
