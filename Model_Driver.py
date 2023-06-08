@@ -120,7 +120,7 @@ ML_model, predictor_name_dict = \
                         estimate_accuracy=True,
                         predictor_imp_keyword=prediction_raster_keyword,
                         predictor_importance=True,  # #
-                        variables_pdp=variables_in_pdp, plot_pdp=True,  # #
+                        variables_pdp=variables_in_pdp, plot_pdp=False,  # #
                         pdp_combinations=pdp_combinations,
                         plot_confusion_matrix=True,  # #
                         tune_hyperparameter=False,  # #

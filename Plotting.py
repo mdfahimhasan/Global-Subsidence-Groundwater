@@ -377,14 +377,16 @@ def plot_river_pdp_combinations(plot_combinations=(('Normalized Irrigated Area D
 drop_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
                 'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
                 'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
-                'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)']
+                'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)', 'Soil moisture (mm)']
 
-# # Plot permutation importance
-# plot_permutation_importance(exclude_columns=drop_columns, plot_keyword='RF_137')
+# Plot permutation importance
+# plot_permutation_importance(exclude_columns=drop_columns, plot_keyword='RF_138')
 
 # # Plot PDP combinations for soil moisture and river distance
 # # Plot PDP combinations for soil moisture
-# plot_soil_pdp_combinations(exclude_columns=drop_columns)
+plot_soil_pdp_combinations(exclude_columns=drop_columns)
 
 # # Plot PDP combinations for river distance
 # plot_river_pdp_combinations(exclude_columns=drop_columns, plot_keyword='river_distance')
+
+

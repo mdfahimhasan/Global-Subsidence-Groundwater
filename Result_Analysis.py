@@ -8,10 +8,12 @@ from glob import glob
 import rasterio as rio
 import geopandas as gpd
 from rasterio.mask import mask
+import matplotlib.pyplot as plt
 from shapely.geometry import mapping
 from System_operations import makedirs
 from Raster_operations import read_raster_arr_object, write_raster, mask_by_ref_raster, clip_resample_raster_cutline, \
     paste_val_on_ref_raster
+from ML_operations import split_train_test_ratio, build_ml_classifier
 
 No_Data_Value = -9999
 referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
@@ -697,3 +699,116 @@ def count_subsidence_pixels_EGMS_data(
 
 
 # count_subsidence_pixels_EGMS_data()
+
+
+# # Testing model with different set of predictor values to test importance of soil moisture vs drivers that directly
+# # controls subsidence
+train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
+exclude_columns = ['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+                   'GW Irrigation Density giam', 'MODIS PET (kg/m2)',
+                   'Clay content PCA', 'MODIS Land Use', 'Grace',
+                   'Sediment Thickness (m)', 'Clay % 200cm', 'Tmin (°C)', 'RET (mm)']
+output_dir = '../Model Run/Predictors_csv/dummy_csv'
+makedirs([output_dir])
+
+modeldir = '../Model Run/Predictors_csv/dummy_csv'
+trained_rf, predictor_name_dict = \
+    build_ml_classifier(train_test_csv, modeldir, exclude_columns, model='rf', load_model=False,
+                        pred_attr='Subsidence', test_size=0.3, random_state=0, output_dir=output_dir,
+                        n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14, max_features=7,
+                        max_samples=None, max_leaf_nodes=None, class_weight='balanced',
+                        estimate_accuracy=False, predictor_imp_keyword=None, predictor_importance=False,
+                        variables_pdp=None, plot_pdp=False,
+                        plot_confusion_matrix=False)
+
+# creating dummy csv
+# x_train, x_test, y_train, y_test, _ = \
+#     split_train_test_ratio(predictor_csv=train_test_csv, exclude_columns=exclude_columns,
+#                            pred_attr='Subsidence', test_size=0.3, random_state=0,
+#                            outdir=output_dir, verbose=False)
+
+# # 1st criterion: creating dataset with low soil moisture, no confined layer, low clay, no irrigation activity
+test_csv = '../Model Run/Predictors_csv/dummy_csv/X_test.csv'
+df = pd.read_csv(test_csv)
+soil_moisture = 50
+confining_layer = 0
+clay_indicator = 0.1
+irrig_density = 0
+filtered_df_01 = df[(df['Soil moisture (mm)'] <= soil_moisture) & (df['Confining Layers'] == confining_layer) \
+                    & (df['Normalized Clay Indicator'] <= clay_indicator) \
+                    & (df['Normalized Irrigated Area Density'] == irrig_density)]
+filtered_df_01.to_csv('../Model Run/Predictors_csv/dummy_csv/no_subsidence_driver_low_sm.csv')
+
+y_pred = trained_rf.predict(filtered_df_01)
+
+y_pred_results = []
+# result compilation
+for i in y_pred:
+    if i == 1:
+        y_pred_results.append('No subsidence')
+    elif i == 5:
+        y_pred_results.append('Moderate subsidence')
+    else:
+        y_pred_results.append('High subsidence')
+
+fig, ax = plt.subplots()
+ax.hist(y_pred_results)
+plt.savefig('../Model Run/Predictors_csv/dummy_csv/no_subsidence_driver_low_sm.jpg', dpi=200)
+
+
+# # 2nd criterion: creating dataset with low soil moisture, presence of confined layer, high clay,irrigation activity
+test_csv = '../Model Run/Predictors_csv/dummy_csv/X_test.csv'
+df = pd.read_csv(test_csv)
+soil_moisture = 50
+confining_layer = 1
+clay_indicator = 0.5
+irrig_density = 0.5
+filtered_df_02 = df[(df['Soil moisture (mm)'] <= soil_moisture) & (df['Confining Layers'] == confining_layer) \
+                    & (df['Normalized Clay Indicator'] >= clay_indicator) \
+                    & (df['Normalized Irrigated Area Density'] >= irrig_density)]
+filtered_df_02.to_csv('../Model Run/Predictors_csv/dummy_csv/presence_subsidence_driver_low_sm.csv')
+
+y_pred = trained_rf.predict(filtered_df_02)
+y_pred_results = []
+# result compilation
+for i in y_pred:
+    if i == 1:
+        y_pred_results.append('No subsidence')
+    elif i == 5:
+        y_pred_results.append('Moderate subsidence')
+    else:
+        y_pred_results.append('High subsidence')
+
+fig, ax = plt.subplots()
+ax.hist(y_pred_results)
+plt.savefig('../Model Run/Predictors_csv/dummy_csv/presence_subsidence_driver_low_sm.jpg', dpi=200)
+
+
+# # 3rd criterion: creating dataset with high soil moisture, presence of confined layer, high clay,irrigation activity
+test_csv = '../Model Run/Predictors_csv/dummy_csv/X_test.csv'
+df = pd.read_csv(test_csv)
+soil_moisture_01 = 100
+soil_moisture_02 = 300
+confining_layer = 1
+clay_indicator = 0.5
+irrig_density = 0.5
+filtered_df_03 = df[(df['Soil moisture (mm)'] >= soil_moisture_01) & (df['Soil moisture (mm)'] <= soil_moisture_02) \
+                    & (df['Confining Layers'] == confining_layer) \
+                    & (df['Normalized Clay Indicator'] >= clay_indicator) \
+                    & (df['Normalized Irrigated Area Density'] >= irrig_density)]
+filtered_df_03.to_csv('../Model Run/Predictors_csv/dummy_csv/presence_subsidence_driver_high_sm.csv')
+
+y_pred = trained_rf.predict(filtered_df_03)
+y_pred_results = []
+# result compilation
+for i in y_pred:
+    if i == 1:
+        y_pred_results.append('No subsidence')
+    elif i == 5:
+        y_pred_results.append('Moderate subsidence')
+    else:
+        y_pred_results.append('High subsidence')
+
+fig, ax = plt.subplots()
+ax.hist(y_pred_results)
+plt.savefig('../Model Run/Predictors_csv/dummy_csv/presence_subsidence_driver_high_sm.jpg', dpi=200)
