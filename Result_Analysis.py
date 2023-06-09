@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 from glob import glob
+import seaborn as sns
 import rasterio as rio
 import geopandas as gpd
 from rasterio.mask import mask
@@ -750,9 +751,36 @@ def count_subsidence_pixels_EGMS_data(
 #     else:
 #         y_pred_results.append('High subsidence')
 #
-# fig, ax = plt.subplots()
-# ax.hist(y_pred_results)
-# plt.savefig('../Model Run/Predictors_csv/dummy_csv/no_subsidence_driver_low_sm.jpg', dpi=200)
+# # counting numbers in each category
+# classes, counts = np.unique(y_pred_results, return_counts=True)
+# classes = list(classes)
+# counts = list(counts)
+#
+# # modifying the list to assign zero values for class that is not in result
+# if 'No subsidence' not in classes:
+#     classes.append('No subsidence')
+#     counts.append(0)
+# elif 'Moderate subsidence' not in classes:
+#     classes.append('Moderate subsidence')
+#     counts.append(0)
+# elif 'High subsidence' not in classes:
+#     classes.append('High subsidence')
+#     counts.append(0)
+#
+# # Assigning results in a df
+# results_df = pd.DataFrame({'classes': classes, 'counts': counts})
+#
+# # custom sorting
+# df_mapping = pd.DataFrame({'sorted_class': ['No subsidence', 'Moderate subsidence', 'High subsidence']})
+# sort_mapping = df_mapping.reset_index().set_index('sorted_class')
+# results_df['sorted_class'] = results_df['classes'].map(sort_mapping['index'])
+# results_df = results_df.sort_values('sorted_class')
+#
+# fig, ax = plt.subplots(figsize=(8, 4))
+# results_df.plot.bar(x='classes', y='counts', rot=0)
+# plt.xlabel(None)
+# plt.ylabel(None)
+# plt.savefig('../Model Run/Predictors_csv/dummy_csv/no_subsidence_driver_low_sm.jpg', dpi=300)
 #
 #
 # # # 2nd criterion: creating dataset with low soil moisture, presence of confined layer, high clay,irrigation activity
@@ -778,9 +806,36 @@ def count_subsidence_pixels_EGMS_data(
 #     else:
 #         y_pred_results.append('High subsidence')
 #
-# fig, ax = plt.subplots()
-# ax.hist(y_pred_results)
-# plt.savefig('../Model Run/Predictors_csv/dummy_csv/presence_subsidence_driver_low_sm.jpg', dpi=200)
+# # counting numbers in each category
+# classes, counts = np.unique(y_pred_results, return_counts=True)
+# classes = list(classes)
+# counts = list(counts)
+#
+# # modifying the list to assign zero values for class that is not in result
+# if 'No subsidence' not in classes:
+#     classes.append('No subsidence')
+#     counts.append(0)
+# elif 'Moderate subsidence' not in classes:
+#     classes.append('Moderate subsidence')
+#     counts.append(0)
+# elif 'High subsidence' not in classes:
+#     classes.append('High subsidence')
+#     counts.append(0)
+#
+# # Assigning results in a df
+# results_df = pd.DataFrame({'classes': classes, 'counts': counts})
+#
+# # custom sorting
+# df_mapping = pd.DataFrame({'sorted_class': ['No subsidence', 'Moderate subsidence', 'High subsidence']})
+# sort_mapping = df_mapping.reset_index().set_index('sorted_class')
+# results_df['sorted_class'] = results_df['classes'].map(sort_mapping['index'])
+# results_df = results_df.sort_values('sorted_class')
+#
+# fig, ax = plt.subplots(figsize=(8, 4))
+# results_df.plot.bar(x='classes', y='counts', rot=0)
+# plt.xlabel(None)
+# plt.ylabel(None)
+# plt.savefig('../Model Run/Predictors_csv/dummy_csv/presence_subsidence_driver_low_sm.jpg', dpi=300)
 #
 #
 # # # 3rd criterion: creating dataset with high soil moisture, presence of confined layer, high clay,irrigation activity
@@ -808,6 +863,33 @@ def count_subsidence_pixels_EGMS_data(
 #     else:
 #         y_pred_results.append('High subsidence')
 #
-# fig, ax = plt.subplots()
-# ax.hist(y_pred_results)
-# plt.savefig('../Model Run/Predictors_csv/dummy_csv/presence_subsidence_driver_high_sm.jpg', dpi=200)
+# # counting numbers in each category
+# classes, counts = np.unique(y_pred_results, return_counts=True)
+# classes = list(classes)
+# counts = list(counts)
+#
+# # modifying the list to assign zero values for class that is not in result
+# if 'No subsidence' not in classes:
+#     classes.append('No subsidence')
+#     counts.append(0)
+# elif 'Moderate subsidence' not in classes:
+#     classes.append('Moderate subsidence')
+#     counts.append(0)
+# elif 'High subsidence' not in classes:
+#     classes.append('High subsidence')
+#     counts.append(0)
+#
+# # Assigning results in a df
+# results_df = pd.DataFrame({'classes': classes, 'counts': counts})
+#
+# # custom sorting
+# df_mapping = pd.DataFrame({'sorted_class': ['No subsidence', 'Moderate subsidence', 'High subsidence']})
+# sort_mapping = df_mapping.reset_index().set_index('sorted_class')
+# results_df['sorted_class'] = results_df['classes'].map(sort_mapping['index'])
+# results_df = results_df.sort_values('sorted_class')
+#
+# fig, ax = plt.subplots(figsize=(8, 4))
+# results_df.plot.bar(x='classes', y='counts', rot=0)
+# plt.xlabel(None)
+# plt.ylabel(None)
+# plt.savefig('../Model Run/Predictors_csv/dummy_csv/presence_subsidence_driver_high_sm.jpg', dpi=300)
