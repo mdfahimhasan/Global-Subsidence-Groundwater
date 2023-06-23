@@ -226,6 +226,7 @@ def process_EGMS_insar(insar_data_dir='../InSAR_Data/Europe_EGMS/Interim_process
 
     Parameters:
     insar_data_dir: Directory path of EGMS InSAR data.
+                    ** I am copying all merged/clipped subsidence data files to this folder first.
     output_dir: Directory path of output folder.
     nodata: Default set to -9999.
     copy_dir: Directory path to copy the final (mosaiced + resampled + classified) subsidence Data for Europe.

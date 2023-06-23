@@ -5,16 +5,13 @@ import os
 import numpy as np
 import pandas as pd
 from glob import glob
-import seaborn as sns
 import rasterio as rio
 import geopandas as gpd
 from rasterio.mask import mask
-import matplotlib.pyplot as plt
 from shapely.geometry import mapping
 from System_operations import makedirs
 from Raster_operations import read_raster_arr_object, write_raster, mask_by_ref_raster, clip_resample_raster_cutline, \
     paste_val_on_ref_raster
-from ML_operations import split_train_test_ratio, build_ml_classifier
 
 No_Data_Value = -9999
 referenceraster = r'../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'
@@ -325,6 +322,79 @@ def subsidence_on_aridity(subsidence_prediction, outdir='../Model Run/Stats'):
 
 # subsidence_on_aridity(subsidence_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019.tif')
 
+def country_subsidence_on_aridity_stats(countries='../shapefiles/Country_continent_full_shapes/World_countries.shp',
+                                        aridity='../Model Run/Predictors_2013_2019/Aridity_Index.tif',
+                                        model_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019'
+                                                         '.tif',
+                                        outdir='../Model Run/Stats'):
+    """
+    Estimated % area of subsidence in different aridity regions of a country.
+
+    Aridity Index Value	Climate Class
+    <0.03	                 Hyper Arid
+    0.03-0.2	               Arid
+    0.2-0.5	                 Semi-Arid
+    0.5-0.65	           Dry sub-humid
+    >0.65	                   Humid
+
+    Parameters:
+    countries: filepath of global country shapefile.
+    aridity: filepath of aridity raster data.
+    model_prediction: filepath of model predicted subsidence. Default set to model 137.
+    outdir: filepath of output directory.
+
+    Returns: An excel file with country level aridity stats.
+    """
+    countries_df = gpd.read_file(countries)
+    countries_df['geom_geojson'] = countries_df['geometry'].apply(mapping)
+
+    aridity_arr, aridity_file = read_raster_arr_object(aridity)
+    subsidence_arr, subsidence_file = read_raster_arr_object(model_prediction)
+
+    def compute_num_cells_in_aridity(geom_geojson):
+        arid_arr, arid_transform = mask(dataset=aridity_file, shapes=[geom_geojson], filled=True, crop=True,
+                                        invert=False)
+        arid_arr = arid_arr.squeeze()
+
+        subside_arr, subside_transform = mask(dataset=subsidence_file, shapes=[geom_geojson], filled=True, crop=True)
+        subside_arr = subside_arr.squeeze()
+
+        hyper_arid = np.count_nonzero(np.where(((subside_arr > 1) & (arid_arr < 0.03)), 1, 0))
+        arid = np.count_nonzero(np.where(((subside_arr > 1) & ((0.03 <= arid_arr) & (arid_arr < 0.2))), 1, 0))
+        semi_arid = np.count_nonzero(np.where(((subside_arr > 1) & ((0.2 <= arid_arr) & (arid_arr < 0.5))), 1, 0))
+        dry_subhumid = np.count_nonzero(np.where(((subside_arr > 1) & ((0.5 <= arid_arr) & (arid_arr < 0.65))), 1, 0))
+        humid = np.count_nonzero(np.where(((subside_arr > 1) & (arid_arr > 0.65)), 1, 0))
+
+        return hyper_arid, arid, semi_arid, dry_subhumid, humid
+
+    countries_df['hyperarid_pixels'], countries_df['arid_pixels'], \
+    countries_df['semiarid_pixels'], countries_df['drysubhumid_pixels'], countries_df['humid_pixels'] = \
+        zip(*countries_df['geom_geojson'].apply(compute_num_cells_in_aridity))
+
+    area_country_df = pd.read_excel('../Model Run/Stats/country_area_record_google.xlsx',
+                                    sheet_name='countryarea_corrected')
+    area_country_df = area_country_df[['country_name', 'area_sqkm_google']]
+
+    new_df = countries_df.merge(area_country_df, how='left', left_on='CNTRY_NAME', right_on='country_name')
+    new_df = new_df.drop(columns='country_name')
+
+    # Area Calculation (1 deg = ~ 111km)
+    deg_002 = 111 * 0.02  # unit km
+    area_per_002_pixel = deg_002 ** 2
+
+    new_df['perc_hyperarid_area'] = new_df['hyperarid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
+    new_df['perc_arid_area'] = new_df['arid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
+    new_df['perc_semiarid_area'] = new_df['semiarid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
+    new_df['perc_drysubhumid_area'] = new_df['drysubhumid_pixels'] * area_per_002_pixel * 100 / new_df[
+        'area_sqkm_google']
+    new_df['perc_humid_area'] = new_df['humid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
+
+    new_df = new_df.sort_values(by='perc_semiarid_area', axis=0, ascending=False)
+    new_df.to_excel(os.path.join(outdir, 'country_subsidence_on_aridity.xlsx'))
+
+
+# country_subsidence_on_aridity_stats()
+
 
 def classify_gw_depletion_data(input_raster='../Data/result_comparison_Wada/georeferenced/gw_depletion_cmyr.tif',
                                referenceraster='../Data/Reference_rasters_shapes/Global_continents_ref_raster.tif'):
@@ -466,80 +536,6 @@ def country_landuse_subsiding_stats(countries='../shapefiles/Country_continent_f
 
 
 # country_landuse_subsiding_stats()
-
-
-def country_subsidence_on_aridity_stats(countries='../shapefiles/Country_continent_full_shapes/World_countries.shp',
-                                        aridity='../Model Run/Predictors_2013_2019/Aridity_Index.tif',
-                                        model_prediction='../Model Run/Prediction_rasters/RF137_prediction_2013_2019'
-                                                         '.tif',
-                                        outdir='../Model Run/Stats'):
-    """
-    Estimated % area of subsidence in different aridity regions of a country.
-
-    Aridity Index Value	Climate Class
-    <0.03	                 Hyper Arid
-    0.03-0.2	               Arid
-    0.2-0.5	                 Semi-Arid
-    0.5-0.65	           Dry sub-humid
-    >0.65	                   Humid
-
-    Parameters:
-    countries: filepath of global country shapefile.
-    aridity: filepath of aridity raster data.
-    model_prediction: filepath of model predicted subsidence. Default set to model 137.
-    outdir: filepath of output directory.
-
-    Returns: An excel file with country level aridity stats.
-    """
-    countries_df = gpd.read_file(countries)
-    countries_df['geom_geojson'] = countries_df['geometry'].apply(mapping)
-
-    aridity_arr, aridity_file = read_raster_arr_object(aridity)
-    subsidence_arr, subsidence_file = read_raster_arr_object(model_prediction)
-
-    def compute_num_cells_in_aridity(geom_geojson):
-        arid_arr, arid_transform = mask(dataset=aridity_file, shapes=[geom_geojson], filled=True, crop=True,
-                                        invert=False)
-        arid_arr = arid_arr.squeeze()
-
-        subside_arr, subside_transform = mask(dataset=subsidence_file, shapes=[geom_geojson], filled=True, crop=True)
-        subside_arr = subside_arr.squeeze()
-
-        hyper_arid = np.count_nonzero(np.where(((subside_arr > 1) & (arid_arr < 0.03)), 1, 0))
-        arid = np.count_nonzero(np.where(((subside_arr > 1) & ((0.03 <= arid_arr) & (arid_arr < 0.2))), 1, 0))
-        semi_arid = np.count_nonzero(np.where(((subside_arr > 1) & ((0.2 <= arid_arr) & (arid_arr < 0.5))), 1, 0))
-        dry_subhumid = np.count_nonzero(np.where(((subside_arr > 1) & ((0.5 <= arid_arr) & (arid_arr < 0.65))), 1, 0))
-        humid = np.count_nonzero(np.where(((subside_arr > 1) & (arid_arr > 0.65)), 1, 0))
-
-        return hyper_arid, arid, semi_arid, dry_subhumid, humid
-
-    countries_df['hyperarid_pixels'], countries_df['arid_pixels'], \
-    countries_df['semiarid_pixels'], countries_df['drysubhumid_pixels'], countries_df['humid_pixels'] = \
-        zip(*countries_df['geom_geojson'].apply(compute_num_cells_in_aridity))
-
-    area_country_df = pd.read_excel('../Model Run/Stats/country_area_record_google.xlsx',
-                                    sheet_name='countryarea_corrected')
-    area_country_df = area_country_df[['country_name', 'area_sqkm_google']]
-
-    new_df = countries_df.merge(area_country_df, how='left', left_on='CNTRY_NAME', right_on='country_name')
-    new_df = new_df.drop(columns='country_name')
-
-    # Area Calculation (1 deg = ~ 111km)
-    deg_002 = 111 * 0.02  # unit km
-    area_per_002_pixel = deg_002 ** 2
-
-    new_df['perc_hyperarid_area'] = new_df['hyperarid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
-    new_df['perc_arid_area'] = new_df['arid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
-    new_df['perc_semiarid_area'] = new_df['semiarid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
-    new_df['perc_drysubhumid_area'] = new_df['drysubhumid_pixels'] * area_per_002_pixel * 100 / new_df[
-        'area_sqkm_google']
-    new_df['perc_humid_area'] = new_df['humid_pixels'] * area_per_002_pixel * 100 / new_df['area_sqkm_google']
-
-    new_df = new_df.sort_values(by='perc_semiarid_area', axis=0, ascending=False)
-    new_df.to_excel(os.path.join(outdir, 'country_subsidence_on_aridity.xlsx'))
-
-
-# country_subsidence_on_aridity_stats()
 
 
 def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shapes/World_countries.shp',

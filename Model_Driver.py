@@ -120,7 +120,7 @@ ML_model, predictor_name_dict = \
                         estimate_accuracy=True,
                         predictor_imp_keyword=prediction_raster_keyword,
                         predictor_importance=True,  # #
-                        variables_pdp=variables_in_pdp, plot_pdp=False,  # #
+                        variables_pdp=variables_in_pdp, plot_pdp=True,  # #
                         pdp_combinations=pdp_combinations,
                         plot_confusion_matrix=True,  # #
                         tune_hyperparameter=False,  # #
@@ -139,7 +139,7 @@ create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist
                          continent_shapes_dir='../Data/Reference_rasters_shapes/continent_extents',
                          prediction_raster_dir='../Model Run/Prediction_rasters', exclude_columns=exclude_columns,
                          pred_attr='Subsidence', prediction_raster_keyword=prediction_raster_keyword,
-                         predictor_csv_exists=True,  # #
+                         predictor_csv_exists=False,  # #
                          predict_probability_greater_1cm=True)  # #
 
 model_runtime = True
