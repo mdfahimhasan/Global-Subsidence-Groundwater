@@ -827,3 +827,39 @@ def create_prediction_raster(predictors_dir, model, predictor_name_dict, yearlis
         mosaic_rasters(continent_prediction_raster_dir, prediction_raster_dir, proba_raster_name,
                        search_by='*proba_greater_1cm*.tif')
         print('Global prediction probability raster created')
+
+
+def apply_landuse_filter_on_prediction(model_subsidence_prediction, irrigation_data, population_data,
+                                       final_subsidence_prediction):
+    """
+    Applies a land use filter (based on irrigated area density and population density data) on the model subsidence
+    prediction and subsidence probability prediction.
+
+    :param model_subsidence_prediction: Filepath of model subsidence prediction.
+    :param model_subsidence_probability_prediction: Filepath of model subsidence probability prediction.
+    :param irrigation_data: Filepath of irrigated area density data.
+    :param population_data: Filepath of population density data.
+    :param final_subsidence_prediction: Filepath of filtered final subsidence prediction.
+    :param final_subsidence_probability: Filepath of filtered final subsidence probability prediction.
+
+    :return: None.
+    """
+    pred_arr, pred_file = read_raster_arr_object(model_subsidence_prediction)
+
+    irrig_arr = read_raster_arr_object(irrigation_data, get_file=False)
+    pop_arr = read_raster_arr_object(population_data, get_file=False)
+
+    # counting >1 cm/year prediction before filtering
+    unique, counts = np.unique(pred_arr, return_counts=True)
+    print('number of subsidence pixel before filtering:', counts[1] + counts[2])
+
+    # Applyting Land use filters. The values have been chosen by visual inspection over Peru, Bolivia, Mexico
+    # where there were unexpected subsidence speckles
+    modified_pred_arr = np.where(((irrig_arr < 0.06) & (pop_arr < .009)), 1, pred_arr)
+    modified_pred_arr[np.isnan(pred_arr)] = -9999
+
+    # counting >1 cm/year prediction after filtering
+    unique, counts = np.unique(modified_pred_arr, return_counts=True)
+    print('number of subsidence pixel after filtering:', counts[2] + counts[3])
+
+    write_raster(modified_pred_arr, pred_file, pred_file.transform, final_subsidence_prediction)

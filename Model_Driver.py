@@ -43,7 +43,7 @@ gee_raster_dict, gfsad_raster, irrigated_meier_raster, giam_gw_raster, \
                                         outdir_lu, sediment_thickness, outdir_sed_thickness,
                                         outdir_pop, river_shape, outdir_sw, confining_layer, outdir_confining_layers,
                                         perform_pca=False,  # #
-                                        skip_download=True, skip_processing=True,  # #
+                                        skip_download=True, skip_processing=False,  # #
                                         geedatalist=gee_data_list, downloadcsv=csv, gee_scale=2000)
 
 input_polygons_dir = '../InSAR_Data/Georeferenced_subsidence_data'
@@ -81,7 +81,7 @@ predictor_dir = compile_predictors_subsidence_data(gee_raster_dict, gfsad_raster
                                                    irrigated_meier_raster, sediment_thickness_raster,
                                                    clay_thickness_raster, normalized_clay_indicator, popdensity_raster,
                                                    river_distance, confining_layers, subsidence_raster, predictor_dir,
-                                                   skip_compiling_predictor_subsidence_data=True)  # #
+                                                   skip_compiling_predictor_subsidence_data=False)  # #
 
 csv_dir = '../Model Run/Predictors_csv'
 makedirs([csv_dir])
@@ -89,7 +89,7 @@ train_test_csv = '../Model Run/Predictors_csv/train_test_2013_2019.csv'
 
 # # skip_dataframe_creation = False if any change occur in predictors or subsidence data
 predictor_df = create_dataframe(predictor_dir, train_test_csv, search_by='*.tif',
-                                skip_dataframe_creation=True)  # #
+                                skip_dataframe_creation=False)  # #
 
 modeldir = '../Model Run/Model'
 model = 'rf'
@@ -132,7 +132,6 @@ predictors_dir = '../Model Run/Predictors_2013_2019'
 
 # # predictor_csv_exists =  False if new predictor has been added so new data has to be added or predictor
 # # combination changes
-# # filter_by_crop_builtup = False if don't want to filter by irrigation and population density threshold
 # # predictor_probability_greater_1cm = False if probability plot is not required
 create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist=[2013, 2019], search_by='*.tif',
                          continent_search_by='*continent.shp',
@@ -141,6 +140,19 @@ create_prediction_raster(predictors_dir, ML_model, predictor_name_dict, yearlist
                          pred_attr='Subsidence', prediction_raster_keyword=prediction_raster_keyword,
                          predictor_csv_exists=False,  # #
                          predict_probability_greater_1cm=True)  # #
+
+
+# # Applying land use filter on model subsidence prediction + subsidence probability prediction
+model_subsidence_prediction = '../Model Run/Prediction_rasters/RF137_prediction_2013_2019.tif'
+irrigation_data = '../Model Run/Predictors_2013_2019/Irrigated_Area_Density_meier.tif'
+population_data = '../Model Run/Predictors_2013_2019/Population_Density.tif'
+
+final_subsidence_prediction = '../Model Run/Prediction_rasters/Final_subsidence_prediction.tif'
+
+apply_landuse_filter_on_prediction(model_subsidence_prediction=model_subsidence_prediction,
+                                   irrigation_data=irrigation_data, population_data=population_data,
+                                   final_subsidence_prediction=final_subsidence_prediction)
+
 
 model_runtime = True
 if model_runtime:
