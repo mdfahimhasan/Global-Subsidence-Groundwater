@@ -225,8 +225,8 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
         italy_rosarno_area_code = italy_podelta_area_code + 1
         italy_salerno_area_code = italy_rosarno_area_code + 1
         italy_schiavonea_area_code = italy_salerno_area_code + 1
-        netherlands_eindhoven_area_code = italy_schiavonea_area_code + 1
-        spain_murcia_area_code = netherlands_eindhoven_area_code + 1
+        netherlands_limburg_area_code = italy_schiavonea_area_code + 1
+        spain_murcia_area_code = netherlands_limburg_area_code + 1
 
         # Coastal from Shirzaei et al. 2021
         coastal_area_code = spain_murcia_area_code + 1
@@ -250,7 +250,7 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
         subsidence_areaname_dict['Italy_Rosarno'] = italy_rosarno_area_code
         subsidence_areaname_dict['Italy_Salerno'] = italy_salerno_area_code
         subsidence_areaname_dict['Italy_Schiavonea'] = italy_schiavonea_area_code
-        subsidence_areaname_dict['Netherlands_Eindhoven'] = netherlands_eindhoven_area_code
+        subsidence_areaname_dict['Netherlands_Limburg'] = netherlands_limburg_area_code
         subsidence_areaname_dict['Spain_Murcia'] = spain_murcia_area_code
         subsidence_areaname_dict['Coastal'] = coastal_area_code
 
@@ -292,8 +292,8 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
                                    'Italy_Salerno_reclass_resampled.tif'
         italy_schiavonea_subsidence = '../InSAR_Data/Europe_EGMS/reclass_resample_EGMS/' \
                                       'Italy_Schiavonea_reclass_resampled.tif'
-        netherlands_eindhoven_subsidence = '../InSAR_Data/Europe_EGMS/reclass_resample_EGMS/' \
-                                           'Netherlands_Eindhoven_reclass_resampled.tif'
+        netherlands_limburg_subsidence = '../InSAR_Data/Europe_EGMS/reclass_resample_EGMS/' \
+                                           'Netherlands_Limburg_reclass_resampled.tif'
         spain_murcia_subsidence = '../InSAR_Data/Europe_EGMS/reclass_resample_EGMS/Spain_Murcia_reclass_resampled.tif'
         coastal_subsidence = '../InSAR_Data/Final_subsidence_data/resampled_insar_data' \
                              '/Coastal_subsidence.tif'
@@ -356,9 +356,9 @@ def combine_georef_insar_subsidence_raster(input_polygons_dir='../InSAR_Data/Geo
         substitute_area_code_on_raster(italy_schiavonea_subsidence, italy_schiavonea_area_code,
                                        '../Model Run/LOO_Test/InSAR_Data/'
                                        'interim_working_dir/Italy_Schiavonea_area_raster.tif')
-        substitute_area_code_on_raster(netherlands_eindhoven_subsidence, netherlands_eindhoven_area_code,
+        substitute_area_code_on_raster(netherlands_limburg_subsidence, netherlands_limburg_area_code,
                                        '../Model Run/LOO_Test/InSAR_Data/'
-                                       'interim_working_dir/Netherlands_Eindhoven_area_raster.tif')
+                                       'interim_working_dir/Netherlands_Limburg_area_raster.tif')
         substitute_area_code_on_raster(spain_murcia_subsidence, spain_murcia_area_code,
                                        '../Model Run/LOO_Test/InSAR_Data/'
                                        'interim_working_dir/Spain_Murcia_area_raster.tif')
@@ -618,7 +618,7 @@ def classification_accuracy(y_test, y_pred, loo_test_area_name,
         'Vietnam_Hanoi', 'Vietnam_HoChiMinh', 'Denmark_Tinglev', 'England_London', 'France_Bordeaux',
         'Greece_Alexandreia_Palamas', 'Greece_Patras_Katochi', 'Hungary_Szeged_Romania_Timisoara',
         'Italy_Cerignola_Campagna', 'Italy_Mazzafarro', 'Italy_PoDelta', 'Italy_Rosarno',
-        'Italy_Salerno', 'Italy_Schiavonea', 'Netherlands_Eindhoven', 'Spain_Murcia']
+        'Italy_Salerno', 'Italy_Schiavonea', 'Netherlands_Limburg', 'Spain_Murcia']
     subsidence_training_area_list = sorted(subsidence_training_area_list)
 
     makedirs([accuracy_dir])
@@ -845,7 +845,7 @@ def run_loo_accuracy_test(predictor_dataframe_csv, exclude_predictors_list, n_es
               (if skip_create_prediction_raster=False)
     """
     subsidence_training_area_list = [
-        'Denmark_Tinglev', 'Netherlands_Eindhoven', 'Arizona', 'Australia_Perth', 'Bangladesh_GBDelta', 'California',
+        'Denmark_Tinglev', 'Netherlands_Limburg', 'Arizona', 'Australia_Perth', 'Bangladesh_GBDelta', 'California',
         'China_Beijing','China_Hebei', 'China_Hefei', 'China_Shanghai', 'China_Tianjin', 'China_Wuhan', 'China_Xian',
         'China_YellowRiverDelta', 'Coastal', 'Colorado', 'Egypt_NileDelta', 'India_Delhi',
         'Indonesia_Bandung', 'Indonesia_Semarang', 'Iran_MarandPlain', 'Iran_Mashhad', 'Iran_Qazvin',
@@ -952,7 +952,7 @@ def categorize_based_on_probability(run=False):
                                       'Nigeria_Lagos', 'US_Huston', 'Denmark_Tinglev', 'Greece_Patras_Katochi',
                                       'Italy_Mazzafarro', 'Italy_Rosarno', 'Italy_Salerno', 'Italy_Schiavonea',
                                       'England_London', 'France_Bordeaux', 'Hungary_Szeged_Romania_Timisoara',
-                                      'Netherlands_Eindhoven']
+                                      'Netherlands_Limburg']
 
         for each in area_shape_list:
             region_name, shapely_geom = each
