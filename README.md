@@ -11,7 +11,8 @@ We recommend using [Anaconda](https://www.anaconda.com/products/individual) envi
 
 
 # Model Prediction
-![prediction_map_region_based](https://user-images.githubusercontent.com/77580408/230847670-ee91158c-e49d-416a-a75f-0d72c197974e.png)
+![prediction_map_region_based](https://github.com/mdfahimhasan/GlobalGW_Subsidence/assets/77580408/0d6f25ec-c2e4-4af2-8632-ded375c284a3)
+
 
 
 
