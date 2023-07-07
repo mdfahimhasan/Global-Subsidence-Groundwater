@@ -18,7 +18,7 @@ We recommend using [Anaconda](https://www.anaconda.com/products/individual) envi
 
 # Workflow
 
-![Nature Global GW Workflow](https://user-images.githubusercontent.com/77580408/229738011-070d6c82-8cfe-4960-9239-f2464b2845b3.png)
+![Nature Global GW Workflow_with LU filter](https://github.com/mdfahimhasan/GlobalGW_Subsidence/assets/77580408/7cc10f43-5a8f-463b-8e84-114f6aa0d473)
 
 
 
