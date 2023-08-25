@@ -35,7 +35,7 @@ We recommend using [Anaconda](https://www.anaconda.com/products/individual) envi
 
 # Affiliation
 
-<img src="https://user-images.githubusercontent.com/77580408/216176949-71a889cd-8926-4c19-8cd4-cece55303931.png" width="8%" height="8%" /> &nbsp;   <img src="https://user-images.githubusercontent.com/77580408/216177156-66d191fb-6c7a-4e84-ba1b-4291767864bb.png" width="10%" height="10%" /> &nbsp; <img src="file:///C:/Users/fahim/Downloads/DRI-logo-taglineWEB2.png" width="10%" height="10%" />
+<img src="https://user-images.githubusercontent.com/77580408/216176949-71a889cd-8926-4c19-8cd4-cece55303931.png" width="8%" height="8%" /> &nbsp;   <img src="https://user-images.githubusercontent.com/77580408/216177156-66d191fb-6c7a-4e84-ba1b-4291767864bb.png" width="10%" height="10%" /> &nbsp;  <img src="https://www.dri.edu/wp-content/uploads/Official-DRI-Logo-for-Web.png" width="12%" height="12%" /> 
 
 
 # Funding Agency
