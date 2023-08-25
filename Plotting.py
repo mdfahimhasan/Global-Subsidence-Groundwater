@@ -116,7 +116,6 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
 #                                    gw_loss_excel='../Model Run/Stats/country_gw_volume_loss.xlsx',
 #                                    number_of_countries=10)
 
-
 def variable_correlation_plot(variables_to_include, method='spearman',
                               training_data_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
                               output_dir='../Model Run/Stats'):

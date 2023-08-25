@@ -685,7 +685,7 @@ def pdp_plot_combinations(classifier, x_train, output_dir, plot_save_keyword='rf
     # ax.set_ylabel('Clay Thickness (m)')
     # ax.zaxis.set_rotate_label(False)  # disable automatic rotation
     # ax.set_zlabel('Partial dependence', fontsize=20, rotation=90)
-    #
+
     # #  pretty init view
     # ax.view_init(elev=22, azim=150)
     # plt.colorbar(surf)
