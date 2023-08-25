@@ -1,8 +1,18 @@
 # Introduction
 
-This project employs a Random Forest Machine Learning model to map land subsidence globally at high resolution (~2 km) that is induced by groundwater pumping. The datasets used in the model are publicly available remote sensing and model-based data. The datasets are available at the HydroShare repository: http://www.hydroshare.org/resource/db187b7e328c4158879926d8f9a6dccd
+Groundwater overdraft gives rise to multiple adverse impacts including land subsidence and permanent groundwater storage loss. Existing methods have been unable to characterize groundwater storage loss at the global scale with sufficient resolution to be relevant for local studies. Here we explore the interrelation between groundwater stress, aquifer depletion, and land subsidence using remote sensing and model-based datasets with a machine learning approach. The developed model predicts global land subsidence magnitude at high spatial resolution (~2 km) and provides a first-order estimate of aquifer storage loss due to consolidation of ~17 km3/year globally. China, the United States, and Iran account for the majority of groundwater storage loss due to consolidation. The model quantifies key drivers of subsidence and has high predictive accuracy, with an F1-score of 0.83 on the validation set. Roughly 73% of the mapped subsidence occurs over cropland and urban areas, highlighting the need for sustainable groundwater management practices over these areas. The results of this study aid in assessing the spatial extents of subsidence in known subsiding areas, and in locating unknown groundwater stressed regions.
 
-The python scripts include codes for automatic data downloading & preprocessing (Data_operations), raster processing (Raster_operations), machine learning model (ML_operations), training data processing (Training_InSAR_processing), result analysis (Result_Analysis), etc. The Model_Driver scripts runs the entire model. Some scripts like Training_InSAR_processing, Result_Analysis, Plotting have to be run separately. High resolution maps are provided in the Maps folder.
+This repository consists of python scripts that executes the *Global-Subsidence-Groundwater* model. It includes codes for automatic data downloading & preprocessing (Data_operations), raster processing (Raster_operations), machine learning model (ML_operations), training data processing (Training_InSAR_processing), result analysis (Result_Analysis), etc. The Model_Driver scripts runs the entire model. Some scripts like Training_InSAR_processing, Result_Analysis, Plotting have to be run separately. High resolution maps are provided in the Maps folder.
+
+The datasets used for training the model, the input variables, and the model-generated datasets are avaiable at this HydroShare repository: https://www.hydroshare.org/resource/db187b7e328c4158879926d8f9a6dccd/
+
+
+# To cite the Code/Model
+Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity, GitHub (2023) doi: 10.5281/zenodo.8280482
+
+
+# To cite the Datasets
+Hasan, M. F., Smith, R., Vajedian, S., Majumdar, S., Pommerenke, R., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity Datasets, HydroShare (2023) doi: https://doi.org/10.4211/hs.db187b7e328c4158879926d8f9a6dccd
 
 
 # Setting up model environment
