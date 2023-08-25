@@ -6,13 +6,15 @@ This repository consists of python scripts that executes the *Global-Subsidence-
 
 The datasets used for training the model, the input variables, and the model-generated datasets are avaiable at this HydroShare repository: https://www.hydroshare.org/resource/db187b7e328c4158879926d8f9a6dccd/
 
+# To cite the article
+Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity, Nature Communications (Accepted), (2023).
 
 # To cite the Code/Model
 Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity, GitHub (2023) doi: 10.5281/zenodo.8280482
 
 
 # To cite the Datasets
-Hasan, M. F., Smith, R., Vajedian, S., Majumdar, S., Pommerenke, R., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity Datasets, HydroShare (2023) doi: https://doi.org/10.4211/hs.db187b7e328c4158879926d8f9a6dccd
+Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity Datasets, HydroShare (2023) doi: https://doi.org/10.4211/hs.dc7c5bfb3a86479b889d3b30ab0e4ef7
 
 
 # Setting up model environment
