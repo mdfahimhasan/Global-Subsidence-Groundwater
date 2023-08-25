@@ -6,6 +6,18 @@ This repository consists of python scripts that executes the *Global-Subsidence-
 
 The datasets used for training the model, the input variables, and the model-generated datasets are avaiable at this HydroShare repository: https://www.hydroshare.org/resource/db187b7e328c4158879926d8f9a6dccd/
 
+
+# Model Prediction
+![prediction_map_region_based](https://github.com/mdfahimhasan/GlobalGW_Subsidence/assets/77580408/0d6f25ec-c2e4-4af2-8632-ded375c284a3)
+
+
+# Workflow
+
+![Nature Global GW Workflow_with LU filter](https://github.com/mdfahimhasan/GlobalGW_Subsidence/assets/77580408/7cc10f43-5a8f-463b-8e84-114f6aa0d473)
+
+# Setting up model environment
+We recommend using [Anaconda](https://www.anaconda.com/products/individual) environment for running the model. The environment will need to be set up with Python 3 and some dependencies. The dependencies are listed in the GlobalGW.yml file.
+
 # To cite the Article
 Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity, Nature Communications (Accepted), (2023).
 
@@ -15,25 +27,6 @@ Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land
 
 # To cite the Datasets
 Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity Datasets, HydroShare (2023) doi: https://doi.org/10.4211/hs.dc7c5bfb3a86479b889d3b30ab0e4ef7
-
-
-# Setting up model environment
-We recommend using [Anaconda](https://www.anaconda.com/products/individual) environment for running the model. The environment will need to be set up with Python 3 and some dependencies. The dependencies are listed in the GlobalGW.yml file.
-
-
-
-# Model Prediction
-![prediction_map_region_based](https://github.com/mdfahimhasan/GlobalGW_Subsidence/assets/77580408/0d6f25ec-c2e4-4af2-8632-ded375c284a3)
-
-
-
-
-
-# Workflow
-
-![Nature Global GW Workflow_with LU filter](https://github.com/mdfahimhasan/GlobalGW_Subsidence/assets/77580408/7cc10f43-5a8f-463b-8e84-114f6aa0d473)
-
-
 
 # Affiliation
 
