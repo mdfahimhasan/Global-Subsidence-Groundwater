@@ -223,7 +223,7 @@ def overlap_all_irrigation_gw_irrigation(irrigated_area_meier='../Data/Raw_Data/
 
 def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats'):
     """
-    Estimated area of subsidence >1cm/yr by country.
+    Estimates area of subsidence >1cm/yr by country.
 
     Parameters:
     subsidence_prediction : Subsidence prediction raster path.
@@ -240,13 +240,10 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
     deg_002 = 111 * 0.02  # unit km
     area_per_002_pixel = deg_002 ** 2
 
-    area_sqkm = []
     country_name = []
     area_subsidence = []
     for shape in country_shapes:
-        country = gpd.read_file(shape)
         name = shape[shape.rfind(os.sep) + 1:shape.rfind('.')]
-        area_sqkm.append(country['Area_sqkm'].values[0])
         country_name.append(name)
         save_clipped_raster_as = name + '.tif'
 
@@ -258,19 +255,29 @@ def area_subsidence_by_country(subsidence_prediction, outdir='../Model Run/Stats
         prediction_1_to_5 = np.count_nonzero(np.where(country_arr == 5, 1, 0))
         prediction_greater_5 = np.count_nonzero(np.where(country_arr == 10, 1, 0))
         prediction_greater_1 = np.count_nonzero(np.where(country_arr > 1, 1, 0))
+        count_non_null_pixels = np.count_nonzero(np.where(country_arr >= 1, 1, 0))
 
-        area_prediction_1_to_5 = round(prediction_1_to_5 * area_per_002_pixel, 0)
-        area_prediction_greater_5 = round(prediction_greater_5 * area_per_002_pixel, 0)
-        area_prediction_greater_1 = round(prediction_greater_1 * area_per_002_pixel, 0)
-        area_subsidence.append([area_prediction_greater_1, area_prediction_1_to_5, area_prediction_greater_5])
+        if count_non_null_pixels != 0:  # some small countries have no coverage in our model, therefore, will raise error in this calculation
+            perc_area_subsiding_1_to_5 = round((prediction_1_to_5 * 100 / count_non_null_pixels), 3)
+            perc_area_subsiding_greater_5 = round((prediction_greater_5 * 100 / count_non_null_pixels), 3)
+            perc_area_subsiding_greater_1 = round((prediction_greater_1 * 100 / count_non_null_pixels), 3)
+            area_subsiding_greater_1 = round(prediction_greater_1 * area_per_002_pixel, 3)
+        else:
+            perc_area_subsiding_1_to_5 = np.nan
+            perc_area_subsiding_greater_5 = np.nan
+            perc_area_subsiding_greater_1 = np.nan
+            area_subsiding_greater_1 = np.nan
+
+        area_subsidence.append([perc_area_subsiding_greater_1, perc_area_subsiding_1_to_5,
+                                     perc_area_subsiding_greater_5, area_subsiding_greater_1])
 
     stat_dict = {'country_name': country_name,
-                 'area_sqkm': area_sqkm,
-                 'area subsidence >1cm/yr': [i[0] for i in area_subsidence],
-                 'area subsidence 1-5cm/yr': [i[1] for i in area_subsidence],
-                 'area subsidence >5cm/yr': [i[2] for i in area_subsidence]}
+                 '% area subsidence >1cm/yr': [i[0] for i in area_subsidence],
+                 '% area subsidence 1-5cm/yr': [i[1] for i in area_subsidence],
+                 '% area subsidence >5cm/yr': [i[2] for i in area_subsidence],
+                 'area subsidence >1cm/yr': [i[3] for i in area_subsidence]}
+
     stat_df = pd.DataFrame(stat_dict)
-    stat_df['perc_subsidence_of_cntry_area'] = round(stat_df['area subsidence >1cm/yr'] * 100 / stat_df['area_sqkm'], 4)
     stat_df = stat_df.sort_values(by='area subsidence >1cm/yr', ascending=False)
     stat_df.to_excel(os.path.join(outdir, 'subsidence_area_by_country.xlsx'), index=False)
 
@@ -575,16 +582,33 @@ def compute_volume_gw_loss(countries='../shapefiles/Country_continent_full_shape
     deg_002 = 111 * 0.02  # unit km (1 side length of a pixel)
     area_per_002_pixel = deg_002 ** 2
 
-    # Assumptions on average subsidence in moderate and high subsidence pixels
-    avg_subsidence_1_5cm_yr = 3 / 100000  # unit in km/yr
-    avg_subsidence_greater_5cm_yr = 10 / 100000  # unit in km/yr
+    # Assumptions on average subsidence in moderate (1-5 cm/yr) and high (>5 cm/yr) subsidence pixels
+    avg_subsidence_1_5cm_yr = 3 / 100000  # converted unit in km/yr
+    avg_subsidence_greater_5cm_yr = 10 / 100000  # converted unit in km/yr
 
-    countries_df['vol avg gwloss in 1-5cm/yr (km3/yr)'] = countries_df['num 1-5cm/yr pixels'] * area_per_002_pixel * \
-                                                          avg_subsidence_1_5cm_yr
-    countries_df['vol avg gwloss in >5cm/yr (km3/yr)'] = countries_df['num >5cm/yr pixels'] * area_per_002_pixel * \
-                                                         avg_subsidence_greater_5cm_yr
-    countries_df['volume avg total gw loss (km3/yr)'] = countries_df['vol avg gwloss in 1-5cm/yr (km3/yr)'] + \
-                                                        countries_df['vol avg gwloss in >5cm/yr (km3/yr)']
+    countries_df['vol avg gwloss in 1-5cm/yr (km3/yr)'] = countries_df['num 1-5cm/yr pixels'] * area_per_002_pixel * avg_subsidence_1_5cm_yr
+    countries_df['vol avg gwloss in >5cm/yr (km3/yr)'] = countries_df['num >5cm/yr pixels'] * area_per_002_pixel * avg_subsidence_greater_5cm_yr
+    countries_df['volume avg total gw loss (km3/yr)'] = countries_df['vol avg gwloss in 1-5cm/yr (km3/yr)'] + countries_df['vol avg gwloss in >5cm/yr (km3/yr)']
+
+    # Assumptions on lower range of subsidence in moderate (1-5 cm/yr) and high (>5 cm/yr) subsidence pixels
+    lower_limit_subsidence_1_5cm_yr = 2 / 100000  # converted unit in km/yr
+    lower_limit_subsidence_greater_5cm_yr = 7 / 100000  # converted unit in km/yr
+
+    countries_df['vol lower_limit gwloss in 1-5cm/yr (km3/yr)'] = countries_df['num 1-5cm/yr pixels'] * area_per_002_pixel * lower_limit_subsidence_1_5cm_yr
+    countries_df['vol lower_limit gwloss in >5cm/yr (km3/yr)'] = countries_df['num >5cm/yr pixels'] * area_per_002_pixel * lower_limit_subsidence_greater_5cm_yr
+    countries_df['volume lower_limit total gw loss (km3/yr)'] = countries_df['vol lower_limit gwloss in 1-5cm/yr (km3/yr)'] + countries_df['vol lower_limit gwloss in >5cm/yr (km3/yr)']
+
+    # Assumptions on upper range of subsidence in moderate (1-5 cm/yr) and high (>5 cm/yr) subsidence pixels
+    upper_limit_subsidence_1_5cm_yr = 4 / 100000  # converted unit in km/yr
+    upper_limit_subsidence_greater_5cm_yr = 13 / 100000  # converted unit in km/yr
+
+    countries_df['vol upper_limit gwloss in 1-5cm/yr (km3/yr)'] = countries_df['num 1-5cm/yr pixels'] * area_per_002_pixel * upper_limit_subsidence_1_5cm_yr
+    countries_df['vol upper_limit gwloss in >5cm/yr (km3/yr)'] = countries_df['num >5cm/yr pixels'] * area_per_002_pixel * upper_limit_subsidence_greater_5cm_yr
+    countries_df['volume upper_limit total gw loss (km3/yr)'] = countries_df['vol upper_limit gwloss in 1-5cm/yr (km3/yr)'] + countries_df['vol upper_limit gwloss in >5cm/yr (km3/yr)']
+
+    # error range for average total GW loss (>1 cm/yr)
+    countries_df['error volume  gw loss (km3/yr)'] = countries_df['volume upper_limit total gw loss (km3/yr)'] - \
+                                                     countries_df['volume lower_limit total gw loss (km3/yr)']
 
     countries_df.to_excel(os.path.join(outdir, 'country_gw_volume_loss.xlsx'))
 
@@ -892,3 +916,221 @@ def count_subsidence_pixels_EGMS_data(
 # plt.ylabel(None)
 # plt.savefig('../Model Run/Stats/soil_moisture_sensitivity/presence_subsidence_driver_high_sm.jpg', dpi=300)
 
+
+# from sklearn.utils import resample
+#
+# def make_bootstrap_samples_from_dataframe(df, response_variable='Subsidence', number_of_bootstrap=500):
+#     predictor_df = df.drop(columns=[response_variable])
+#     predictor_arr = predictor_df.to_numpy()
+#
+#     subsidence_classes = df[response_variable].to_numpy()
+#     print(subsidence_classes)
+#     bootstrap_samples_x = []
+#     bootstrap_samples_y = []
+#     for i in range(number_of_bootstrap):
+#         # Resample with replacement, preserving class proportions
+#         bootstrap_sample_x, bootstrap_sample_y = resample(predictor_arr, subsidence_classes,
+#                                                             stratify=subsidence_classes, replace=True,
+#                                                             random_state=0)
+#         bootstrap_samples_x.append(bootstrap_sample_x)
+#         bootstrap_samples_y.append(bootstrap_sample_y)
+#
+#     return bootstrap_samples_x, bootstrap_samples_y
+
+
+def calculate_perc_area_subsidence_and_std_error(
+        train_test_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
+        model_output_dir='../Model Run/Stats/selected_country_predictions',
+        prediction_raster_keyword='RF137',
+        exclude_columns=['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+                           'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
+                           'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
+                           'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)'],
+        predictors_dir='../Model Run/Predictors_2013_2019',
+        country_shape_dir='../Model Run/Stats/selected_country_predictions/selected_country_shapefiles',
+        country_prediction_dir='../Model Run/Stats/selected_country_predictions/country_predictions',
+        predictor_csv_exists=True,
+        result_excel='../Model Run/Stats/selected_country_predictions/perc_area_subsidence_for_top_countries.xlsx'):
+
+    ML_model, predictor_name_dict = \
+        build_ml_classifier(predictor_csv=train_test_csv, modeldir=model_output_dir, exclude_columns=exclude_columns,
+                            model='rf', load_model=False,
+                            pred_attr='Subsidence', test_size=0.3, random_state=567, output_dir=model_output_dir,
+                            n_estimators=300, min_samples_leaf=1e-05, min_samples_split=7, max_depth=14, max_features=7,
+                            max_samples=None, max_leaf_nodes=None, class_weight='balanced',
+                            estimate_accuracy=False,
+                            predictor_imp_keyword=prediction_raster_keyword,
+                            predictor_importance=False,  # #
+                            variables_pdp=None, plot_pdp=False,  # #
+                            pdp_combinations=None,
+                            plot_confusion_matrix=False,  # #
+                            tune_hyperparameter=False,  # #
+                            k_fold=10, n_iter=80,
+                            repeatedstratified=False,  # #  if False performs StratifiedKFold
+                            random_searchCV=False)  # #
+
+    makedirs([country_prediction_dir])
+
+    predictor_rasters = glob(os.path.join(predictors_dir, '*.tif'))
+    country_shapes = glob(os.path.join(country_shape_dir, '*.shp'))
+    drop_columns = list(exclude_columns) + ['Subsidence']
+
+    # An empty dataframe with column names to store results
+    subsidence_percent_area_by_country_df = pd.DataFrame()
+
+    for country in country_shapes:
+        country_name = country[country.rfind(os.sep) + 1:country.rfind('.')]
+        print(f'Calculating % area subsiding and its std. error for {country_name}....')
+
+        # creating directory for saving country predictors' csv
+        predictor_csv_dir = '../Model Run/Stats/selected_country_predictions/country_predictor_csv'
+        makedirs([predictor_csv_dir])
+        predictor_csv_name = country_name + '_predictors.csv'
+        predictor_csv = os.path.join(predictor_csv_dir, predictor_csv_name)
+
+        dict_name = predictor_csv_dir + '/nanpos_' + country_name  # name to save nan_position_dict
+
+        clipped_predictor_dir = os.path.join('../Model Run/Stats/selected_country_predictions/country_predictors',
+                                             country_name + '_predictors')
+
+        if not predictor_csv_exists:
+            predictor_dict = {}
+            nan_position_dict = {}
+            for predictor in predictor_rasters:
+                variable_name = predictor[predictor.rfind(os.sep) + 1:predictor.rfind('.')]
+                variable_name = predictor_name_dict[variable_name]
+
+                raster_arr, raster_file = clip_resample_raster_cutline(predictor, clipped_predictor_dir, country,
+                                                                       naming_from_both=False,
+                                                                       naming_from_raster=True, assigned_name=None)
+                raster_shape = raster_arr.shape
+                raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
+                nan_position_dict[variable_name] = np.isnan(raster_arr)
+                raster_arr[nan_position_dict[variable_name]] = 0
+                predictor_dict[variable_name] = raster_arr
+
+                pickle.dump(nan_position_dict, open(dict_name, mode='wb+'))
+
+                predictor_df = pd.DataFrame(predictor_dict)
+                predictor_df = predictor_df.dropna(axis=0)
+                predictor_df = reindex_df(predictor_df)
+                # this predictor df consists all input variables including the ones to drop
+                predictor_df.to_csv(predictor_csv, index=False)
+
+                # Opening a predictor to use as reference array
+                ref_arr, ref_file = clip_resample_raster_cutline(predictor_rasters[1], clipped_predictor_dir,
+                                                                 country, naming_from_both=False,
+                                                                 naming_from_raster=True, assigned_name=None)
+                ref_arr_flattened = ref_arr.flatten()
+
+        else:
+            predictor_df = pd.read_csv(predictor_csv)
+            nan_position_dict = pickle.load(open(dict_name, mode='rb'))
+
+            # Opening a predictor to use as reference array
+            ref_arr, ref_file = clip_resample_raster_cutline(predictor_rasters[1], clipped_predictor_dir,
+                                                                   country, naming_from_both=False,
+                                                                   naming_from_raster=True, assigned_name=None)
+            ref_arr_flattened = ref_arr.flatten()
+
+        # selecting only variables for which the model was trained for
+        predictor_df = predictor_df.drop(columns=drop_columns)
+        predictor_df = reindex_df(predictor_df)
+        predictor_arr = predictor_df.to_numpy()
+
+        # getting individual trees from 'estimator_'
+        all_trees = ML_model.estimators_
+
+        # creating resulting array for each tree and storing in a list
+        # the model was trained on a dataset where subsidence classes were re presented with 1 (<1 cm/yr),
+        # 5 (1-5 cm/yr), and 10 (>5 cm/yr)
+        # the output classes of each tree are 0, 1, 2 representing 1, 5, and 10, respectively
+        pred_trees = [tree.predict(predictor_arr) for tree in all_trees]
+
+        # updating individual tree predictions from 0, 1, 2 to 1, 5, 10
+        updated_pred_trees = []
+        for pred_arr in pred_trees:
+            pred_arr[np.isnan(ref_arr_flattened)] = -9999  # replacing nan positions with -9999
+            pred_arr[pred_arr == 2] = 10
+            pred_arr[pred_arr == 1] = 5
+            pred_arr[pred_arr == 0] = 1
+            updated_pred_trees.append(pred_arr)
+
+        # stacking updated individual tree predictions along axis 0
+        indiv_pred_trees_stacked = np.stack(updated_pred_trees, axis=0)
+
+        # initiating an array (with 300 zeros) to store number of perc_pixels_subsiding
+        perc_area_subsiding_arr = np.zeros((len(updated_pred_trees), ))
+
+        # lopping for each tree to find the number of counts for 1, 5, and 10 classes.
+        # each row represents predictions from a tree
+        for i in range(indiv_pred_trees_stacked.shape[0]):
+            selected_arr_for_a_tree = indiv_pred_trees_stacked[i]  # a 1-D array for a single tree/estimator
+
+            # calculating the number of non-null (non-subsiding + subsiding) pixels
+            count_non_null_pixels = np.count_nonzero(np.where((~np.isnan(selected_arr_for_a_tree)) &
+                                                              (selected_arr_for_a_tree >= 1), 1, 0))
+            count_subsidence_pixels = np.count_nonzero(np.where((~np.isnan(selected_arr_for_a_tree)) &
+                                                                (selected_arr_for_a_tree > 1), 1, 0))
+
+            # # Calculation % area subsiding in a country
+            perc_area_subsiding = (count_subsidence_pixels * 100) / count_non_null_pixels
+            perc_area_subsiding_arr[i] = perc_area_subsiding
+
+        # Calculating 5th, 50th (median), and 95th percentile of area subsiding
+        # percentile_5th_perc_area_subsiding = np.percentile(perc_area_subsiding_arr, 5)
+        # percentile_50th_perc_area_subsiding = np.percentile(perc_area_subsiding_arr, 50)
+        # percentile_95th_perc_area_subsiding = np.percentile(perc_area_subsiding_arr, 95)
+
+        # Calculating standard error of mean of % area subsiding estimate
+        std_error = np.std(perc_area_subsiding_arr)/np.sqrt(np.size(perc_area_subsiding_arr))
+
+        # Ensemble prediction for the country
+        ensemble_pred_arr = ML_model.predict(predictor_df)
+
+        for variable_name, nan_pos in nan_position_dict.items():
+            if variable_name not in drop_columns:
+                ensemble_pred_arr[nan_pos] = ref_file.nodata
+
+        # Ensemble prediction's subsiding pixel count and % area subsiding calculation
+        count_ensemble_non_null_pixels = np.count_nonzero(np.where((~np.isnan(ensemble_pred_arr)) &
+                                                                     (ensemble_pred_arr >= 1), 1, 0))
+        count_ensemble_subsidence_pixels = np.count_nonzero(np.where((~np.isnan(ensemble_pred_arr)) &
+                                                            (ensemble_pred_arr > 1), 1, 0))
+        perc_area_subsiding_ensemble_result = (count_ensemble_subsidence_pixels * 100) / count_ensemble_non_null_pixels
+
+        # Adding results in a temporary dataframe
+        temp_df = pd.DataFrame({'country_name': [],
+                                # '5th percentile % area subsiding': [],
+                                # '50th percentile % area subsiding': [],
+                                # '95th percentile % area subsiding': [],
+                                '% Area subsiding from ensemble': [],
+                                'std_error': []})
+
+        temp_df['country_name'] = [country_name]
+        # temp_df['5th percentile % area subsiding'] = [percentile_5th_perc_area_subsiding]
+        # temp_df['50th percentile % area subsiding'] = [percentile_50th_perc_area_subsiding]
+        # temp_df['95th percentile % area subsiding'] = [percentile_95th_perc_area_subsiding]
+        temp_df['% Area subsiding from ensemble'] = [perc_area_subsiding_ensemble_result]
+        temp_df['std_error'] = [std_error]
+
+        # Adding results of individual country to a final dataframe
+        subsidence_percent_area_by_country_df = pd.concat([subsidence_percent_area_by_country_df, temp_df])
+
+    # Saving Result
+    subsidence_percent_area_by_country_df.to_excel(result_excel, index=False)
+
+
+calculate_perc_area_subsidence_and_std_error(
+    train_test_csv='../Model Run/Predictors_csv/train_test_2013_2019.csv',
+    model_output_dir='../Model Run/Stats/selected_country_predictions',
+    prediction_raster_keyword='RF137',
+    exclude_columns=['Alexi ET', 'MODIS ET (kg/m2)', 'Irrigated Area Density (gfsad)',
+                     'GW Irrigation Density giam', 'MODIS PET (kg/m2)', 'Clay content PCA',
+                     'MODIS Land Use', 'Grace', 'Sediment Thickness (m)', 'Clay % 200cm',
+                     'Tmin (°C)', 'RET (mm)', 'Clay Thickness (m)'],
+    predictors_dir='../Model Run/Predictors_2013_2019',
+    country_shape_dir='../Model Run/Stats/selected_country_predictions/selected_country_shapefiles',
+    country_prediction_dir='../Model Run/Stats/selected_country_predictions/country_predictions',
+    predictor_csv_exists=True,  ##
+    result_excel='../Model Run/Stats/selected_country_predictions/perc_area_subsidence_for_top_countries.xlsx')
