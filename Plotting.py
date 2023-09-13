@@ -73,7 +73,7 @@ def country_subsidence_barplot_type_02(country_stat_excel, gw_loss_excel, number
     stat = pd.read_excel(country_stat_excel, sheet_name=0)
     stat = stat.dropna(axis=0, how='any')
     # stat['% Area subsiding'] = stat['% Area subsiding'].astype('int')
-    fig, axs = plt.subplots(2, figsize=(7, 5))
+    fig, axs = plt.subplots(2, figsize=(7, 6))
 
     # # Plot (a)
     stat_1 = stat.sort_values('% Area subsiding from ensemble', ascending=False)
