@@ -4,6 +4,8 @@ Groundwater overdraft gives rise to multiple adverse impacts including land subs
 
 This repository consists of python scripts that executes the *Global-Subsidence-Groundwater* model. It includes codes for automatic data downloading & preprocessing (Data_operations), raster processing (Raster_operations), machine learning model (ML_operations), training data processing (Training_InSAR_processing), result analysis (Result_Analysis), etc. The Model_Driver scripts runs the entire model. Some scripts like Training_InSAR_processing, Result_Analysis, Plotting have to be run separately. High resolution maps are provided in the Maps folder.
 
+The results of the *Global-Subsidence-Groundwater* model has been published in a reseatch artcile in __Nature Communications__. The manuscript can be found in this link: __https://rdcu.be/dnIKQ__.
+
 The datasets used for training the model, the input variables, and the model-generated datasets are avaiable at this HydroShare repository: 
 https://www.hydroshare.org/resource/dc7c5bfb3a86479b889d3b30ab0e4ef7/
 
@@ -20,7 +22,7 @@ https://www.hydroshare.org/resource/dc7c5bfb3a86479b889d3b30ab0e4ef7/
 We recommend using [Anaconda](https://www.anaconda.com/products/individual) environment for running the model. The environment will need to be set up with Python 3 and some dependencies. The dependencies are listed in the GlobalGW.yml file.
 
 # To cite the Article
-Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity, Nature Communications (Accepted), (2023).
+Hasan, M.F., Smith, R., Vajedian, S. et al. Global land subsidence mapping reveals widespread loss of aquifer storage capacity. Nat Commun 14, 6180 (2023). https://doi.org/10.1038/s41467-023-41933-z
 
 # To cite the Code/Model
 Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land Subsidence Mapping Reveals Widespread Loss of Aquifer Storage Capacity, GitHub (2023) doi: 10.5281/zenodo.8280482
