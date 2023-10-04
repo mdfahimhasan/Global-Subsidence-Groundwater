@@ -4,7 +4,7 @@ Groundwater overdraft gives rise to multiple adverse impacts including land subs
 
 This repository consists of python scripts that executes the *Global-Subsidence-Groundwater* model. It includes codes for automatic data downloading & preprocessing (Data_operations), raster processing (Raster_operations), machine learning model (ML_operations), training data processing (Training_InSAR_processing), result analysis (Result_Analysis), etc. The Model_Driver scripts runs the entire model. Some scripts like Training_InSAR_processing, Result_Analysis, Plotting have to be run separately. High resolution maps are provided in the Maps folder.
 
-The results of the *Global-Subsidence-Groundwater* model has been published in a reseatch artcile in __Nature Communications__. The manuscript can be found in this link: __https://rdcu.be/dnIKQ__.
+The results of the *Global-Subsidence-Groundwater* model has been published in a research artcile in __Nature Communications__. The manuscript can be found in this link: __https://rdcu.be/dnIKQ__.
 
 The datasets used for training the model, the input variables, and the model-generated datasets are avaiable at this HydroShare repository: 
 https://www.hydroshare.org/resource/dc7c5bfb3a86479b889d3b30ab0e4ef7/
