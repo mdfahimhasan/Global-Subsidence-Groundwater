@@ -40,3 +40,10 @@ Hasan, M. F., Smith, R., Vajedian, S., Pommerenke, R., Majumdar, S., Global Land
 # Funding Agency
 
 <img src="https://engineering.ucsb.edu/sites/default/files/styles/large/public/images/events/NGIALogo-277siiq.png?itok=c0wrYb1A" width="15%" height="15%" />
+
+
+# News/Tweets Covering the Publication
+  1. [Nature Communications](https://twitter.com/NatureComms/status/1710183434595795233)
+  2. [Civil and Environmental Engineering, Colorado State University](https://www.engr.colostate.edu/ce/smith-and-hasan-develop-model-for-monitoring-subsidence-and-groundwater-storage-loss/)
+  3. [Desert Research Institute](https://www.dri.edu/scientists-map-loss-of-groundwater-storage-around-the-world/) 
+  4. [Nature World News](https://www.natureworldnews.com/articles/59303/20231106/groundwater-pumping-reduces-global-aquifer-storage-17-km3-per-year.htm)
