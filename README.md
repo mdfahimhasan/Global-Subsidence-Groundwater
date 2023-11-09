@@ -7,7 +7,7 @@ This repository consists of python scripts that executes the *Global-Subsidence-
 The results of the *Global-Subsidence-Groundwater* model has been published in a research artcile in __Nature Communications__. The manuscript can be found in this link: __https://rdcu.be/dnIKQ__.
 
 The datasets used for training the model, the input variables, and the model-generated datasets are avaiable at this HydroShare repository: 
-https://www.hydroshare.org/resource/dc7c5bfb3a86479b889d3b30ab0e4ef7/
+https://www.hydroshare.org/resource/dc7c5bfb3a86479b889d3b30ab0e4ef7/. The model-generated subsidence prediction and subsidence probability datasets can also be accessed through [awesome-gee-community-catalog](https://gee-community-catalog.org/projects/land_subsidence/).
 
 
 # Model Prediction
